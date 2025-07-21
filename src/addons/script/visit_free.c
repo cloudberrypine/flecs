@@ -99,7 +99,6 @@ void flecs_script_var_node_free(
     flecs_expr_visit_free(&v->script->pub, node->expr);
 }
 
-static
 int flecs_script_stmt_free(
     ecs_script_visit_t *v,
     ecs_script_node_t *node)
@@ -172,6 +171,28 @@ int flecs_script_stmt_free(
     }
 
     return 0;
+}
+
+int flecs_script_visit_free_node(
+    ecs_script_t *script,
+    ecs_script_node_t *node)
+{
+    ecs_check(script != NULL, ECS_INVALID_PARAMETER, NULL);
+    ecs_script_impl_t *impl = flecs_script_impl(script);
+
+    ecs_script_visit_t v = {
+        .script = impl
+    };
+
+    if (ecs_script_visit_from(
+        flecs_script_impl(script), &v, flecs_script_stmt_free, node, 0))
+    {
+        goto error;
+    }
+
+    return 0;
+error:
+    return -1;
 }
 
 int flecs_script_visit_free(

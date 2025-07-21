@@ -339,7 +339,26 @@
                 "add_component_as_tag_pair_w_invalid_ctor",
                 "interpolated_name_w_nested_for_loop",
                 "interpolated_name_w_nested_for_loop_no_dollar_sign",
-                "interpolated_name_w_nested_for_loop_wrong_dollar_sign"
+                "interpolated_name_w_nested_for_loop_wrong_dollar_sign",
+                "assign_new_to_const_to_entity_member",
+                "assign_new_w_component_to_const_to_entity_member",
+                "assign_new_w_component_w_vars_to_const_to_entity_member",
+                "assign_new_w_kind_to_const_to_entity_member",
+                "assign_new_w_name_to_const_to_entity_member",
+                "assign_new_w_name_w_component_to_const_to_entity_member",
+                "assign_new_w_name_w_component_w_vars_to_const_to_entity_member",
+                "assign_new_w_name_w_kind_to_const_to_entity_member",
+                "assign_new_to_entity_member",
+                "assign_new_w_component_to_entity_member",
+                "assign_new_w_component_to_entity_member_w_newlines",
+                "assign_new_w_component_w_vars_to_entity_member",
+                "assign_new_w_kind_to_entity_member",
+                "assign_new_w_name_to_entity_member",
+                "assign_new_w_name_w_component_to_entity_member",
+                "assign_new_w_name_w_component_w_vars_to_entity_member",
+                "assign_new_w_name_w_kind_to_entity_member",
+                "assign_new_w_child_w_name_to_const",
+                "assign_new_w_child_w_name_to_entity_member"
             ]
         }, {
             "id": "Template",
@@ -799,7 +818,19 @@
                 "identifier_as_var",
                 "identifier_as_const_var",
                 "expr_w_identifier_as_var",
-                "initializer_w_identifier_as_var"
+                "initializer_w_identifier_as_var",
+                "new_entity",
+                "new_entity_w_component",
+                "new_entity_w_component_w_newline",
+                "new_entity_w_kind",
+                "new_entity_w_component_w_vars",
+                "new_named_entity",
+                "new_named_entity_w_component",
+                "new_named_entity_w_kind",
+                "new_name_expr_entity",
+                "new_name_expr_entity_w_component",
+                "new_name_expr_entity_w_kind",
+                "new_entity_w_unterminated_scope"
             ]
         }, {
             "id": "ExprAst",

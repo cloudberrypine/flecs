@@ -95,7 +95,7 @@ void flecs_expr_to_str(
 {
     if (expr) {
         flecs_expr_to_str_buf(
-            v->base.script->pub.world, expr, v->buf, v->colors);
+            &v->base.script->pub, expr, v->buf, v->colors);
     } else {
         flecs_scriptbuf_appendstr(v, "{}");
     }
@@ -345,6 +345,8 @@ int flecs_script_scope_to_str(
     ecs_script_str_visitor_t *v,
     ecs_script_scope_t *scope)
 {
+    ecs_assert(scope != NULL, ECS_INTERNAL_ERROR, NULL);
+
     if (!ecs_vec_count(&scope->stmts)) {
         flecs_scriptbuf_appendstr(v, "{}\n");
         return 0;
@@ -365,7 +367,6 @@ int flecs_script_scope_to_str(
     return 0;
 }
 
-static
 int flecs_script_stmt_to_str(
     ecs_script_str_visitor_t *v,
     ecs_script_node_t *node)
@@ -429,6 +430,31 @@ int flecs_script_stmt_to_str(
     return 0;
 }
 
+int ecs_script_ast_node_to_buf(
+    const ecs_script_t *script,
+    ecs_script_node_t *node,
+    ecs_strbuf_t *buf,
+    bool colors,
+    int32_t depth)
+{
+    ecs_script_str_visitor_t v = { 
+        .buf = buf, .colors = colors, .depth = depth 
+    };
+
+    /* Safe, string visitor doesn't modify script */
+    if (ecs_script_visit_from(
+        (ecs_script_impl_t*)ECS_CONST_CAST(ecs_script_t*, script), 
+        &v, flecs_script_stmt_to_str, node, depth)) 
+    {
+        goto error;
+    }
+
+    return 0;
+error:
+    ecs_strbuf_reset(buf);
+    return -1;
+}
+
 int ecs_script_ast_to_buf(
     ecs_script_t *script,
     ecs_strbuf_t *buf,
@@ -444,7 +470,7 @@ int ecs_script_ast_to_buf(
     return 0;
 error:
     ecs_strbuf_reset(buf);
-    return - 1;
+    return -1;
 }
 
 char* ecs_script_ast_to_str(
@@ -461,7 +487,7 @@ char* ecs_script_ast_to_str(
 
     if (flecs_script_impl(script)->expr) {
         flecs_expr_to_str_buf(
-            script->world, flecs_script_impl(script)->expr, &buf, colors);
+            script, flecs_script_impl(script)->expr, &buf, colors);
     } else {
         if (ecs_script_ast_to_buf(script, &buf, colors)) {
             goto error;

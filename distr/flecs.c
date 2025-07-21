@@ -45179,8 +45179,9 @@ typedef enum ecs_token_kind_t {
     EcsTokKeywordProp = 130,
     EcsTokKeywordConst = 131,
     EcsTokKeywordMatch = 132,
-    EcsTokAddAssign = 133,
-    EcsTokMulAssign = 134,
+    EcsTokKeywordNew = 133,
+    EcsTokAddAssign = 134,
+    EcsTokMulAssign = 135,
 } ecs_token_kind_t;
 
 typedef struct ecs_token_t {
@@ -45606,7 +45607,8 @@ typedef enum ecs_expr_node_kind_t {
     EcsExprComponent,
     EcsExprCast,
     EcsExprCastNumber,
-    EcsExprMatch
+    EcsExprMatch,
+    EcsExprNew
 } ecs_expr_node_kind_t;
 
 struct ecs_expr_node_t {
@@ -45717,6 +45719,11 @@ typedef struct ecs_expr_match_t {
     ecs_expr_match_element_t any;
 } ecs_expr_match_t;
 
+typedef struct ecs_expr_new_t {
+    ecs_expr_node_t node;
+    ecs_script_entity_t *entity;
+} ecs_expr_new_t;
+
 ecs_expr_value_node_t* flecs_expr_value_from(
     ecs_script_t *script,
     ecs_expr_node_t *node,
@@ -45782,6 +45789,9 @@ ecs_expr_element_t* flecs_expr_element(
     ecs_parser_t *parser);
 
 ecs_expr_match_t* flecs_expr_match(
+    ecs_parser_t *parser);
+
+ecs_expr_new_t* flecs_expr_new(
     ecs_parser_t *parser);
 
 ecs_expr_cast_t* flecs_expr_cast(
@@ -45868,7 +45878,7 @@ const char* flecs_script_parse_initializer(
     ecs_expr_initializer_t **node_out);
 
 void flecs_expr_to_str_buf(
-    const ecs_world_t *world,
+    const ecs_script_t *world,
     const ecs_expr_node_t *expr,
     ecs_strbuf_t *buf,
     bool colors);
@@ -45922,6 +45932,20 @@ int ecs_script_visit_(
         (ecs_visit_action_t)visit,\
         script)
 
+int ecs_script_visit_from_(
+    ecs_script_visit_t *visitor,
+    ecs_visit_action_t visit,
+    ecs_script_impl_t *script,
+    ecs_script_node_t *node,
+    int32_t depth);
+
+#define ecs_script_visit_from(script, visitor, visit, from, depth) \
+    ecs_script_visit_from_((ecs_script_visit_t*)visitor,\
+        (ecs_visit_action_t)visit,\
+        script, \
+        from, \
+        depth)
+
 int ecs_script_visit_node_(
     ecs_script_visit_t *v,
     ecs_script_node_t *node);
@@ -45936,6 +45960,20 @@ int ecs_script_visit_scope_(
 
 #define ecs_script_visit_scope(visitor, node) \
     ecs_script_visit_scope_((ecs_script_visit_t*)visitor, node)
+
+void ecs_script_visit_push_(
+    ecs_script_visit_t *v,
+    ecs_script_node_t *node);
+
+#define ecs_script_visit_push(visitor, node) \
+    ecs_script_visit_push_((ecs_script_visit_t*)visitor, node)
+
+void ecs_script_visit_pop_(
+    ecs_script_visit_t *v,
+    ecs_script_node_t *node);
+
+#define ecs_script_visit_pop(visitor, node) \
+    ecs_script_visit_pop_((ecs_script_visit_t*)visitor, node)
 
 ecs_script_node_t* ecs_script_parent_node_(
     ecs_script_visit_t *v);
@@ -46158,6 +46196,10 @@ ecs_script_scope_t* flecs_script_scope_new(
 int flecs_script_visit_free(
     ecs_script_t *script);
 
+int flecs_script_visit_free_node(
+    ecs_script_t *script,
+    ecs_script_node_t *node);
+
 ecs_script_vars_t* flecs_script_vars_push(
     ecs_script_vars_t *parent,
     ecs_stack_t *stack,
@@ -46175,6 +46217,17 @@ void flecs_function_import(
 int flecs_script_check(
     const ecs_script_t *script,
     const ecs_script_eval_desc_t *desc);
+
+const char* flecs_script_stmt(
+    ecs_parser_t *parser,
+    const char *pos);
+
+int ecs_script_ast_node_to_buf(
+    const ecs_script_t *script,
+    ecs_script_node_t *node,
+    ecs_strbuf_t *buf,
+    bool colors,
+    int32_t depth);
 
 #endif // FLECS_SCRIPT
 #endif // FLECS_SCRIPT_PRIVATE_H
@@ -58413,6 +58466,7 @@ const char* flecs_token_kind_str(
     case EcsTokKeywordTemplate:
     case EcsTokKeywordModule:
     case EcsTokKeywordMatch:
+    case EcsTokKeywordNew:
         return "keyword ";
     case EcsTokIdentifier:
         return "identifier ";
@@ -58475,6 +58529,7 @@ const char* flecs_token_str(
     case EcsTokKeywordProp: return "prop";
     case EcsTokKeywordConst: return "const";
     case EcsTokKeywordMatch: return "match";
+    case EcsTokKeywordNew: return "new";
     case EcsTokKeywordIf: return "if";
     case EcsTokKeywordElse: return "else";
     case EcsTokKeywordFor: return "for";
@@ -58945,6 +59000,7 @@ const char* flecs_token(
     Keyword           ("for",      EcsTokKeywordFor)
     Keyword           ("in",       EcsTokKeywordIn)
     Keyword           ("match",    EcsTokKeywordMatch)
+    Keyword           ("new",      EcsTokKeywordNew)
     Keyword           ("module",   EcsTokKeywordModule)
 
     } else if (pos[0] == '"') {
@@ -62715,11 +62771,6 @@ void FlecsScriptMathImport(
     case '\n':\
     case '\0'
 
-static
-const char* flecs_script_stmt(
-    ecs_parser_t *parser,
-    const char *pos);
-
 /* Parse scope (statements inside {}) */
 static
 const char* flecs_script_scope(
@@ -62916,6 +62967,11 @@ const char* flecs_script_paren_expr(
         )
 
         Parse(
+            // Position spaceship(expr) }
+            //   This can happen when used as new expression.
+            case '}':
+                pos --;
+
             // Position spaceship (expr)\n
             EcsTokEndOfStatement: {
                 EndOfRule;
@@ -63049,7 +63105,6 @@ error:
 }
 
 /* Parse a single statement */
-static
 const char* flecs_script_stmt(
     ecs_parser_t *parser,
     const char *pos) 
@@ -63567,6 +63622,11 @@ identifier_paren: {
     // SpaceShip()
     Initializer(')',
         Parse(
+            // SpaceShip(expr) }
+            //   This can happen when used as new expression.
+            case '}':
+                pos --;
+            
             // SpaceShip(expr)\n
             EcsTokEndOfStatement: {
                 ecs_script_entity_t *entity = flecs_script_insert_entity(
@@ -65638,6 +65698,21 @@ int32_t ecs_script_node_line_number_(
     return line_count;
 }
 
+void ecs_script_visit_push_(
+    ecs_script_visit_t *v,
+    ecs_script_node_t *node)
+{
+    v->nodes[v->depth ++] = node;
+}
+
+void ecs_script_visit_pop_(
+    ecs_script_visit_t *v,
+    ecs_script_node_t *node)
+{
+    v->depth --;
+    ecs_assert(v->nodes[v->depth] == node, ECS_INTERNAL_ERROR, NULL);
+}
+
 int ecs_script_visit_scope_(
     ecs_script_visit_t *v,
     ecs_script_scope_t *scope)
@@ -65661,13 +65736,15 @@ int ecs_script_visit_scope_(
             v->next = NULL;
         }
 
-        v->nodes[v->depth ++] = nodes[i];
+        ecs_script_visit_push(v, nodes[i]);
+
+        ecs_assert(v->visit != NULL, ECS_INTERNAL_ERROR, NULL);
 
         if (v->visit(v, nodes[i])) {
             return -1;
         }
 
-        v->depth --;
+        ecs_script_visit_pop(v, nodes[i]);
     }
 
     v->depth --;
@@ -65690,6 +65767,29 @@ int ecs_script_visit_node_(
     return 0;
 }
 
+int ecs_script_visit_from_(
+    ecs_script_visit_t *visitor,
+    ecs_visit_action_t visit,
+    ecs_script_impl_t *script,
+    ecs_script_node_t *node,
+    int32_t depth)
+{
+    visitor->script = script;
+    visitor->visit = visit;
+    visitor->depth = depth;
+    int result = ecs_script_visit_node(visitor, node);
+    if (result) {
+        return -1;
+    }
+
+    if (visitor->depth != depth) {
+        ecs_parser_error(script->pub.name, NULL, 0, "unexpected end of script");
+        return -1;
+    }
+
+    return 0;
+}
+
 int ecs_script_visit_(
     ecs_script_visit_t *visitor,
     ecs_visit_action_t visit,
@@ -65699,20 +65799,8 @@ int ecs_script_visit_(
         return -1;
     }
 
-    visitor->script = script;
-    visitor->visit = visit;
-    visitor->depth = 0;
-    int result = ecs_script_visit_node(visitor, script->root);
-    if (result) {
-        return -1;
-    }
-
-    if (visitor->depth) {
-        ecs_parser_error(script->pub.name, NULL, 0, "unexpected end of script");
-        return -1;
-    }
-
-    return 0;
+    return ecs_script_visit_from_(visitor, visit, script, 
+        (ecs_script_node_t*)script->root, 0);
 }
 
 #endif
@@ -66680,7 +66768,8 @@ int flecs_script_eval_expr(
         .vars = v->vars,
         .type = value->type,
         .runtime = v->r,
-        .disable_dynamic_variable_binding = !v->dynamic_variable_binding
+        .disable_dynamic_variable_binding = !v->dynamic_variable_binding,
+        .script_visitor = v
     };
 
     if (expr->type_info == NULL) {
@@ -67659,6 +67748,7 @@ int flecs_script_eval_node(
     ecs_script_eval_visitor_t *v,
     ecs_script_node_t *node)
 {
+    ecs_assert(v != NULL, ECS_INTERNAL_ERROR, NULL);
     ecs_assert(v->template == NULL, ECS_INTERNAL_ERROR, NULL);
 
     switch(node->kind) {
@@ -67906,7 +67996,6 @@ void flecs_script_var_node_free(
     flecs_expr_visit_free(&v->script->pub, node->expr);
 }
 
-static
 int flecs_script_stmt_free(
     ecs_script_visit_t *v,
     ecs_script_node_t *node)
@@ -67979,6 +68068,28 @@ int flecs_script_stmt_free(
     }
 
     return 0;
+}
+
+int flecs_script_visit_free_node(
+    ecs_script_t *script,
+    ecs_script_node_t *node)
+{
+    ecs_check(script != NULL, ECS_INVALID_PARAMETER, NULL);
+    ecs_script_impl_t *impl = flecs_script_impl(script);
+
+    ecs_script_visit_t v = {
+        .script = impl
+    };
+
+    if (ecs_script_visit_from(
+        flecs_script_impl(script), &v, flecs_script_stmt_free, node, 0))
+    {
+        goto error;
+    }
+
+    return 0;
+error:
+    return -1;
 }
 
 int flecs_script_visit_free(
@@ -68102,7 +68213,7 @@ void flecs_expr_to_str(
 {
     if (expr) {
         flecs_expr_to_str_buf(
-            v->base.script->pub.world, expr, v->buf, v->colors);
+            &v->base.script->pub, expr, v->buf, v->colors);
     } else {
         flecs_scriptbuf_appendstr(v, "{}");
     }
@@ -68352,6 +68463,8 @@ int flecs_script_scope_to_str(
     ecs_script_str_visitor_t *v,
     ecs_script_scope_t *scope)
 {
+    ecs_assert(scope != NULL, ECS_INTERNAL_ERROR, NULL);
+
     if (!ecs_vec_count(&scope->stmts)) {
         flecs_scriptbuf_appendstr(v, "{}\n");
         return 0;
@@ -68372,7 +68485,6 @@ int flecs_script_scope_to_str(
     return 0;
 }
 
-static
 int flecs_script_stmt_to_str(
     ecs_script_str_visitor_t *v,
     ecs_script_node_t *node)
@@ -68436,6 +68548,31 @@ int flecs_script_stmt_to_str(
     return 0;
 }
 
+int ecs_script_ast_node_to_buf(
+    const ecs_script_t *script,
+    ecs_script_node_t *node,
+    ecs_strbuf_t *buf,
+    bool colors,
+    int32_t depth)
+{
+    ecs_script_str_visitor_t v = { 
+        .buf = buf, .colors = colors, .depth = depth 
+    };
+
+    /* Safe, string visitor doesn't modify script */
+    if (ecs_script_visit_from(
+        (ecs_script_impl_t*)ECS_CONST_CAST(ecs_script_t*, script), 
+        &v, flecs_script_stmt_to_str, node, depth)) 
+    {
+        goto error;
+    }
+
+    return 0;
+error:
+    ecs_strbuf_reset(buf);
+    return -1;
+}
+
 int ecs_script_ast_to_buf(
     ecs_script_t *script,
     ecs_strbuf_t *buf,
@@ -68451,7 +68588,7 @@ int ecs_script_ast_to_buf(
     return 0;
 error:
     ecs_strbuf_reset(buf);
-    return - 1;
+    return -1;
 }
 
 char* ecs_script_ast_to_str(
@@ -68468,7 +68605,7 @@ char* ecs_script_ast_to_str(
 
     if (flecs_script_impl(script)->expr) {
         flecs_expr_to_str_buf(
-            script->world, flecs_script_impl(script)->expr, &buf, colors);
+            script, flecs_script_impl(script)->expr, &buf, colors);
     } else {
         if (ecs_script_ast_to_buf(script, &buf, colors)) {
             goto error;
@@ -81883,6 +82020,14 @@ ecs_expr_match_t* flecs_expr_match(
     return result;
 }
 
+ecs_expr_new_t* flecs_expr_new(
+    ecs_parser_t *parser)
+{
+    ecs_expr_new_t *result = flecs_expr_ast_new(
+        parser, ecs_expr_new_t, EcsExprNew);
+    return result;
+}
+
 static
 bool flecs_expr_explicit_cast_allowed(
     ecs_world_t *world,
@@ -82527,6 +82672,44 @@ const char* flecs_script_parse_lhs(
             break;
         }
 
+        case EcsTokKeywordNew: {
+            ecs_expr_new_t *node = flecs_expr_new(parser);
+            *out = (ecs_expr_node_t*)node;
+
+            int32_t stmt_count = ecs_vec_count(&parser->scope->stmts);
+
+            pos = flecs_script_stmt(parser, pos);
+            if (!pos) {
+                goto error;
+            }
+
+            pos = flecs_parse_ws_eol(pos);
+
+            if ((stmt_count - ecs_vec_count(&parser->scope->stmts)) > 1) {
+                Error("expected entity statement after new");
+            }
+
+            ecs_script_node_t **script_node_ptr = ecs_vec_last_t(
+                &parser->scope->stmts, ecs_script_node_t*);
+            if (script_node_ptr == NULL) {
+                Error("expected entity statement after new");
+            }
+
+            ecs_script_node_t *script_node = *script_node_ptr;
+            ecs_assert(script_node != NULL, ECS_INTERNAL_ERROR, NULL);
+            ecs_vec_remove_last(&parser->scope->stmts);
+
+            if (script_node->kind != EcsAstEntity) {
+                Error("expected entity statement after new");
+            }
+
+            node->entity = (ecs_script_entity_t*)script_node;
+
+            can_have_rhs = false;
+
+            break;
+        }
+
         case '(': {
             pos = flecs_script_parse_expr(parser, pos, 0, out);
             if (!pos) {
@@ -82954,64 +83137,12 @@ int flecs_value_unary(
     ecs_token_kind_t operator)
 {
     (void)script;
-    switch(operator) {
-    case EcsTokNot:
+
+    if (operator == EcsTokNot) {
         ecs_assert(expr->type == ecs_id(ecs_bool_t), ECS_INTERNAL_ERROR, NULL);
         ecs_assert(out->type == ecs_id(ecs_bool_t), ECS_INTERNAL_ERROR, NULL);
         *(bool*)out->ptr = !*(bool*)expr->ptr;
-        break;
-    case EcsTokEnd:
-    case EcsTokUnknown:
-    case EcsTokScopeOpen:
-    case EcsTokScopeClose:
-    case EcsTokParenOpen:
-    case EcsTokParenClose:
-    case EcsTokBracketOpen:
-    case EcsTokBracketClose:
-    case EcsTokMember:
-    case EcsTokComma:
-    case EcsTokSemiColon:
-    case EcsTokColon:
-    case EcsTokAssign:
-    case EcsTokAdd:
-    case EcsTokSub:
-    case EcsTokMul:
-    case EcsTokDiv:
-    case EcsTokMod:
-    case EcsTokBitwiseOr:
-    case EcsTokBitwiseAnd:
-    case EcsTokOptional:
-    case EcsTokAnnotation:
-    case EcsTokNewline:
-    case EcsTokEq:
-    case EcsTokNeq:
-    case EcsTokGt:
-    case EcsTokGtEq:
-    case EcsTokLt:
-    case EcsTokLtEq:
-    case EcsTokAnd:
-    case EcsTokOr:
-    case EcsTokMatch:
-    case EcsTokRange:
-    case EcsTokShiftLeft:
-    case EcsTokShiftRight:
-    case EcsTokAddAssign:
-    case EcsTokMulAssign:
-    case EcsTokIdentifier:
-    case EcsTokString:
-    case EcsTokNumber:
-    case EcsTokKeywordModule:
-    case EcsTokKeywordUsing:
-    case EcsTokKeywordWith:
-    case EcsTokKeywordIf:
-    case EcsTokKeywordElse:
-    case EcsTokKeywordFor:
-    case EcsTokKeywordIn:
-    case EcsTokKeywordMatch:
-    case EcsTokKeywordTemplate:
-    case EcsTokKeywordProp:
-    case EcsTokKeywordConst:
-    default:
+    } else {
         ecs_abort(ECS_INTERNAL_ERROR, "invalid operator for binary expression");
     }
 
@@ -83258,6 +83389,7 @@ int flecs_value_binary(
     case EcsTokKeywordIn:
     case EcsTokKeywordTemplate:
     case EcsTokKeywordMatch:
+    case EcsTokKeywordNew:
     case EcsTokKeywordProp:
     case EcsTokKeywordConst:
     default:
@@ -84144,6 +84276,44 @@ error:
 }
 
 static
+int flecs_expr_new_visit_eval(
+    ecs_script_eval_ctx_t *ctx,
+    ecs_expr_new_t *node,
+    ecs_expr_value_t *out)
+{
+    ecs_script_eval_visitor_t *v = ctx->desc->script_visitor;
+    ecs_script_eval_visitor_t temp_v = {0};
+    ecs_script_eval_desc_t desc = {0};
+
+    if (!v) {
+        /* Safe const cast, script won't modify variables since it only contains 
+         * an entity statement. */
+        desc.vars = ctx->desc ? 
+            ECS_CONST_CAST(ecs_script_vars_t*, ctx->desc->vars) : NULL;
+        flecs_script_eval_visit_init(
+            (const ecs_script_impl_t*)ctx->script, &temp_v, &desc);
+        v = &temp_v;
+    }
+
+    ecs_script_visit_push(v, (ecs_script_node_t*)node->entity);
+
+    if (flecs_script_eval_node(v, (ecs_script_node_t*)node->entity)) {
+        return -1;
+    }
+
+    ecs_script_visit_pop(v, (ecs_script_node_t*)node->entity);
+
+    *(ecs_entity_t*)out->value.ptr = node->entity->eval;
+    out->value.type = ecs_id(ecs_entity_t);
+
+    if (v == &temp_v) {
+        flecs_script_eval_visit_fini(v, &desc);
+    }
+
+    return 0;
+}
+
+static
 int flecs_expr_component_visit_eval(
     ecs_script_eval_ctx_t *ctx,
     ecs_expr_element_t *node,
@@ -84291,6 +84461,13 @@ int flecs_expr_visit_eval_priv(
             goto error;
         }
         break;
+    case EcsExprNew:
+        if (flecs_expr_new_visit_eval(
+            ctx, (ecs_expr_new_t*)node, out)) 
+        {
+            goto error;
+        }
+        break;
     case EcsExprComponent:
         if (flecs_expr_component_visit_eval(
             ctx, (ecs_expr_element_t*)node, out)) 
@@ -84328,7 +84505,6 @@ int flecs_expr_visit_eval(
     ecs_expr_stack_t *stack = NULL, stack_local;
     if (desc && desc->runtime) {
         stack = &desc->runtime->expr_stack;
-        ecs_assert(stack->frame == 0, ECS_INTERNAL_ERROR, NULL);
     }
     if (!stack) {
         stack = &stack_local;
@@ -85015,6 +85191,8 @@ int flecs_expr_visit_fold(
             goto error;
         }
         break;
+    case EcsExprNew:
+        break;
     case EcsExprCast:
     case EcsExprCastNumber:
         if (flecs_expr_cast_visit_fold(script, node_ptr, desc)) {
@@ -85162,6 +85340,18 @@ void flecs_expr_match_visit_free(
 }
 
 static
+void flecs_expr_new_visit_free(
+    ecs_script_t *script,
+    ecs_expr_new_t *node)
+{
+    if (node->entity) {
+        flecs_script_visit_free_node(script, (ecs_script_node_t*)node->entity);
+    }
+    // ecs_allocator_t *a = &flecs_script_impl(script)->allocator;
+    // flecs_free_t(a, ecs_script_entity_t, node->entity);
+}
+
+static
 void flecs_expr_cast_visit_free(
     ecs_script_t *script,
     ecs_expr_cast_t *node)
@@ -85237,6 +85427,11 @@ void flecs_expr_visit_free(
             script, (ecs_expr_match_t*)node);
         flecs_free_t(a, ecs_expr_match_t, node);
         break;
+    case EcsExprNew:
+        flecs_expr_new_visit_free(
+            script, (ecs_expr_new_t*)node);
+        flecs_free_t(a, ecs_expr_new_t, node);
+        break;
     case EcsExprCast:
     case EcsExprCastNumber:
         flecs_expr_cast_visit_free(
@@ -85257,6 +85452,7 @@ void flecs_expr_visit_free(
 #ifdef FLECS_SCRIPT
 
 typedef struct ecs_expr_str_visitor_t {
+    const ecs_script_t *script;
     const ecs_world_t *world;
     ecs_strbuf_t *buf;
     int32_t depth;
@@ -85539,6 +85735,21 @@ int flecs_expr_match_to_str(
 }
 
 static
+int flecs_expr_new_to_str(
+    ecs_expr_str_visitor_t *v,
+    const ecs_expr_new_t *node)
+{
+    flecs_expr_color_to_str(v, ECS_BLUE);
+    ecs_strbuf_appendlit(v->buf, "new ");
+    flecs_expr_color_to_str(v, ECS_NORMAL);
+
+    ecs_assert(node->entity != NULL, ECS_INTERNAL_ERROR, NULL);
+
+    return ecs_script_ast_node_to_buf(v->script, 
+        (ecs_script_node_t*)node->entity, v->buf, v->colors, v->depth + 1);
+}
+
+static
 int flecs_expr_cast_to_str(
     ecs_expr_str_visitor_t *v,
     const ecs_expr_cast_t *node)
@@ -85655,6 +85866,13 @@ int flecs_expr_node_to_str(
             goto error;
         }
         break;
+    case EcsExprNew:
+        if (flecs_expr_new_to_str(v, 
+            (const ecs_expr_new_t*)node)) 
+        {
+            goto error;
+        }
+        break;
     case EcsExprCast:
     case EcsExprCastNumber:
         if (flecs_expr_cast_to_str(v, 
@@ -85673,12 +85891,21 @@ error:
 }
 
 void flecs_expr_to_str_buf(
-    const ecs_world_t *world,
+    const ecs_script_t *script,
     const ecs_expr_node_t *expr,
     ecs_strbuf_t *buf,
     bool colors)
 {
-    ecs_expr_str_visitor_t v = { .world = world, .buf = buf, .colors = colors };
+    ecs_assert(script != NULL, ECS_INTERNAL_ERROR, NULL);
+
+    ecs_world_t *world = script->world;
+    ecs_expr_str_visitor_t v = { 
+        .script = script, 
+        .world = world, 
+        .buf = buf, 
+        .colors = colors 
+    };
+
     if (flecs_expr_node_to_str(&v, expr)) {
         ecs_strbuf_reset(buf);
     }
@@ -85959,6 +86186,7 @@ bool flecs_expr_oper_valid_for_type(
     case EcsTokKeywordFor:
     case EcsTokKeywordIn:
     case EcsTokKeywordMatch:
+    case EcsTokKeywordNew:
     case EcsTokKeywordTemplate:
     case EcsTokKeywordProp:
     case EcsTokKeywordConst:
@@ -86068,6 +86296,7 @@ int flecs_expr_type_for_operator(
     case EcsTokKeywordFor:
     case EcsTokKeywordIn:
     case EcsTokKeywordMatch:
+    case EcsTokKeywordNew:
     case EcsTokKeywordTemplate:
     case EcsTokKeywordProp:
     case EcsTokKeywordConst:
@@ -87383,6 +87612,20 @@ error:
 }
 
 static
+int flecs_expr_new_visit_type(
+    ecs_script_t *script,
+    ecs_expr_new_t *node,
+    ecs_meta_cursor_t *cur,
+    const ecs_expr_eval_desc_t *desc)
+{
+    (void)script;
+    (void)cur;
+    (void)desc;
+    node->node.type = ecs_id(ecs_entity_t);
+    return 0;
+}
+
+static
 int flecs_expr_visit_type_priv(
     ecs_script_t *script,
     ecs_expr_node_t *node,
@@ -87474,6 +87717,13 @@ int flecs_expr_visit_type_priv(
     case EcsExprMatch:
         if (flecs_expr_match_visit_type(
             script, (ecs_expr_match_t*)node, cur, desc)) 
+        {
+            goto error;
+        }
+        break;
+    case EcsExprNew:
+        if (flecs_expr_new_visit_type(
+            script, (ecs_expr_new_t*)node, cur, desc)) 
         {
             goto error;
         }

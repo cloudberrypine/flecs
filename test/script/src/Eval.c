@@ -1757,7 +1757,7 @@ void Eval_assign_component_w_value(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -1844,7 +1844,7 @@ void Eval_assign_component_value_in_assign_scope(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -1876,7 +1876,7 @@ void Eval_assign_2_component_values_in_assign_scope(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -2858,7 +2858,7 @@ void Eval_scope_after_assign(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -2891,7 +2891,7 @@ void Eval_assign_after_inherit(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -2984,7 +2984,7 @@ void Eval_multiple_assignments_single_line(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -3028,7 +3028,7 @@ void Eval_multiple_vars_single_line(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -3166,7 +3166,7 @@ void Eval_assign_component_to_parent(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -3299,7 +3299,7 @@ void Eval_default_child_component_w_assign(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -3469,7 +3469,7 @@ void Eval_default_type_from_with(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -3507,7 +3507,7 @@ void Eval_default_type_from_nested_with(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -3571,7 +3571,7 @@ void Eval_default_type_from_with_in_entity_scope_w_default_type(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -3646,7 +3646,7 @@ void Eval_default_type_from_entity_scope_in_with(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -4699,7 +4699,7 @@ void Eval_const_var_int(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -4730,7 +4730,7 @@ void Eval_const_var_int_deprecated_notation(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -4763,7 +4763,7 @@ void Eval_const_var_float(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -4830,7 +4830,7 @@ void Eval_const_var_string(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -4902,7 +4902,7 @@ void Eval_const_var_scoped(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -4958,7 +4958,7 @@ void Eval_assign_component_from_var(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -4990,7 +4990,7 @@ void Eval_assign_component_from_var_in_scope(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -5024,7 +5024,7 @@ void Eval_scope_w_component_after_const_var(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -5055,7 +5055,7 @@ void Eval_component_after_const_add_expr(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -5086,7 +5086,7 @@ void Eval_component_after_const_sub_expr(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -5117,7 +5117,7 @@ void Eval_component_after_const_mul_expr(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -5148,7 +5148,7 @@ void Eval_component_after_const_div_expr(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -5725,7 +5725,7 @@ void Eval_assign_const_w_expr(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -5754,7 +5754,7 @@ void Eval_const_w_type(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -5783,7 +5783,7 @@ void Eval_typed_const_w_composite_type(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -5815,7 +5815,7 @@ void Eval_assign_var_to_typed_const_w_composite_type(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -7435,7 +7435,7 @@ void Eval_inherit_w_kind_value(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -7468,7 +7468,7 @@ void Eval_inherit_w_kind_value_scope(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -7580,7 +7580,7 @@ void Eval_auto_override_component(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -7634,7 +7634,7 @@ void Eval_auto_override_pair_component(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -7690,7 +7690,7 @@ void Eval_assign_component_to_const(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -7723,7 +7723,7 @@ void Eval_assign_component_member_to_const(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -7758,7 +7758,7 @@ void Eval_prefab_w_slot(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -7843,7 +7843,7 @@ void Eval_const_w_component_expr(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -7877,7 +7877,7 @@ void Eval_const_w_component_expr_in_scope(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -7916,7 +7916,7 @@ void Eval_const_w_component_expr_in_module(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -8241,7 +8241,7 @@ void Eval_update_script_w_anonymous(void) {
     ECS_COMPONENT(world, Position);
 
     ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -8287,7 +8287,7 @@ void Eval_update_script_w_anonymous_paren(void) {
     ECS_COMPONENT(world, Position);
 
     ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -8333,7 +8333,7 @@ void Eval_clear_script(void) {
     ECS_COMPONENT(world, Position);
 
     ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -8377,7 +8377,7 @@ void Eval_clear_script_w_anonymous(void) {
     ECS_COMPONENT(world, Position);
 
     ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -8417,7 +8417,7 @@ void Eval_clear_script_w_anonymous_paren(void) {
     ECS_COMPONENT(world, Position);
 
     ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -8455,7 +8455,7 @@ void Eval_partial_assign(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -8551,7 +8551,7 @@ void Eval_partial_assign_with(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -8841,7 +8841,7 @@ void Eval_assign_call_func(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -8878,7 +8878,7 @@ void Eval_assign_call_scoped_func(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -8918,7 +8918,7 @@ void Eval_assign_call_scoped_func_w_using(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -8959,7 +8959,7 @@ void Eval_eval_w_vars(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -9011,7 +9011,7 @@ void Eval_eval_w_other_vars(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -9073,7 +9073,7 @@ void Eval_eval_w_vars_different_order(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -9135,7 +9135,7 @@ void Eval_eval_w_vars_different_order_var_component(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -9222,7 +9222,7 @@ void Eval_eval_w_vars_different_order_with_var(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -9412,7 +9412,7 @@ void Eval_eval_w_runtime(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -9460,7 +9460,7 @@ void Eval_component_in_entity_in_with_scope(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -9575,7 +9575,7 @@ void Eval_entity_w_string_name_w_kind(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -9598,7 +9598,7 @@ void Eval_entity_w_string_name_w_kind_value(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -9626,7 +9626,7 @@ void Eval_entity_w_string_name_w_kind_scope(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -9649,7 +9649,7 @@ void Eval_entity_w_string_name_w_kind_value_scope(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -9694,7 +9694,7 @@ void Eval_for_range(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -9748,7 +9748,7 @@ void Eval_for_range_vars(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -9804,7 +9804,7 @@ void Eval_for_range_1_4(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -9860,7 +9860,7 @@ void Eval_for_range_min_1_2(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -10199,7 +10199,7 @@ void Eval_component_w_match(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -10278,7 +10278,7 @@ void Eval_component_w_match_invalid(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -10320,7 +10320,7 @@ void Eval_pair_component_w_match(void) {
     ECS_TAG(world, Tgt);
 
     ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -10360,7 +10360,7 @@ void Eval_component_assign_w_match(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -10462,7 +10462,7 @@ void Eval_component_w_assign_add(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -10496,7 +10496,7 @@ void Eval_component_w_assign_mul(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -10711,7 +10711,7 @@ void Eval_interpolated_name_w_nested_for_loop(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -10791,7 +10791,7 @@ void Eval_interpolated_name_w_nested_for_loop_no_dollar_sign(void) {
     ecs_world_t *world = ecs_init();
 
     ecs_entity_t ecs_id(Position) = ecs_struct(world, {
-        .entity = ecs_entity(world, {.name = "Position"}),
+        .entity = ecs_entity(world, { .name = "Position" }),
         .members = {
             {"x", ecs_id(ecs_f32_t)},
             {"y", ecs_id(ecs_f32_t)}
@@ -10879,6 +10879,735 @@ void Eval_interpolated_name_w_nested_for_loop_wrong_dollar_sign(void) {
 
     ecs_log_set_level(-4);
     test_assert(ecs_script_run(world, NULL, expr, NULL) != 0);
+
+    ecs_fini(world);
+}
+
+void Eval_assign_new_to_const_to_entity_member(void) {
+    ecs_world_t *world = ecs_init();
+
+    const char *expr =
+    HEAD "const x: new {}"
+    LINE ""
+    LINE "e {"
+    LINE "  entity: {x}"
+    LINE "}"
+    ;
+
+    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
+
+    ecs_entity_t e = ecs_lookup(world, "e");
+    test_assert(e != 0);
+    
+    const ecs_entity_t *ptr = ecs_get(world, e, ecs_entity_t);
+    test_assert(ptr != NULL);
+    ecs_entity_t x = *ptr;
+    test_assert(x != 0);
+    test_assert(ecs_is_alive(world, x));
+    test_int(ecs_get_type(world, x)->count, 0);
+
+    ecs_fini(world);
+}
+
+void Eval_assign_new_w_component_to_const_to_entity_member(void) {
+    ecs_world_t *world = ecs_init();
+
+    ecs_entity_t ecs_id(Position) = ecs_struct(world, {
+        .entity = ecs_entity(world, { .name = "Position" }),
+        .members = {
+            {"x", ecs_id(ecs_f32_t)},
+            {"y", ecs_id(ecs_f32_t)}
+        }
+    });
+
+    const char *expr =
+    HEAD "const x: new {"
+    LINE "  Position: {10, 20}"
+    LINE "}"
+    LINE ""
+    LINE "e {"
+    LINE "  entity: {x}"
+    LINE "}"
+    ;
+
+    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
+
+    ecs_entity_t e = ecs_lookup(world, "e");
+    test_assert(e != 0);
+
+    const ecs_entity_t *ptr = ecs_get(world, e, ecs_entity_t);
+    test_assert(ptr != NULL);
+    ecs_entity_t x = *ptr;
+    test_assert(x != 0);
+    test_assert(ecs_is_alive(world, x));
+    test_int(ecs_get_type(world, x)->count, 1);
+
+    const Position *p = ecs_get(world, x, Position);
+    test_assert(p != NULL);
+    test_int(p->x, 10);
+    test_int(p->y, 20);
+
+    ecs_fini(world);
+}
+
+void Eval_assign_new_w_component_w_vars_to_const_to_entity_member(void) {
+    ecs_world_t *world = ecs_init();
+
+    ecs_entity_t ecs_id(Position) = ecs_struct(world, {
+        .entity = ecs_entity(world, { .name = "Position" }),
+        .members = {
+            {"x", ecs_id(ecs_f32_t)},
+            {"y", ecs_id(ecs_f32_t)}
+        }
+    });
+
+    const char *expr =
+    HEAD "const a: 10"
+    LINE "const b: 20"
+    LINE "const x: new {"
+    LINE "  Position: {a, b}"
+    LINE "}"
+    LINE ""
+    LINE "e {"
+    LINE "  entity: {x}"
+    LINE "}"
+    ;
+
+    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
+
+    ecs_entity_t e = ecs_lookup(world, "e");
+    test_assert(e != 0);
+
+    const ecs_entity_t *ptr = ecs_get(world, e, ecs_entity_t);
+    test_assert(ptr != NULL);
+    ecs_entity_t x = *ptr;
+    test_assert(x != 0);
+    test_assert(ecs_is_alive(world, x));
+    test_int(ecs_get_type(world, x)->count, 1);
+
+    const Position *p = ecs_get(world, x, Position);
+    test_assert(p != NULL);
+    test_int(p->x, 10);
+    test_int(p->y, 20);
+
+    ecs_fini(world);
+}
+
+void Eval_assign_new_w_kind_to_const_to_entity_member(void) {
+    ecs_world_t *world = ecs_init();
+
+    ecs_entity_t ecs_id(Position) = ecs_struct(world, {
+        .entity = ecs_entity(world, { .name = "Position" }),
+        .members = {
+            {"x", ecs_id(ecs_f32_t)},
+            {"y", ecs_id(ecs_f32_t)}
+        }
+    });
+
+    const char *expr =
+    HEAD "const x: new Position(10, 20)"
+    LINE ""
+    LINE "e {"
+    LINE "  entity: {x}"
+    LINE "}"
+    ;
+
+    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
+
+    ecs_entity_t e = ecs_lookup(world, "e");
+    test_assert(e != 0);
+
+    const ecs_entity_t *ptr = ecs_get(world, e, ecs_entity_t);
+    test_assert(ptr != NULL);
+    ecs_entity_t x = *ptr;
+    test_assert(x != 0);
+    test_assert(ecs_is_alive(world, x));
+    test_int(ecs_get_type(world, x)->count, 1);
+
+    const Position *p = ecs_get(world, x, Position);
+    test_assert(p != NULL);
+    test_int(p->x, 10);
+    test_int(p->y, 20);
+
+    ecs_fini(world);
+}
+
+void Eval_assign_new_w_name_to_const_to_entity_member(void) {
+    ecs_world_t *world = ecs_init();
+
+    const char *expr =
+    HEAD "const x: new Foo {}"
+    LINE ""
+    LINE "e {"
+    LINE "  entity: {x}"
+    LINE "}"
+    ;
+
+    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
+
+    ecs_entity_t e = ecs_lookup(world, "e");
+    test_assert(e != 0);
+    
+    const ecs_entity_t *ptr = ecs_get(world, e, ecs_entity_t);
+    test_assert(ptr != NULL);
+    ecs_entity_t x = *ptr;
+    test_assert(x != 0);
+    test_assert(ecs_is_alive(world, x));
+    test_str(ecs_get_name(world, x), "Foo");
+
+    ecs_fini(world);
+}
+
+void Eval_assign_new_w_name_w_component_to_const_to_entity_member(void) {
+    ecs_world_t *world = ecs_init();
+
+    ecs_entity_t ecs_id(Position) = ecs_struct(world, {
+        .entity = ecs_entity(world, { .name = "Position" }),
+        .members = {
+            {"x", ecs_id(ecs_f32_t)},
+            {"y", ecs_id(ecs_f32_t)}
+        }
+    });
+
+    const char *expr =
+    HEAD "const x: new Foo {"
+    LINE "  Position: {10, 20}"
+    LINE "}"
+    LINE ""
+    LINE "e {"
+    LINE "  entity: {x}"
+    LINE "}"
+    ;
+
+    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
+
+    ecs_entity_t e = ecs_lookup(world, "e");
+    test_assert(e != 0);
+
+    const ecs_entity_t *ptr = ecs_get(world, e, ecs_entity_t);
+    test_assert(ptr != NULL);
+    ecs_entity_t x = *ptr;
+    test_assert(x != 0);
+    test_assert(ecs_is_alive(world, x));
+    test_str(ecs_get_name(world, x), "Foo");
+
+    const Position *p = ecs_get(world, x, Position);
+    test_assert(p != NULL);
+    test_int(p->x, 10);
+    test_int(p->y, 20);
+
+    ecs_fini(world);
+}
+
+void Eval_assign_new_w_name_w_component_w_vars_to_const_to_entity_member(void) {
+    ecs_world_t *world = ecs_init();
+
+    ecs_entity_t ecs_id(Position) = ecs_struct(world, {
+        .entity = ecs_entity(world, { .name = "Position" }),
+        .members = {
+            {"x", ecs_id(ecs_f32_t)},
+            {"y", ecs_id(ecs_f32_t)}
+        }
+    });
+
+    const char *expr =
+    HEAD "const a: 10"
+    LINE "const b: 20"
+    LINE "const x: new Foo {"
+    LINE "  Position: {a, b}"
+    LINE "}"
+    LINE ""
+    LINE "e {"
+    LINE "  entity: {x}"
+    LINE "}"
+    ;
+
+    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
+
+    ecs_entity_t e = ecs_lookup(world, "e");
+    test_assert(e != 0);
+
+    const ecs_entity_t *ptr = ecs_get(world, e, ecs_entity_t);
+    test_assert(ptr != NULL);
+    ecs_entity_t x = *ptr;
+    test_assert(x != 0);
+    test_assert(ecs_is_alive(world, x));
+    test_str(ecs_get_name(world, x), "Foo");
+
+    const Position *p = ecs_get(world, x, Position);
+    test_assert(p != NULL);
+    test_int(p->x, 10);
+    test_int(p->y, 20);
+
+    ecs_fini(world);
+}
+
+void Eval_assign_new_w_name_w_kind_to_const_to_entity_member(void) {
+    ecs_world_t *world = ecs_init();
+
+    ecs_entity_t ecs_id(Position) = ecs_struct(world, {
+        .entity = ecs_entity(world, { .name = "Position" }),
+        .members = {
+            {"x", ecs_id(ecs_f32_t)},
+            {"y", ecs_id(ecs_f32_t)}
+        }
+    });
+
+    const char *expr =
+    HEAD "const x: new Position Foo(10, 20)"
+    LINE ""
+    LINE "e {"
+    LINE "  entity: {x}"
+    LINE "}"
+    ;
+
+    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
+
+    ecs_entity_t e = ecs_lookup(world, "e");
+    test_assert(e != 0);
+
+    const ecs_entity_t *ptr = ecs_get(world, e, ecs_entity_t);
+    test_assert(ptr != NULL);
+    ecs_entity_t x = *ptr;
+    test_assert(x != 0);
+    test_assert(ecs_is_alive(world, x));
+    test_str(ecs_get_name(world, x), "Foo");
+
+    const Position *p = ecs_get(world, x, Position);
+    test_assert(p != NULL);
+    test_int(p->x, 10);
+    test_int(p->y, 20);
+
+    ecs_fini(world);
+}
+
+void Eval_assign_new_to_entity_member(void) {
+    ecs_world_t *world = ecs_init();
+
+    const char *expr =
+    HEAD "e {"
+    LINE "  entity: { new {} }"
+    LINE "}"
+    ;
+
+    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
+
+    ecs_entity_t e = ecs_lookup(world, "e");
+    test_assert(e != 0);
+    
+    const ecs_entity_t *ptr = ecs_get(world, e, ecs_entity_t);
+    test_assert(ptr != NULL);
+    ecs_entity_t x = *ptr;
+    test_assert(x != 0);
+    test_assert(ecs_is_alive(world, x));
+    test_int(ecs_get_type(world, x)->count, 1);
+    test_uint(ecs_get_parent(world, x), e);
+
+    ecs_fini(world);
+}
+
+void Eval_assign_new_w_component_to_entity_member(void) {
+    ecs_world_t *world = ecs_init();
+
+    ecs_entity_t ecs_id(Position) = ecs_struct(world, {
+        .entity = ecs_entity(world, { .name = "Position" }),
+        .members = {
+            {"x", ecs_id(ecs_f32_t)},
+            {"y", ecs_id(ecs_f32_t)}
+        }
+    });
+
+    const char *expr =
+    HEAD "e {"
+    LINE "  entity: { new { Position: {10, 20} } }"
+    LINE "}"
+    ;
+
+    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
+
+    ecs_entity_t e = ecs_lookup(world, "e");
+    test_assert(e != 0);
+
+    const ecs_entity_t *ptr = ecs_get(world, e, ecs_entity_t);
+    test_assert(ptr != NULL);
+    ecs_entity_t x = *ptr;
+    test_assert(x != 0);
+    test_assert(ecs_is_alive(world, x));
+    test_int(ecs_get_type(world, x)->count, 2);
+    test_uint(ecs_get_parent(world, x), e);
+
+    const Position *p = ecs_get(world, x, Position);
+    test_assert(p != NULL);
+    test_int(p->x, 10);
+    test_int(p->y, 20);
+
+    ecs_fini(world);
+}
+
+void Eval_assign_new_w_component_to_entity_member_w_newlines(void) {
+    ecs_world_t *world = ecs_init();
+
+    ecs_entity_t ecs_id(Position) = ecs_struct(world, {
+        .entity = ecs_entity(world, { .name = "Position" }),
+        .members = {
+            {"x", ecs_id(ecs_f32_t)},
+            {"y", ecs_id(ecs_f32_t)}
+        }
+    });
+
+    const char *expr =
+    HEAD "e {"
+    LINE "  entity: {"
+    LINE "    new {"
+    LINE "      Position: {10, 20}"
+    LINE "    }"
+    LINE "  }"
+    LINE "}"
+    ;
+
+    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
+
+    ecs_entity_t e = ecs_lookup(world, "e");
+    test_assert(e != 0);
+
+    const ecs_entity_t *ptr = ecs_get(world, e, ecs_entity_t);
+    test_assert(ptr != NULL);
+    ecs_entity_t x = *ptr;
+    test_assert(x != 0);
+    test_assert(ecs_is_alive(world, x));
+    test_int(ecs_get_type(world, x)->count, 2);
+    test_uint(ecs_get_parent(world, x), e);
+
+    const Position *p = ecs_get(world, x, Position);
+    test_assert(p != NULL);
+    test_int(p->x, 10);
+    test_int(p->y, 20);
+
+    ecs_fini(world);
+}
+
+void Eval_assign_new_w_component_w_vars_to_entity_member(void) {
+    ecs_world_t *world = ecs_init();
+
+    ecs_entity_t ecs_id(Position) = ecs_struct(world, {
+        .entity = ecs_entity(world, { .name = "Position" }),
+        .members = {
+            {"x", ecs_id(ecs_f32_t)},
+            {"y", ecs_id(ecs_f32_t)}
+        }
+    });
+
+    const char *expr =
+    HEAD "const a: 10"
+    LINE "const b: 20"
+    LINE "e {"
+    LINE "  entity: { new { Position: {a, b} } }"
+    LINE "}"
+    ;
+
+    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
+
+    ecs_entity_t e = ecs_lookup(world, "e");
+    test_assert(e != 0);
+
+    const ecs_entity_t *ptr = ecs_get(world, e, ecs_entity_t);
+    test_assert(ptr != NULL);
+    ecs_entity_t x = *ptr;
+    test_assert(x != 0);
+    test_assert(ecs_is_alive(world, x));
+    test_int(ecs_get_type(world, x)->count, 2);
+    test_uint(ecs_get_parent(world, x), e);
+
+    const Position *p = ecs_get(world, x, Position);
+    test_assert(p != NULL);
+    test_int(p->x, 10);
+    test_int(p->y, 20);
+
+    ecs_fini(world);
+}
+
+void Eval_assign_new_w_kind_to_entity_member(void) {
+    ecs_world_t *world = ecs_init();
+
+    ecs_entity_t ecs_id(Position) = ecs_struct(world, {
+        .entity = ecs_entity(world, { .name = "Position" }),
+        .members = {
+            {"x", ecs_id(ecs_f32_t)},
+            {"y", ecs_id(ecs_f32_t)}
+        }
+    });
+
+    const char *expr =
+    HEAD "e {"
+    LINE "  entity: { new Position(10, 20) }"
+    LINE "}"
+    ;
+
+    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
+
+    ecs_entity_t e = ecs_lookup(world, "e");
+    test_assert(e != 0);
+
+    const ecs_entity_t *ptr = ecs_get(world, e, ecs_entity_t);
+    test_assert(ptr != NULL);
+    ecs_entity_t x = *ptr;
+    test_assert(x != 0);
+    test_assert(ecs_is_alive(world, x));
+    test_int(ecs_get_type(world, x)->count, 2);
+    test_uint(ecs_get_parent(world, x), e);
+
+    const Position *p = ecs_get(world, x, Position);
+    test_assert(p != NULL);
+    test_int(p->x, 10);
+    test_int(p->y, 20);
+
+    ecs_fini(world);
+}
+
+void Eval_assign_new_w_name_to_entity_member(void) {
+    ecs_world_t *world = ecs_init();
+
+    const char *expr =
+    HEAD "e {"
+    LINE "  entity: { new Foo {} }"
+    LINE "}"
+    ;
+
+    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
+
+    ecs_entity_t e = ecs_lookup(world, "e");
+    test_assert(e != 0);
+    
+    const ecs_entity_t *ptr = ecs_get(world, e, ecs_entity_t);
+    test_assert(ptr != NULL);
+    ecs_entity_t x = *ptr;
+    test_assert(x != 0);
+    test_assert(ecs_is_alive(world, x));
+    test_str(ecs_get_name(world, x), "Foo");
+    test_uint(ecs_get_parent(world, x), e);
+
+    ecs_fini(world);
+}
+
+void Eval_assign_new_w_name_w_component_to_entity_member(void) {
+    ecs_world_t *world = ecs_init();
+
+    ecs_entity_t ecs_id(Position) = ecs_struct(world, {
+        .entity = ecs_entity(world, { .name = "Position" }),
+        .members = {
+            {"x", ecs_id(ecs_f32_t)},
+            {"y", ecs_id(ecs_f32_t)}
+        }
+    });
+
+    const char *expr =
+    HEAD "e {"
+    LINE "  entity: { new Foo { Position: {10, 20} } }"
+    LINE "}"
+    ;
+
+    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
+
+    ecs_entity_t e = ecs_lookup(world, "e");
+    test_assert(e != 0);
+
+    const ecs_entity_t *ptr = ecs_get(world, e, ecs_entity_t);
+    test_assert(ptr != NULL);
+    ecs_entity_t x = *ptr;
+    test_assert(x != 0);
+    test_assert(ecs_is_alive(world, x));
+    test_str(ecs_get_name(world, x), "Foo");
+    test_uint(ecs_get_parent(world, x), e);
+
+    const Position *p = ecs_get(world, x, Position);
+    test_assert(p != NULL);
+    test_int(p->x, 10);
+    test_int(p->y, 20);
+
+    ecs_fini(world);
+}
+
+void Eval_assign_new_w_name_w_component_w_vars_to_entity_member(void) {
+    ecs_world_t *world = ecs_init();
+
+    ecs_entity_t ecs_id(Position) = ecs_struct(world, {
+        .entity = ecs_entity(world, { .name = "Position" }),
+        .members = {
+            {"x", ecs_id(ecs_f32_t)},
+            {"y", ecs_id(ecs_f32_t)}
+        }
+    });
+
+    const char *expr =
+    HEAD "const a: 10"
+    LINE "const b: 20"
+    LINE "e {"
+    LINE "  entity: { new Foo { Position: {a, b} } }"
+    LINE "}"
+    ;
+
+    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
+
+    ecs_entity_t e = ecs_lookup(world, "e");
+    test_assert(e != 0);
+
+    const ecs_entity_t *ptr = ecs_get(world, e, ecs_entity_t);
+    test_assert(ptr != NULL);
+    ecs_entity_t x = *ptr;
+    test_assert(x != 0);
+    test_assert(ecs_is_alive(world, x));
+    test_str(ecs_get_name(world, x), "Foo");
+    test_uint(ecs_get_parent(world, x), e);
+
+    const Position *p = ecs_get(world, x, Position);
+    test_assert(p != NULL);
+    test_int(p->x, 10);
+    test_int(p->y, 20);
+
+    ecs_fini(world);
+}
+
+void Eval_assign_new_w_name_w_kind_to_entity_member(void) {
+    ecs_world_t *world = ecs_init();
+
+    ecs_entity_t ecs_id(Position) = ecs_struct(world, {
+        .entity = ecs_entity(world, { .name = "Position" }),
+        .members = {
+            {"x", ecs_id(ecs_f32_t)},
+            {"y", ecs_id(ecs_f32_t)}
+        }
+    });
+
+    const char *expr =
+    HEAD "e {"
+    LINE "  entity: { new Position Foo(10, 20) }"
+    LINE "}"
+    ;
+
+    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
+
+    ecs_entity_t e = ecs_lookup(world, "e");
+    test_assert(e != 0);
+
+    const ecs_entity_t *ptr = ecs_get(world, e, ecs_entity_t);
+    test_assert(ptr != NULL);
+    ecs_entity_t x = *ptr;
+    test_assert(x != 0);
+    test_assert(ecs_is_alive(world, x));
+    test_str(ecs_get_name(world, x), "Foo");
+    test_uint(ecs_get_parent(world, x), e);
+
+    const Position *p = ecs_get(world, x, Position);
+    test_assert(p != NULL);
+    test_int(p->x, 10);
+    test_int(p->y, 20);
+
+    ecs_fini(world);
+}
+
+void Eval_assign_new_w_child_w_name_to_const(void) {
+    ecs_world_t *world = ecs_init();
+
+    ecs_entity_t ecs_id(Position) = ecs_struct(world, {
+        .entity = ecs_entity(world, { .name = "Position" }),
+        .members = {
+            {"x", ecs_id(ecs_f32_t)},
+            {"y", ecs_id(ecs_f32_t)}
+        }
+    });
+
+    const char *expr =
+    HEAD "const x: new Foo {"
+    LINE "  Position: {10, 20}"
+    LINE "  child {"
+    LINE "    Position: {30, 40}"
+    LINE "  }"
+    LINE "}"
+    ;
+
+    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
+
+    test_assert(ecs_lookup(world, "child") == 0);
+
+    ecs_entity_t x = ecs_lookup(world, "Foo");
+    test_assert(x != 0);
+    test_assert(ecs_is_alive(world, x));
+    test_str(ecs_get_name(world, x), "Foo");
+    test_uint(ecs_get_parent(world, x), 0);
+
+    {
+        const Position *p = ecs_get(world, x, Position);
+        test_assert(p != NULL);
+        test_int(p->x, 10);
+        test_int(p->y, 20);
+    }
+
+    ecs_entity_t child = ecs_lookup_child(world, x, "child");
+    test_assert(child != 0);
+
+    {
+        const Position *p = ecs_get(world, child, Position);
+        test_assert(p != NULL);
+        test_int(p->x, 30);
+        test_int(p->y, 40);
+    }
+
+    ecs_fini(world);
+}
+
+void Eval_assign_new_w_child_w_name_to_entity_member(void) {
+    ecs_world_t *world = ecs_init();
+
+    ecs_entity_t ecs_id(Position) = ecs_struct(world, {
+        .entity = ecs_entity(world, { .name = "Position" }),
+        .members = {
+            {"x", ecs_id(ecs_f32_t)},
+            {"y", ecs_id(ecs_f32_t)}
+        }
+    });
+
+    const char *expr =
+    HEAD "e {"
+    LINE "  entity: {"
+    LINE "    new Foo {"
+    LINE "      Position: {10, 20}"
+    LINE "      child {"
+    LINE "        Position: {30, 40}"
+    LINE "      }"
+    LINE "    }"
+    LINE "  }"
+    LINE "}"
+    ;
+
+    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
+
+    ecs_entity_t e = ecs_lookup(world, "e");
+    test_assert(e != 0);
+
+    const ecs_entity_t *ptr = ecs_get(world, e, ecs_entity_t);
+    test_assert(ptr != NULL);
+    ecs_entity_t x = *ptr;
+    test_assert(x != 0);
+    test_assert(ecs_is_alive(world, x));
+    test_str(ecs_get_name(world, x), "Foo");
+    test_uint(ecs_get_parent(world, x), e);
+
+    {
+        const Position *p = ecs_get(world, x, Position);
+        test_assert(p != NULL);
+        test_int(p->x, 10);
+        test_int(p->y, 20);
+    }
+
+    ecs_entity_t child = ecs_lookup_child(world, x, "child");
+    test_assert(child != 0);
+
+    {
+        const Position *p = ecs_get(world, child, Position);
+        test_assert(p != NULL);
+        test_int(p->x, 30);
+        test_int(p->y, 40);
+    }
 
     ecs_fini(world);
 }

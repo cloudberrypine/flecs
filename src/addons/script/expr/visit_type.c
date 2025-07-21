@@ -273,6 +273,7 @@ bool flecs_expr_oper_valid_for_type(
     case EcsTokKeywordFor:
     case EcsTokKeywordIn:
     case EcsTokKeywordMatch:
+    case EcsTokKeywordNew:
     case EcsTokKeywordTemplate:
     case EcsTokKeywordProp:
     case EcsTokKeywordConst:
@@ -382,6 +383,7 @@ int flecs_expr_type_for_operator(
     case EcsTokKeywordFor:
     case EcsTokKeywordIn:
     case EcsTokKeywordMatch:
+    case EcsTokKeywordNew:
     case EcsTokKeywordTemplate:
     case EcsTokKeywordProp:
     case EcsTokKeywordConst:
@@ -1697,6 +1699,20 @@ error:
 }
 
 static
+int flecs_expr_new_visit_type(
+    ecs_script_t *script,
+    ecs_expr_new_t *node,
+    ecs_meta_cursor_t *cur,
+    const ecs_expr_eval_desc_t *desc)
+{
+    (void)script;
+    (void)cur;
+    (void)desc;
+    node->node.type = ecs_id(ecs_entity_t);
+    return 0;
+}
+
+static
 int flecs_expr_visit_type_priv(
     ecs_script_t *script,
     ecs_expr_node_t *node,
@@ -1788,6 +1804,13 @@ int flecs_expr_visit_type_priv(
     case EcsExprMatch:
         if (flecs_expr_match_visit_type(
             script, (ecs_expr_match_t*)node, cur, desc)) 
+        {
+            goto error;
+        }
+        break;
+    case EcsExprNew:
+        if (flecs_expr_new_visit_type(
+            script, (ecs_expr_new_t*)node, cur, desc)) 
         {
             goto error;
         }

@@ -15,11 +15,6 @@
     case '\n':\
     case '\0'
 
-static
-const char* flecs_script_stmt(
-    ecs_parser_t *parser,
-    const char *pos);
-
 /* Parse scope (statements inside {}) */
 static
 const char* flecs_script_scope(
@@ -216,6 +211,11 @@ const char* flecs_script_paren_expr(
         )
 
         Parse(
+            // Position spaceship(expr) }
+            //   This can happen when used as new expression.
+            case '}':
+                pos --;
+
             // Position spaceship (expr)\n
             EcsTokEndOfStatement: {
                 EndOfRule;
@@ -349,7 +349,6 @@ error:
 }
 
 /* Parse a single statement */
-static
 const char* flecs_script_stmt(
     ecs_parser_t *parser,
     const char *pos) 
@@ -867,6 +866,11 @@ identifier_paren: {
     // SpaceShip()
     Initializer(')',
         Parse(
+            // SpaceShip(expr) }
+            //   This can happen when used as new expression.
+            case '}':
+                pos --;
+            
             // SpaceShip(expr)\n
             EcsTokEndOfStatement: {
                 ecs_script_entity_t *entity = flecs_script_insert_entity(

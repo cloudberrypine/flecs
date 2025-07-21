@@ -429,7 +429,8 @@ int flecs_script_eval_expr(
         .vars = v->vars,
         .type = value->type,
         .runtime = v->r,
-        .disable_dynamic_variable_binding = !v->dynamic_variable_binding
+        .disable_dynamic_variable_binding = !v->dynamic_variable_binding,
+        .script_visitor = v
     };
 
     if (expr->type_info == NULL) {
@@ -1408,6 +1409,7 @@ int flecs_script_eval_node(
     ecs_script_eval_visitor_t *v,
     ecs_script_node_t *node)
 {
+    ecs_assert(v != NULL, ECS_INTERNAL_ERROR, NULL);
     ecs_assert(v->template == NULL, ECS_INTERNAL_ERROR, NULL);
 
     switch(node->kind) {

@@ -15434,6 +15434,8 @@ typedef struct ecs_expr_eval_desc_t {
     bool allow_unresolved_identifiers;
 
     ecs_script_runtime_t *runtime;   /**< Reusable runtime (optional) */
+
+    void *script_visitor;            /**< For internal usage */
 } ecs_expr_eval_desc_t;
 
 /** Run expression.

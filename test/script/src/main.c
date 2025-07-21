@@ -336,6 +336,25 @@ void Eval_add_component_as_tag_pair_w_invalid_ctor(void);
 void Eval_interpolated_name_w_nested_for_loop(void);
 void Eval_interpolated_name_w_nested_for_loop_no_dollar_sign(void);
 void Eval_interpolated_name_w_nested_for_loop_wrong_dollar_sign(void);
+void Eval_assign_new_to_const_to_entity_member(void);
+void Eval_assign_new_w_component_to_const_to_entity_member(void);
+void Eval_assign_new_w_component_w_vars_to_const_to_entity_member(void);
+void Eval_assign_new_w_kind_to_const_to_entity_member(void);
+void Eval_assign_new_w_name_to_const_to_entity_member(void);
+void Eval_assign_new_w_name_w_component_to_const_to_entity_member(void);
+void Eval_assign_new_w_name_w_component_w_vars_to_const_to_entity_member(void);
+void Eval_assign_new_w_name_w_kind_to_const_to_entity_member(void);
+void Eval_assign_new_to_entity_member(void);
+void Eval_assign_new_w_component_to_entity_member(void);
+void Eval_assign_new_w_component_to_entity_member_w_newlines(void);
+void Eval_assign_new_w_component_w_vars_to_entity_member(void);
+void Eval_assign_new_w_kind_to_entity_member(void);
+void Eval_assign_new_w_name_to_entity_member(void);
+void Eval_assign_new_w_name_w_component_to_entity_member(void);
+void Eval_assign_new_w_name_w_component_w_vars_to_entity_member(void);
+void Eval_assign_new_w_name_w_kind_to_entity_member(void);
+void Eval_assign_new_w_child_w_name_to_const(void);
+void Eval_assign_new_w_child_w_name_to_entity_member(void);
 
 // Testsuite 'Template'
 void Template_template_no_scope(void);
@@ -787,6 +806,18 @@ void Expr_identifier_as_var(void);
 void Expr_identifier_as_const_var(void);
 void Expr_expr_w_identifier_as_var(void);
 void Expr_initializer_w_identifier_as_var(void);
+void Expr_new_entity(void);
+void Expr_new_entity_w_component(void);
+void Expr_new_entity_w_component_w_newline(void);
+void Expr_new_entity_w_kind(void);
+void Expr_new_entity_w_component_w_vars(void);
+void Expr_new_named_entity(void);
+void Expr_new_named_entity_w_component(void);
+void Expr_new_named_entity_w_kind(void);
+void Expr_new_name_expr_entity(void);
+void Expr_new_name_expr_entity_w_component(void);
+void Expr_new_name_expr_entity_w_kind(void);
+void Expr_new_entity_w_unterminated_scope(void);
 
 // Testsuite 'ExprAst'
 void ExprAst_binary_f32_var_add_f32_var(void);
@@ -2295,6 +2326,82 @@ bake_test_case Eval_testcases[] = {
     {
         "interpolated_name_w_nested_for_loop_wrong_dollar_sign",
         Eval_interpolated_name_w_nested_for_loop_wrong_dollar_sign
+    },
+    {
+        "assign_new_to_const_to_entity_member",
+        Eval_assign_new_to_const_to_entity_member
+    },
+    {
+        "assign_new_w_component_to_const_to_entity_member",
+        Eval_assign_new_w_component_to_const_to_entity_member
+    },
+    {
+        "assign_new_w_component_w_vars_to_const_to_entity_member",
+        Eval_assign_new_w_component_w_vars_to_const_to_entity_member
+    },
+    {
+        "assign_new_w_kind_to_const_to_entity_member",
+        Eval_assign_new_w_kind_to_const_to_entity_member
+    },
+    {
+        "assign_new_w_name_to_const_to_entity_member",
+        Eval_assign_new_w_name_to_const_to_entity_member
+    },
+    {
+        "assign_new_w_name_w_component_to_const_to_entity_member",
+        Eval_assign_new_w_name_w_component_to_const_to_entity_member
+    },
+    {
+        "assign_new_w_name_w_component_w_vars_to_const_to_entity_member",
+        Eval_assign_new_w_name_w_component_w_vars_to_const_to_entity_member
+    },
+    {
+        "assign_new_w_name_w_kind_to_const_to_entity_member",
+        Eval_assign_new_w_name_w_kind_to_const_to_entity_member
+    },
+    {
+        "assign_new_to_entity_member",
+        Eval_assign_new_to_entity_member
+    },
+    {
+        "assign_new_w_component_to_entity_member",
+        Eval_assign_new_w_component_to_entity_member
+    },
+    {
+        "assign_new_w_component_to_entity_member_w_newlines",
+        Eval_assign_new_w_component_to_entity_member_w_newlines
+    },
+    {
+        "assign_new_w_component_w_vars_to_entity_member",
+        Eval_assign_new_w_component_w_vars_to_entity_member
+    },
+    {
+        "assign_new_w_kind_to_entity_member",
+        Eval_assign_new_w_kind_to_entity_member
+    },
+    {
+        "assign_new_w_name_to_entity_member",
+        Eval_assign_new_w_name_to_entity_member
+    },
+    {
+        "assign_new_w_name_w_component_to_entity_member",
+        Eval_assign_new_w_name_w_component_to_entity_member
+    },
+    {
+        "assign_new_w_name_w_component_w_vars_to_entity_member",
+        Eval_assign_new_w_name_w_component_w_vars_to_entity_member
+    },
+    {
+        "assign_new_w_name_w_kind_to_entity_member",
+        Eval_assign_new_w_name_w_kind_to_entity_member
+    },
+    {
+        "assign_new_w_child_w_name_to_const",
+        Eval_assign_new_w_child_w_name_to_const
+    },
+    {
+        "assign_new_w_child_w_name_to_entity_member",
+        Eval_assign_new_w_child_w_name_to_entity_member
     }
 };
 
@@ -4080,6 +4187,54 @@ bake_test_case Expr_testcases[] = {
     {
         "initializer_w_identifier_as_var",
         Expr_initializer_w_identifier_as_var
+    },
+    {
+        "new_entity",
+        Expr_new_entity
+    },
+    {
+        "new_entity_w_component",
+        Expr_new_entity_w_component
+    },
+    {
+        "new_entity_w_component_w_newline",
+        Expr_new_entity_w_component_w_newline
+    },
+    {
+        "new_entity_w_kind",
+        Expr_new_entity_w_kind
+    },
+    {
+        "new_entity_w_component_w_vars",
+        Expr_new_entity_w_component_w_vars
+    },
+    {
+        "new_named_entity",
+        Expr_new_named_entity
+    },
+    {
+        "new_named_entity_w_component",
+        Expr_new_named_entity_w_component
+    },
+    {
+        "new_named_entity_w_kind",
+        Expr_new_named_entity_w_kind
+    },
+    {
+        "new_name_expr_entity",
+        Expr_new_name_expr_entity
+    },
+    {
+        "new_name_expr_entity_w_component",
+        Expr_new_name_expr_entity_w_component
+    },
+    {
+        "new_name_expr_entity_w_kind",
+        Expr_new_name_expr_entity_w_kind
+    },
+    {
+        "new_entity_w_unterminated_scope",
+        Expr_new_entity_w_unterminated_scope
     }
 };
 
@@ -4864,7 +5019,7 @@ static bake_test_suite suites[] = {
         "Eval",
         NULL,
         NULL,
-        327,
+        346,
         Eval_testcases
     },
     {
@@ -4885,7 +5040,7 @@ static bake_test_suite suites[] = {
         "Expr",
         Expr_setup,
         NULL,
-        282,
+        294,
         Expr_testcases,
         1,
         Expr_params
