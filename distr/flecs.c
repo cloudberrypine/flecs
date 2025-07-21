@@ -67791,7 +67791,7 @@ int ecs_script_eval(
     }
 
     if (result) {
-        ecs_log_start_capture(false);
+        ecs_log_start_capture(true);
     }
 
     flecs_script_eval_visit_init(impl, &v, &priv_desc);
