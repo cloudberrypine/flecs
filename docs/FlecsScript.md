@@ -8,7 +8,7 @@ Some of the features of Flecs Script are:
 - Native support for named entities, hierarchies and inheritance
 - Assign component values
 - Expressions and variables (`var + 10`)
-- Conditionals (`if var > 10`)
+- Conditionals and loops (`if var > 10`, `for i in [0..10]`)
 - Native integration with templates (procedural assets)
 
 To learn Flecs Script, check out the [Tutorial](FlecsScriptTutorial.md)!
@@ -469,6 +469,116 @@ e {
 ```
 
 The type of a match expression is derived from the case values. When the case statements in a match contain values of multiple types, the most expressive type is selected. The algorithm for determining the most expressive type is the same as the one used to determine the type for binary expressions. When a match expression contains values with conflicting types, script execution will fail.
+
+### New expressions
+A new expression is the `new` keyword followed by an entity statement. New expressions can be used to create entities inside of expressions. The following are examples of valid new expressions:
+
+```cpp
+// Create a new anonymous entity, assign to variable x
+const x: new {}
+
+// Create a new anonymous entity with Position component, assign to variable x
+const x: new {
+  Position: {10, 20}
+}
+
+// Create a new entity with name Foo and Position component, assign to variable x
+const x: new Foo {
+  Position: {10, 20}
+}
+```
+
+New expressions can be used anywhere where an expression of an entity type is expected. The following example shows how to use a new expression inside of an initializer:
+
+```cpp
+// Create entity with TrafficLight component which has red, orange and green
+// members of type entity.
+e {
+  TrafficLight: {
+    red: new { Color: {255, 0, 0} }
+    orange: new { Color: {255, 128, 0} }
+    green: new { Color: {0, 255, 0} }
+  }
+}
+```
+
+The behavior of new expressions is exactly the same as entity statements in that they respect the context in which they are used, such as the current hierarchy scope and `with` statements:
+
+```cpp
+some_parent {
+  // Create new anonymous child of some_parent with Position component, assign 
+  // to variable x
+  const x: new { Position: {10, 20} }
+}
+
+with Position(10, 20) {
+  // Create new anonymous entity with Position: {10, 20}
+  const x: new { }
+}
+```
+
+All features that are supported by entity statements are also available for new expressions, such as the ability to have children:
+
+```cpp
+const x: new {
+  Positiion: {10, 20}
+
+  // Child of anonymous entity created by new expression
+  child {
+    Position: {20, 30}
+  }
+}
+```
+
+The primary use case for new expressions is to make it possible to create anonymous entities that can be referred to afterwards by a script. Without new expressions this is not possible, as illustrated here:
+
+```cpp
+// Create anonymous entities
+{
+  Color: {255, 0, 0}
+}
+{
+  Color: {255, 128, 0}
+}
+{
+  Color: {0, 255, 0}
+}
+
+e {
+  TrafficLight: {
+    // Can't refer to anonymous entities here
+    red: // ???
+    orange: // ???
+    green: // ???
+  }
+}
+```
+
+Without new expressions the only workaround is to use named entities, but this introduces overhead and increases memory footprint. With new expressions the example can be expressed with just anonymous entities:
+
+```cpp
+// Create anonymous entities, store in variables
+const red: new {
+  Color: {255, 0, 0}
+}
+
+const orange: new {
+  Color: {255, 128, 0}
+}
+
+const green: new {
+  Color: {0, 255, 0}
+}
+
+e {
+  TrafficLight: {
+    // Assign variables to members
+    red: red
+    orange: orange
+    green: green
+  }
+}
+```
 
 ### String interpolation
 Flecs script supports interpolated strings, which are strings that can contain expressions. String interpolation supports two forms, where one allows for easy embedding of variables, whereas the other allows for embedding any kind of expression. The following example shows an embedded variable:
