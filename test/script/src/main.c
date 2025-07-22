@@ -353,6 +353,8 @@ void Eval_assign_new_w_name_to_entity_member(void);
 void Eval_assign_new_w_name_w_component_to_entity_member(void);
 void Eval_assign_new_w_name_w_component_w_vars_to_entity_member(void);
 void Eval_assign_new_w_name_w_kind_to_entity_member(void);
+void Eval_assign_new_w_inheritance_to_entity_member(void);
+void Eval_assign_new_w_name_w_inheritance_to_entity_member(void);
 void Eval_assign_new_w_child_w_name_to_const(void);
 void Eval_assign_new_w_child_w_name_to_entity_member(void);
 
@@ -2394,6 +2396,14 @@ bake_test_case Eval_testcases[] = {
     {
         "assign_new_w_name_w_kind_to_entity_member",
         Eval_assign_new_w_name_w_kind_to_entity_member
+    },
+    {
+        "assign_new_w_inheritance_to_entity_member",
+        Eval_assign_new_w_inheritance_to_entity_member
+    },
+    {
+        "assign_new_w_name_w_inheritance_to_entity_member",
+        Eval_assign_new_w_name_w_inheritance_to_entity_member
     },
     {
         "assign_new_w_child_w_name_to_const",
@@ -5019,7 +5029,7 @@ static bake_test_suite suites[] = {
         "Eval",
         NULL,
         NULL,
-        346,
+        348,
         Eval_testcases
     },
     {

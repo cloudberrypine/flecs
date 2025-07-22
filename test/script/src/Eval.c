@@ -11488,6 +11488,62 @@ void Eval_assign_new_w_name_w_kind_to_entity_member(void) {
     ecs_fini(world);
 }
 
+void Eval_assign_new_w_name_w_inheritance_to_entity_member(void) {
+    ecs_world_t *world = ecs_init();
+
+    ecs_entity_t base = ecs_entity(world, { .name = "base" });
+
+    const char *expr =
+    HEAD "e {"
+    LINE "  entity: { new _ : base {} }"
+    LINE "}"
+    ;
+
+    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
+
+    ecs_entity_t e = ecs_lookup(world, "e");
+    test_assert(e != 0);
+
+    const ecs_entity_t *ptr = ecs_get(world, e, ecs_entity_t);
+    test_assert(ptr != NULL);
+    ecs_entity_t x = *ptr;
+    test_assert(x != 0);
+    test_assert(ecs_is_alive(world, x));
+    test_str(ecs_get_name(world, x), NULL);
+    test_uint(ecs_get_parent(world, x), e);
+    test_assert(ecs_has_pair(world, x, EcsIsA, base));
+
+    ecs_fini(world);
+}
+
+void Eval_assign_new_w_inheritance_to_entity_member(void) {
+    ecs_world_t *world = ecs_init();
+
+    ecs_entity_t base = ecs_entity(world, { .name = "base" });
+
+    const char *expr =
+    HEAD "e {"
+    LINE "  entity: { new Foo : base {} }"
+    LINE "}"
+    ;
+
+    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
+
+    ecs_entity_t e = ecs_lookup(world, "e");
+    test_assert(e != 0);
+
+    const ecs_entity_t *ptr = ecs_get(world, e, ecs_entity_t);
+    test_assert(ptr != NULL);
+    ecs_entity_t x = *ptr;
+    test_assert(x != 0);
+    test_assert(ecs_is_alive(world, x));
+    test_str(ecs_get_name(world, x), "Foo");
+    test_uint(ecs_get_parent(world, x), e);
+    test_assert(ecs_has_pair(world, x, EcsIsA, base));
+
+    ecs_fini(world);
+}
+
 void Eval_assign_new_w_child_w_name_to_const(void) {
     ecs_world_t *world = ecs_init();
 
