@@ -1674,15 +1674,8 @@ void Eval_inherit(void) {
     const char *expr =
     HEAD "Foo : Bar";
 
-    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
-
-    ecs_entity_t foo = ecs_lookup(world, "Foo");
-    ecs_entity_t bar = ecs_lookup(world, "Bar");
-
-    test_assert(foo != 0);
-    test_assert(bar != 0);
-
-    test_assert(ecs_has_pair(world, foo, EcsIsA, bar));
+    ecs_log_set_level(-4);
+    test_assert(ecs_script_run(world, NULL, expr, NULL) != 0);
 
     ecs_fini(world);
 }
@@ -1695,15 +1688,8 @@ void Eval_inherit_newline(void) {
     const char *expr =
     HEAD "Foo : Bar\n";
 
-    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
-
-    ecs_entity_t foo = ecs_lookup(world, "Foo");
-    ecs_entity_t bar = ecs_lookup(world, "Bar");
-
-    test_assert(foo != 0);
-    test_assert(bar != 0);
-
-    test_assert(ecs_has_pair(world, foo, EcsIsA, bar));
+    ecs_log_set_level(-4);
+    test_assert(ecs_script_run(world, NULL, expr, NULL) != 0);
 
     ecs_fini(world);
 }
@@ -7774,7 +7760,7 @@ void Eval_prefab_w_slot(void) {
     LINE "  slot Cannon {}"
     LINE "}"
     LINE ""
-    LINE "inst : Turret";
+    LINE "inst : Turret {}";
 
     test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
 
@@ -9545,11 +9531,8 @@ void Eval_entity_w_string_name_w_inherit(void) {
     const char *expr =
     HEAD "\"e_{10 + 20}\" : Foo";
 
-    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
-
-    ecs_entity_t e = ecs_lookup(world, "e_30");
-    test_assert(e != 0);
-    test_assert(ecs_has_pair(world, e, EcsIsA, Foo));
+    ecs_log_set_level(-4);
+    test_assert(ecs_script_run(world, NULL, expr, NULL) != 0);
 
     ecs_fini(world);
 }

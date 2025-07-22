@@ -278,13 +278,7 @@ prefab SpaceShip {
 my_spaceship : SpaceShip {}
 ```
 
-When specifying inheritance, the scope is optional:
-
-```cpp
-my_spaceship : SpaceShip // no {}
-```
-
-This is equivalent to doing:
+The `:` notation is short for adding an `IsA` relationship with the relationship syntax:
 
 ```cpp
 my_spaceship {
@@ -579,6 +573,8 @@ e {
   }
 }
 ```
+
+A new expression may only create a single entity, so comma operators are not supported.
 
 ### String interpolation
 Flecs script supports interpolated strings, which are strings that can contain expressions. String interpolation supports two forms, where one allows for easy embedding of variables, whereas the other allows for embedding any kind of expression. The following example shows an embedded variable:

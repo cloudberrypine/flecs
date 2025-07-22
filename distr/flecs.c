@@ -63505,10 +63505,6 @@ identifier_colon: {
         )
 
         Parse(
-            // enterprise : SpaceShip\n
-            EcsTokEndOfStatement:
-                EndOfRule;
-
             // enterprise : SpaceShip {
             case '{':
                 return flecs_script_scope(parser, entity->scope, pos);
