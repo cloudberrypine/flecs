@@ -368,7 +368,9 @@ void Eval_export_const_var_redeclared_w_local_var(void);
 void Eval_local_const_var_redeclared_w_export_var(void);
 void Eval_export_const_var_used_by_other_script(void);
 void Eval_export_const_var_as_component(void);
+void Eval_export_scoped_const_var_as_component(void);
 void Eval_export_const_var_in_scope(void);
+void Eval_export_scoped_const_var_used_by_other_script(void);
 
 // Testsuite 'Template'
 void Template_template_no_scope(void);
@@ -2470,8 +2472,16 @@ bake_test_case Eval_testcases[] = {
         Eval_export_const_var_as_component
     },
     {
+        "export_scoped_const_var_as_component",
+        Eval_export_scoped_const_var_as_component
+    },
+    {
         "export_const_var_in_scope",
         Eval_export_const_var_in_scope
+    },
+    {
+        "export_scoped_const_var_used_by_other_script",
+        Eval_export_scoped_const_var_used_by_other_script
     }
 };
 
@@ -5089,7 +5099,7 @@ static bake_test_suite suites[] = {
         "Eval",
         NULL,
         NULL,
-        360,
+        362,
         Eval_testcases
     },
     {

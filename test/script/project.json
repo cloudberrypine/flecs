@@ -372,7 +372,10 @@
                 "local_const_var_redeclared_w_export_var",
                 "export_const_var_used_by_other_script",
                 "export_const_var_as_component",
-                "export_const_var_in_scope"
+                "export_scoped_const_var_as_component",
+                "export_const_var_in_scope",
+                "export_scoped_const_var_used_by_other_script"
+
             ]
         }, {
             "id": "Template",

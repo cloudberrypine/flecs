@@ -116,7 +116,7 @@ error:
 }
 
 ecs_value_t ecs_const_var_get(
-    ecs_world_t *world,
+    const ecs_world_t *world,
     ecs_entity_t entity)
 {
     ecs_check(world != NULL, ECS_INVALID_PARAMETER, NULL);

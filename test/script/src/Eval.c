@@ -11923,6 +11923,42 @@ void Eval_export_const_var_as_component(void) {
     ecs_fini(world);
 }
 
+void Eval_export_scoped_const_var_as_component(void) {
+    test_quarantine("22 Jul 2025");
+
+    ecs_world_t *world = ecs_init();
+
+    ecs_entity_t ecs_id(Position) = ecs_struct(world, {
+        .entity = ecs_entity(world, { .name = "Position" }),
+        .members = {
+            {"x", ecs_id(ecs_f32_t)},
+            {"y", ecs_id(ecs_f32_t)}
+        }
+    });
+
+    const char *expr =
+    HEAD "parent {"
+    LINE "  export const v = Position: {10, 20}"
+    LINE "}"
+    LINE ""
+    LINE "e {"
+    LINE "  parent.$v"
+    LINE "}"
+    ;
+
+    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
+
+    ecs_entity_t e = ecs_lookup(world, "e");
+    test_assert(e != 0);
+
+    const Position *p = ecs_get(world, e, Position);
+    test_assert(p != NULL);
+    test_int(p->x, 10);
+    test_int(p->y, 20);
+
+    ecs_fini(world);
+}
+
 void Eval_export_const_var_in_scope(void) {
     ecs_world_t *world = ecs_init();
 
@@ -11944,6 +11980,46 @@ void Eval_export_const_var_in_scope(void) {
 
     test_uint(value.type, ecs_id(ecs_i32_t));
     test_int(*(ecs_i32_t*)value.ptr, 10);
+
+    ecs_fini(world);
+}
+
+void Eval_export_scoped_const_var_used_by_other_script(void) {
+    ecs_world_t *world = ecs_init();
+
+    ecs_entity_t ecs_id(Position) = ecs_struct(world, {
+        .entity = ecs_entity(world, { .name = "Position" }),
+        .members = {
+            {"x", ecs_id(ecs_f32_t)},
+            {"y", ecs_id(ecs_f32_t)}
+        }
+    });
+
+    const char *expr_1 =
+    HEAD "parent {"
+    LINE "  export const x: 10"
+    LINE "  export const y: 20"
+    LINE "}"
+    ;
+
+    const char *expr_2 =
+    HEAD "export const v = Position: {parent.x, parent.y}"
+    ;
+
+    test_assert(ecs_script_run(world, NULL, expr_1, NULL) == 0);
+    test_assert(ecs_script_run(world, NULL, expr_2, NULL) == 0);
+
+    ecs_entity_t v = ecs_lookup(world, "v");
+    test_assert(v != 0);
+
+    ecs_value_t value = ecs_const_var_get(world, v);
+    test_assert(value.type != 0);
+    test_assert(value.ptr != NULL);
+
+    test_uint(value.type, ecs_id(Position));
+    Position *p = value.ptr;
+    test_int(p->x, 10);
+    test_int(p->y, 20);
 
     ecs_fini(world);
 }

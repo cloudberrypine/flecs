@@ -1138,6 +1138,78 @@ with $color {
 }
 ```
 
+#### Exported variables
+Variables can be exported by prefixing a variable declaration with the `export` keyword. Exported variables can be accessed by the application and from other scripts. The following example shows an exported variable:
+
+```cpp
+// Script 1
+export const pi: 3.1415926
+```
+
+This variable can now be accessed from another script:
+
+```cpp
+// Script 2
+const pi_2: pi * 2
+```
+
+Exported variables are created as children of the scope in which they are defined:
+
+```cpp
+math {
+  export const pi: 3.1415926
+}
+```
+
+This will make the variable available to other scripts as `math.pi`.
+
+The `ecs_const_var_init` function is used to create exported variables. The followig example shows how the same variable can be created from C code:
+
+```cpp
+double pi_value = 3.1415926;
+
+ecs_const_var(world, {
+  .name = "pi",
+  .parent = ecs_lookup(world, "math"),
+  .type = ecs_id(ecs_f64_t),
+  .value = &pi_value
+});
+```
+
+Exported variables can be used as configuration that is loaded into an application from a script. The following example shows how to load an exported variable from C after it has been defined in a script or has been created with `ecs_const_var_init`:
+
+```cpp
+ecs_entity_t pi = ecs_lookup(world, "math.pi");
+ecs_value_t v = ecs_const_var_get(world, pi);
+double *value = v.ptr;
+if (value) {
+  // Use value
+}
+```
+
+The following example shows how exported variables can be used in combination with modules in C++:
+
+```cpp
+struct math {
+  static double pi;
+
+  math(flecs::world& world) {
+    world.script()
+      .filename("math.flecs")
+      .run();
+
+    pi = world.const_var<double>("pi");
+  }
+}
+
+// Import module
+world.import<math>();
+
+
+// Use value
+double pi_2 = math::pi * 2;
+```
+
 ### Component values
 A script can use the value of a component that is looked up on a specific entity. The following example fetches the `width` and `depth` members from the `Level` component, that is fetched from the `Game` entity:
 
