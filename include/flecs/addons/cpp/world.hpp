@@ -26,6 +26,21 @@ inline void set(world_t *world, flecs::entity_t entity, T&& value, flecs::id_t i
     }
 }
 
+template <typename T>
+inline void setd(world_t *world, flecs::entity_t entity, T&& value, flecs::id_t id) {
+    ecs_assert(_::type<T>::size() != 0, ECS_INVALID_PARAMETER,
+               "operation invalid for empty type");
+
+    ecs_cpp_get_mut_t res = ecs_cpp_setd(world, entity, id, &value, sizeof(T));
+
+    T& dst = *static_cast<remove_reference_t<T>*>(res.ptr);
+    dst = FLECS_MOV(value);
+
+    if (res.call_modified) {
+        ecs_modified_id(world, entity, id);
+    }
+}
+
 // set(const T&)
 template <typename T>
 inline void set(world_t *world, flecs::entity_t entity, const T& value, flecs::id_t id) {
@@ -41,6 +56,20 @@ inline void set(world_t *world, flecs::entity_t entity, const T& value, flecs::i
         ecs_modified_id(world, entity, id);
     }
 }
+template <typename T>
+inline void setd(world_t *world, flecs::entity_t entity, const T& value, flecs::id_t id) {
+    ecs_assert(_::type<T>::size() != 0, ECS_INVALID_PARAMETER,
+               "operation invalid for empty type");
+
+    ecs_cpp_get_mut_t res = ecs_cpp_setd(world, entity, id, &value, sizeof(T));
+
+    T& dst = *static_cast<remove_reference_t<T>*>(res.ptr);
+    dst = FLECS_MOV(value);
+
+    if (res.call_modified) {
+        ecs_modified_id(world, entity, id);
+    }
+}
 
 // set(T&&)
 template <typename T, typename A>
@@ -48,12 +77,22 @@ inline void set(world_t *world, entity_t entity, A&& value) {
     id_t id = _::type<T>::id(world);
     flecs::set(world, entity, FLECS_FWD(value), id);
 }
+template <typename T, typename A>
+inline void setd(world_t *world, entity_t entity, A&& value) {
+    id_t id = _::type<T>::id(world);
+    flecs::setd(world, entity, FLECS_FWD(value), id);
+}
 
 // set(const T&)
 template <typename T, typename A>
 inline void set(world_t *world, entity_t entity, const A& value) {
     id_t id = _::type<T>::id(world);
     flecs::set(world, entity, value, id);
+}
+template <typename T, typename A>
+inline void setd(world_t *world, entity_t entity, const A& value) {
+    id_t id = _::type<T>::id(world);
+    flecs::setd(world, entity, value, id);
 }
 
 // assign(T&&)

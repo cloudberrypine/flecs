@@ -696,6 +696,12 @@ struct entity_builder : entity_view {
         return to_base();
     }
 
+    template<typename T, if_t<is_actual<T>::value> = 0 >
+    const Self& setd(T&& value) const  {
+        flecs::setd<T>(this->world_, this->id_, FLECS_FWD(value));
+        return to_base();
+    }
+
     /** Set a component for an entity.
      * This operation sets the component value. If the entity did not yet have 
      * the component it will be added.
@@ -708,6 +714,13 @@ struct entity_builder : entity_view {
         flecs::set<T>(this->world_, this->id_, value);
         return to_base();
     }
+
+    template<typename T, if_t<is_actual<T>::value > = 0>
+    const Self& setd(const T& value) const  {
+        flecs::setd<T>(this->world_, this->id_, value);
+        return to_base();
+    }
+
 
     /** Set a component for an entity.
      * This operation sets the component value. If the entity did not yet have 
@@ -722,6 +735,12 @@ struct entity_builder : entity_view {
         flecs::set<T>(this->world_, this->id_, FLECS_FWD(value));
         return to_base();
     }
+    template<typename T, typename A = actual_type_t<T>, if_not_t<
+        is_actual<T>::value > = 0>
+    const Self& setd(A&& value) const  {
+        flecs::setd<T>(this->world_, this->id_, FLECS_FWD(value));
+        return to_base();
+    }
 
     /** Set a component for an entity.
      * This operation sets the component value. If the entity did not yet have 
@@ -734,6 +753,12 @@ struct entity_builder : entity_view {
         is_actual<T>::value > = 0>
     const Self& set(const A& value) const  {
         flecs::set<T>(this->world_, this->id_, value);
+        return to_base();
+    }
+    template<typename T, typename A = actual_type_t<T>, if_not_t<
+        is_actual<T>::value > = 0>
+    const Self& setd(const A& value) const  {
+        flecs::setd<T>(this->world_, this->id_, value);
         return to_base();
     }
 
@@ -751,6 +776,12 @@ struct entity_builder : entity_view {
         flecs::set<P>(this->world_, this->id_, FLECS_FWD(value));
         return to_base();
     }
+    template <typename First, typename Second, typename P = pair<First, Second>,
+        typename A = actual_type_t<P>, if_not_t< flecs::is_pair<First>::value> = 0>
+    const Self& setd(A&& value) const  {
+        flecs::setd<P>(this->world_, this->id_, FLECS_FWD(value));
+        return to_base();
+    }
 
     /** Set a pair for an entity.
      * This operation sets the pair value, and uses First as type. If the
@@ -766,6 +797,13 @@ struct entity_builder : entity_view {
         flecs::set<P>(this->world_, this->id_, value);
         return to_base();
     }
+    template <typename First, typename Second, typename P = pair<First, Second>,
+        typename A = actual_type_t<P>, if_not_t< flecs::is_pair<First>::value> = 0>
+    const Self& setd(const A& value) const  {
+        flecs::setd<P>(this->world_, this->id_, value);
+        return to_base();
+    }
+
 
     /** Set a pair for an entity.
      * This operation sets the pair value, and uses First as type. If the
@@ -780,6 +818,13 @@ struct entity_builder : entity_view {
         auto first = _::type<First>::id(this->world_);
         flecs::set(this->world_, this->id_, value, 
             ecs_pair(first, second));
+        return to_base();
+    }
+    template <typename First, typename Second, if_not_t< is_enum<Second>::value > = 0>
+    const Self& setd(Second second, const First& value) const  {
+        auto first = _::type<First>::id(this->world_);
+        flecs::setd(this->world_, this->id_, value,
+                   ecs_pair(first, second));
         return to_base();
     }
 
@@ -798,6 +843,13 @@ struct entity_builder : entity_view {
             ecs_pair(first, second));
         return to_base();
     }
+    template <typename First, typename Second, if_not_t< is_enum<Second>::value > = 0>
+    const Self& setd(Second second, First&& value) const  {
+        auto first = _::type<First>::id(this->world_);
+        flecs::setd(this->world_, this->id_, FLECS_FWD(value),
+                   ecs_pair(first, second));
+        return to_base();
+    }
 
     /** Set a pair for an entity.
      * This operation sets the pair value, and uses First as type. If the
@@ -812,6 +864,12 @@ struct entity_builder : entity_view {
         const auto& et = enum_type<Second>(this->world_);
         flecs::entity_t second = et.entity(constant);
         return set<First>(second, value);
+    }
+    template <typename First, typename Second, if_t< is_enum<Second>::value > = 0>
+    const Self& setd(Second constant, const First& value) const  {
+        const auto& et = enum_type<Second>(this->world_);
+        flecs::entity_t second = et.entity(constant);
+        return setd<First>(second, value);
     }
 
     /** Set a pair for an entity.

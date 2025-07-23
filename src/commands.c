@@ -573,6 +573,82 @@ error:
     return NULL;
 }
 
+
+/* Same as flecs_defer_set, but doesn't copy value into storage. */
+void* flecs_defer_cpp_setd(
+    ecs_world_t *world,
+    ecs_stage_t *stage,
+    ecs_entity_t entity,
+    ecs_id_t id,
+    ecs_size_t size,
+    const void *value)
+{
+    ecs_assert(value != NULL, ECS_INTERNAL_ERROR, NULL);
+    ecs_assert(size != 0, ECS_INTERNAL_ERROR, NULL);
+
+    ecs_cmd_t *cmd = flecs_cmd_new_batched(stage, entity);
+    ecs_assert(cmd != NULL, ECS_INTERNAL_ERROR, NULL);
+    cmd->entity = entity;
+    cmd->id = id;
+
+    ecs_record_t *r = flecs_entities_get(world, entity);
+    flecs_component_ptr_t ptr = flecs_defer_get_existing(
+        world, entity, r, id, size);
+
+    const ecs_type_info_t *ti = ptr.ti;
+    ecs_check(ti != NULL, ECS_INVALID_PARAMETER,
+              "provided component is not a type");
+    ecs_assert(size == ti->size, ECS_INVALID_PARAMETER,
+               "mismatching size specified for component in ensure/emplace/set");
+
+    /* Handle trivial set command (no hooks, OnSet observers) */
+    if (id < FLECS_HI_COMPONENT_ID) {
+        if (!world->non_trivial_set[id]) {
+            if (!ptr.ptr || true) {
+                ptr.ptr = flecs_stack_alloc(
+                    &stage->cmd->stack, size, ti->alignment);
+
+                /* No OnSet observers, so ensure is enough */
+                cmd->kind = EcsCmdEnsure;
+                cmd->is._1.size = size;
+                cmd->is._1.value = ptr.ptr;
+            } else {
+                /* No OnSet observers, so only thing we need to do is make sure
+                 * that a preceding remove command doesn't cause the entity to
+                 * end up without the component. */
+                cmd->kind = EcsCmdAdd;
+            }
+
+            ecs_os_memcpy(ptr.ptr, value, size);
+            return ptr.ptr;
+        }
+    }
+
+    if (!ptr.ptr || true) {
+        cmd->kind = EcsCmdSet;
+        cmd->is._1.size = size;
+        ptr.ptr = cmd->is._1.value =
+            flecs_stack_alloc(&stage->cmd->stack, size, ti->alignment);
+
+        ecs_xtor_t ctor = ti->hooks.ctor;
+        if (ctor) {
+            ctor(ptr.ptr, 1, ti);
+        }
+    } else {
+        cmd->kind = EcsCmdAddModified;
+
+        /* Call on_replace hook before copying the new value. */
+        if (ti->hooks.on_replace) {
+            flecs_invoke_replace_hook(
+                world, r->table, entity, id, ptr.ptr, value, ti);
+        }
+    }
+
+    return ptr.ptr;
+    error:
+    return NULL;
+}
+
 void* flecs_defer_cpp_assign(
     ecs_world_t *world,
     ecs_stage_t *stage,

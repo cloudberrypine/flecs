@@ -190,6 +190,14 @@ void* flecs_defer_cpp_set(
     ecs_size_t size,
     const void *value);
 
+void* flecs_defer_cpp_setd(
+    ecs_world_t *world,
+    ecs_stage_t *stage,
+    ecs_entity_t entity,
+    ecs_id_t id,
+    ecs_size_t size,
+    const void *value);
+
 void* flecs_defer_cpp_assign(
     ecs_world_t *world,
     ecs_stage_t *stage,

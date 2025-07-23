@@ -110,6 +110,14 @@ FLECS_ALWAYS_INLINE ecs_cpp_get_mut_t ecs_cpp_set(
     size_t size);
 
 FLECS_API
+FLECS_ALWAYS_INLINE ecs_cpp_get_mut_t ecs_cpp_setd(
+    ecs_world_t *world,
+    ecs_entity_t entity,
+    ecs_id_t component,
+    const void *new_ptr,
+    size_t size);
+
+FLECS_API
 FLECS_ALWAYS_INLINE ecs_cpp_get_mut_t ecs_cpp_assign(
     ecs_world_t *world,
     ecs_entity_t entity,
