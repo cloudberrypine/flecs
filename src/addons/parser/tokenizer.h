@@ -59,8 +59,9 @@ typedef enum ecs_token_kind_t {
     EcsTokKeywordConst = 131,
     EcsTokKeywordMatch = 132,
     EcsTokKeywordNew = 133,
-    EcsTokAddAssign = 134,
-    EcsTokMulAssign = 135,
+    EcsTokKeywordExport = 134,
+    EcsTokAddAssign = 135,
+    EcsTokMulAssign = 136,
 } ecs_token_kind_t;
 
 typedef struct ecs_token_t {

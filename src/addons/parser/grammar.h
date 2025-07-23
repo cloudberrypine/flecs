@@ -109,7 +109,9 @@
         }\
         parser->significant_newline = true;\
         if (pos[0] != until) {\
-            Error("expected '%c'", until);\
+            if (until != '\n' || pos[0] != '\0') {\
+                Error("expected '%c'", until);\
+            }\
         }\
         INITIALIZER = (ecs_expr_node_t*)_initializer;\
         pos ++;\

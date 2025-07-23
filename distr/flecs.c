@@ -45180,8 +45180,9 @@ typedef enum ecs_token_kind_t {
     EcsTokKeywordConst = 131,
     EcsTokKeywordMatch = 132,
     EcsTokKeywordNew = 133,
-    EcsTokAddAssign = 134,
-    EcsTokMulAssign = 135,
+    EcsTokKeywordExport = 134,
+    EcsTokAddAssign = 135,
+    EcsTokMulAssign = 136,
 } ecs_token_kind_t;
 
 typedef struct ecs_token_t {
@@ -45280,6 +45281,7 @@ typedef enum ecs_script_node_kind_t {
     EcsAstTemplate,
     EcsAstProp,
     EcsAstConst,
+    EcsAstExportConst,
     EcsAstEntity,
     EcsAstPairScope,
     EcsAstIf,
@@ -46106,7 +46108,8 @@ int flecs_script_eval_using(
 
 int flecs_script_eval_const(
     ecs_script_eval_visitor_t *v,
-    ecs_script_var_node_t *node);
+    ecs_script_var_node_t *node,
+    bool export);
 
 ecs_entity_t flecs_script_find_entity_action(
     const ecs_world_t *world,
@@ -58467,6 +58470,7 @@ const char* flecs_token_kind_str(
     case EcsTokKeywordModule:
     case EcsTokKeywordMatch:
     case EcsTokKeywordNew:
+    case EcsTokKeywordExport:
         return "keyword ";
     case EcsTokIdentifier:
         return "identifier ";
@@ -58530,6 +58534,7 @@ const char* flecs_token_str(
     case EcsTokKeywordConst: return "const";
     case EcsTokKeywordMatch: return "match";
     case EcsTokKeywordNew: return "new";
+    case EcsTokKeywordExport: return "export";
     case EcsTokKeywordIf: return "if";
     case EcsTokKeywordElse: return "else";
     case EcsTokKeywordFor: return "for";
@@ -59001,6 +59006,7 @@ const char* flecs_token(
     Keyword           ("in",       EcsTokKeywordIn)
     Keyword           ("match",    EcsTokKeywordMatch)
     Keyword           ("new",      EcsTokKeywordNew)
+    Keyword           ("export",   EcsTokKeywordExport)
     Keyword           ("module",   EcsTokKeywordModule)
 
     } else if (pos[0] == '"') {
@@ -60566,7 +60572,9 @@ bool ecs_using_task_threads(
         }\
         parser->significant_newline = true;\
         if (pos[0] != until) {\
-            Error("expected '%c'", until);\
+            if (until != '\n' || pos[0] != '\0') {\
+                Error("expected '%c'", until);\
+            }\
         }\
         INITIALIZER = (ecs_expr_node_t*)_initializer;\
         pos ++;\
@@ -61888,11 +61896,15 @@ void ecs_script_params_free(ecs_vec_t *params) {
 
 static
 ECS_MOVE(EcsScriptConstVar, dst, src, {
-    if (dst->type_info->hooks.dtor) {
-        dst->type_info->hooks.dtor(dst->value.ptr, 1, dst->type_info);
-    }
+    if (dst->value.ptr) {
+        ecs_assert(dst->type_info != NULL, ECS_INTERNAL_ERROR, NULL);
 
-    ecs_os_free(dst->value.ptr);
+        if (dst->type_info->hooks.dtor) {
+            dst->type_info->hooks.dtor(dst->value.ptr, 1, dst->type_info);
+        }
+
+        ecs_os_free(dst->value.ptr);
+    }
     
     *dst = *src;
 
@@ -61903,8 +61915,11 @@ ECS_MOVE(EcsScriptConstVar, dst, src, {
 
 static
 ECS_DTOR(EcsScriptConstVar, ptr, {
-    if (ptr->type_info->hooks.dtor) {
-        ptr->type_info->hooks.dtor(ptr->value.ptr, 1, ptr->type_info);
+    if (ptr->value.ptr) {
+        ecs_assert(ptr->type_info != NULL, ECS_INTERNAL_ERROR, NULL);
+        if (ptr->type_info->hooks.dtor) {
+            ptr->type_info->hooks.dtor(ptr->value.ptr, 1, ptr->type_info);
+        }
     }
     ecs_os_free(ptr->value.ptr);
 })
@@ -61942,6 +61957,12 @@ ecs_entity_t ecs_const_var_init(
     ecs_check(desc->name != NULL, ECS_INVALID_PARAMETER, NULL);
     ecs_check(desc->type != 0, ECS_INVALID_PARAMETER, NULL);
     ecs_check(desc->value != NULL, ECS_INVALID_PARAMETER, NULL);
+    
+    if (ecs_lookup_child(world, desc->parent, desc->name) != 0) {
+        ecs_err("cannot redeclare const variable entity '%s' in parent '%s'", 
+            desc->name, flecs_errstr(ecs_get_path(world, desc->parent)));
+        return 0;
+    }
 
     const ecs_type_info_t *ti = ecs_get_type_info(world, desc->type);
     ecs_check(ti != NULL, ECS_INVALID_PARAMETER, 
@@ -61967,6 +61988,21 @@ ecs_entity_t ecs_const_var_init(
     return result;
 error:
     return 0;
+}
+
+ecs_value_t ecs_const_var_get(
+    ecs_world_t *world,
+    ecs_entity_t entity)
+{
+    ecs_check(world != NULL, ECS_INVALID_PARAMETER, NULL);
+    const EcsScriptConstVar *v = ecs_get(world, entity, EcsScriptConstVar);
+    if (!v) {
+        goto error;
+    }
+
+    return v->value;
+error:
+    return (ecs_value_t){0};
 }
 
 ecs_entity_t ecs_function_init(
@@ -63046,12 +63082,16 @@ const char* flecs_script_parse_var(
     ecs_parser_t *parser,
     const char *pos,
     ecs_tokenizer_t *tokenizer,
-    bool is_prop)
+    ecs_script_node_kind_t kind)
 {
+    int token_offset = kind != EcsAstExportConst ? 0 : 1;
+
     Parse_1(EcsTokIdentifier,
         ecs_script_var_node_t *var = flecs_script_insert_var(
-            parser, Token(1));
-        var->node.kind = is_prop ? EcsAstProp : EcsAstConst;
+            parser, Token(1 + token_offset));
+        var->node.kind = kind;
+
+        bool is_prop = kind == EcsAstProp;
 
         Parse(
             // const color =
@@ -63060,7 +63100,7 @@ const char* flecs_script_parse_var(
                 LookAhead_2(EcsTokIdentifier, ':',
                     pos = lookahead;
 
-                    var->type = Token(3);
+                    var->type = Token(3 + token_offset);
 
                     // const color = Color: {
                     LookAhead_1('{',
@@ -63104,6 +63144,33 @@ error:
     return NULL;
 }
 
+static
+const char* flecs_script_parse_const(
+    ecs_parser_t *parser,
+    const char *pos,
+    ecs_tokenizer_t *tokenizer)
+{
+    return flecs_script_parse_var(parser, pos, tokenizer, EcsAstConst);
+}
+
+static
+const char* flecs_script_parse_export_const(
+    ecs_parser_t *parser,
+    const char *pos,
+    ecs_tokenizer_t *tokenizer)
+{
+    return flecs_script_parse_var(parser, pos, tokenizer, EcsAstExportConst);
+}
+
+static
+const char* flecs_script_parse_prop(
+    ecs_parser_t *parser,
+    const char *pos,
+    ecs_tokenizer_t *tokenizer)
+{
+    return flecs_script_parse_var(parser, pos, tokenizer, EcsAstProp);
+}
+
 /* Parse a single statement */
 const char* flecs_script_stmt(
     ecs_parser_t *parser,
@@ -63126,6 +63193,7 @@ const char* flecs_script_stmt(
         case EcsTokKeywordTemplate:   goto template_stmt;
         case EcsTokKeywordProp:       goto prop_var;
         case EcsTokKeywordConst:      goto const_var;
+        case EcsTokKeywordExport:     goto export_var;
         case EcsTokKeywordIf:         goto if_stmt;
         case EcsTokKeywordFor:        goto for_stmt;
         EcsTokEndOfStatement:         EndOfRule;
@@ -63296,13 +63364,21 @@ template_stmt: {
 // prop
 prop_var: {
     // prop color = Color:
-    return flecs_script_parse_var(parser, pos, tokenizer, true);
+    return flecs_script_parse_prop(parser, pos, tokenizer);
+}
+
+// export
+export_var: {
+    // export const
+    Parse_1(EcsTokKeywordConst,
+        return flecs_script_parse_export_const(parser, pos, tokenizer);
+    )
 }
 
 // const
 const_var: {
     // const color
-    return flecs_script_parse_var(parser, pos, tokenizer, false);
+    return flecs_script_parse_const(parser, pos, tokenizer);
 }
 
 // if
@@ -65039,29 +65115,10 @@ int flecs_script_template_eval(
     ecs_script_eval_visitor_t *v,
     ecs_script_node_t *node)
 {
-    switch(node->kind) {
-    case EcsAstTag:
-    case EcsAstComponent:
-    case EcsAstVarComponent:
-    case EcsAstEntity:
-    case EcsAstScope:
-    case EcsAstDefaultComponent:
-    case EcsAstWithVar:
-    case EcsAstWithTag:
-    case EcsAstWithComponent:
-    case EcsAstUsing:
-    case EcsAstModule:
-    case EcsAstAnnotation:
-    case EcsAstConst:
-    case EcsAstPairScope:
-    case EcsAstWith:
-    case EcsAstIf:
-    case EcsAstFor:
-        break;
-    case EcsAstTemplate:
+    if (node->kind == EcsAstTemplate) {
         flecs_script_eval_error(v, node, "nested templates are not allowed");
         return -1;
-    case EcsAstProp:
+    } else if (node->kind == EcsAstProp) {
         return flecs_script_template_eval_prop(v, (ecs_script_var_node_t*)node);
     }
 
@@ -66139,7 +66196,7 @@ int flecs_script_check_const(
     ecs_script_eval_visitor_t *v,
     ecs_script_var_node_t *node)
 {
-    return flecs_script_eval_const(v, node);
+    return flecs_script_eval_const(v, node, false);
 }
 
 static
@@ -66291,6 +66348,8 @@ int flecs_script_check_node(
     case EcsAstConst:
         return flecs_script_check_const(
             v, (ecs_script_var_node_t*)node);
+    case EcsAstExportConst:
+        return 0;
     case EcsAstEntity:
         return flecs_script_check_entity(
             v, (ecs_script_entity_t*)node);
@@ -67212,13 +67271,27 @@ int flecs_script_eval_var_component(
     ecs_script_eval_visitor_t *v,
     ecs_script_var_component_t *node)
 {
-    
     ecs_script_var_t *var = flecs_script_find_var(
         v->vars, node->name, v->dynamic_variable_binding ? NULL : &node->sp);
+    ecs_value_t var_value = {0};
     if (!var) {
-        flecs_script_eval_error(v, node, 
-            "unresolved variable '%s'", node->name);
-        return -1;
+        /* If we cannot find local variable, try find as const var */
+        ecs_entity_t var = 0;
+        if (flecs_script_find_entity(v, 0, node->name, NULL, &var)) {
+            return -1;
+        }
+
+        if (var) {
+            var_value = ecs_const_var_get(v->world, var);
+        }
+
+        if (!var_value.ptr) {
+            flecs_script_eval_error(v, node, 
+                "unresolved variable '%s'", node->name);
+            return -1;
+        }
+    } else {
+        var_value = var->value;
     }
 
     if (v->is_with_scope) {
@@ -67226,9 +67299,9 @@ int flecs_script_eval_var_component(
         return -1;
     }
 
-    ecs_id_t var_id = var->value.type;
+    ecs_id_t var_id = var_value.type;
 
-    if (var->value.ptr) {
+    if (var_value.ptr) {
         const ecs_type_info_t *ti = flecs_script_get_type_info(
             v, node, var_id);
         if (!ti) {
@@ -67241,7 +67314,7 @@ int flecs_script_eval_var_component(
             .type = var_id
         };
 
-        ecs_value_copy_w_type_info(v->world, ti, value.ptr, var->value.ptr);
+        ecs_value_copy_w_type_info(v->world, ti, value.ptr, var_value.ptr);
 
         ecs_modified_id(v->world, v->entity->eval, var_id);
     } else {
@@ -67491,17 +67564,40 @@ int flecs_script_eval_module(
 
 int flecs_script_eval_const(
     ecs_script_eval_visitor_t *v,
-    ecs_script_var_node_t *node)
+    ecs_script_var_node_t *node,
+    bool export)
 {
     /* Declare variable. If this variable is declared while instantiating a
      * template, the variable sp has already been resolved in all expressions
      * that used it, so we don't need to create the variable with a name. */
-    ecs_script_var_t *var = ecs_script_vars_declare(v->vars, 
-        v->template_entity ? NULL : node->name);
-    if (!var) {
-        flecs_script_eval_error(v, node, 
-            "variable '%s' redeclared", node->name);
-        return -1;
+    ecs_script_var_t *var = NULL;
+    if (!export) {
+        ecs_entity_t e = ecs_lookup_child(v->world, v->parent, node->name);
+        if (e) {
+            ecs_value_t existing = ecs_const_var_get(v->world, e);
+            if (existing.ptr != NULL) {
+                flecs_script_eval_error(v, node, 
+                    "local variable '%s' shadows an exported variable", 
+                        node->name);
+                return -1;
+            }
+        }
+
+        var = ecs_script_vars_declare(v->vars, 
+            v->template_entity ? NULL : node->name);
+        if (!var) {
+            flecs_script_eval_error(v, node, 
+                "variable '%s' redeclared", node->name);
+            return -1;
+        }
+    } else {
+        var = ecs_script_vars_lookup(v->vars, 
+            v->template_entity ? NULL : node->name);
+        if (var) {
+            flecs_script_eval_error(v, node, 
+                "exported variable '%s' shadows a local variable", node->name);
+            return -1;
+        }
     }
 
     ecs_entity_t type = 0;
@@ -67528,20 +67624,21 @@ int flecs_script_eval_const(
         }
     }
 
+    ecs_value_t result = {
+        .type = type
+    };
+
     if (type && ti) {
         ecs_assert(type != 0, ECS_INTERNAL_ERROR, NULL);
         ecs_assert(ti != NULL, ECS_INTERNAL_ERROR, NULL);
 
-        var->value.ptr = flecs_stack_calloc(
-            &v->r->stack, ti->size, ti->alignment);
-        var->value.type = type;
-        var->type_info = ti;
+        result.ptr = flecs_stack_calloc(&v->r->stack, ti->size, ti->alignment);
 
         if (ti->hooks.ctor) {
-            ti->hooks.ctor(var->value.ptr, 1, ti);
+            ti->hooks.ctor(result.ptr, 1, ti);
         }
 
-        if (flecs_script_eval_expr(v, &node->expr, &var->value)) {
+        if (flecs_script_eval_expr(v, &node->expr, &result)) {
             flecs_script_eval_error(v, node,
                 "failed to evaluate expression for const variable '%s'", 
                     node->name);
@@ -67562,24 +67659,48 @@ int flecs_script_eval_const(
         ti = ecs_get_type_info(v->world, value.type);
         ecs_assert(ti != NULL, ECS_INTERNAL_ERROR, NULL);
 
-        var->value.ptr = flecs_stack_calloc(
+        result.ptr = flecs_stack_calloc(
             &v->r->stack, ti->size, ti->alignment);
-        var->value.type = value.type;
-        var->type_info = ti;
+        result.type = value.type;
 
         if (ti->hooks.ctor) {
-            ti->hooks.ctor(var->value.ptr, 1, ti);
+            ti->hooks.ctor(result.ptr, 1, ti);
         }
 
-        ecs_value_copy_w_type_info(v->world, ti, var->value.ptr, value.ptr);
+        ecs_value_copy_w_type_info(v->world, ti, result.ptr, value.ptr);
         ecs_value_fini_w_type_info(v->world, ti, value.ptr);
         flecs_free(&v->world->allocator, ti->size, value.ptr);
     }
 
     /* If variable resolves to a constant expression, mark it as const so that
      * its value can be folded. */
-    if (node->expr->kind == EcsExprValue) {
-        var->is_const = true;
+    if (!export) {
+        if (node->expr->kind == EcsExprValue) {
+            var->is_const = true;
+        }
+        var->type_info = ti;
+        var->value = result;
+    } else {
+        ecs_entity_t const_var = ecs_const_var(v->world, {
+            .parent = v->parent,
+            .name = node->name,
+            .type = result.type,
+            .value = result.ptr
+        });
+
+        /* Clean up value since it'll have been copied into the const var. */
+        if (ti->hooks.dtor) {
+            ti->hooks.dtor(result.ptr, 1, ti);
+        }
+
+        flecs_stack_free(result.ptr, ti->size);
+
+        if (!const_var) {
+            flecs_script_eval_error(v, node,
+                "failed to create exported const variable '%s'",
+                    node->name);
+            return -1;
+        }
     }
 
     return 0;
@@ -67791,7 +67912,10 @@ int flecs_script_eval_node(
         return 0;
     case EcsAstConst:
         return flecs_script_eval_const(
-            v, (ecs_script_var_node_t*)node);
+            v, (ecs_script_var_node_t*)node, false);
+    case EcsAstExportConst:
+        return flecs_script_eval_const(
+            v, (ecs_script_var_node_t*)node, true);
     case EcsAstEntity:
         return flecs_script_eval_entity(
             v, (ecs_script_entity_t*)node);
@@ -68058,6 +68182,7 @@ int flecs_script_stmt_free(
         break;
     case EcsAstProp:
     case EcsAstConst:
+    case EcsAstExportConst:
         flecs_script_var_node_free(v, (ecs_script_var_node_t*)node);
         flecs_free_t(a, ecs_script_var_node_t, node);
         break;
@@ -68235,6 +68360,7 @@ const char* flecs_script_node_to_str(
     case EcsAstTemplate:           return "template";
     case EcsAstProp:               return "prop";
     case EcsAstConst:              return "const";
+    case EcsAstExportConst:        return "export const";
     case EcsAstEntity:             return "entity";
     case EcsAstPairScope:          return "pair_scope";
     case EcsAstIf:                 return "if";
@@ -68524,6 +68650,7 @@ int flecs_script_stmt_to_str(
         flecs_script_template_to_str(v, (ecs_script_template_node_t*)node);
         break;
     case EcsAstConst:
+    case EcsAstExportConst:
     case EcsAstProp:
         flecs_script_var_node_to_str(v, (ecs_script_var_node_t*)node);
         break;
@@ -82341,6 +82468,10 @@ const char* flecs_script_parse_initializer(
                     }
                     EndOfRule;
                 }
+
+                case '\0':
+                    pos = lookahead;
+                    EndOfRule;
             )
         }
     } while (true);

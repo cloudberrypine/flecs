@@ -217,6 +217,10 @@ const char* flecs_script_parse_initializer(
                     }
                     EndOfRule;
                 }
+
+                case '\0':
+                    pos = lookahead;
+                    EndOfRule;
             )
         }
     } while (true);

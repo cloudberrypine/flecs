@@ -290,12 +290,16 @@ const char* flecs_script_parse_var(
     ecs_parser_t *parser,
     const char *pos,
     ecs_tokenizer_t *tokenizer,
-    bool is_prop)
+    ecs_script_node_kind_t kind)
 {
+    int token_offset = kind != EcsAstExportConst ? 0 : 1;
+
     Parse_1(EcsTokIdentifier,
         ecs_script_var_node_t *var = flecs_script_insert_var(
-            parser, Token(1));
-        var->node.kind = is_prop ? EcsAstProp : EcsAstConst;
+            parser, Token(1 + token_offset));
+        var->node.kind = kind;
+
+        bool is_prop = kind == EcsAstProp;
 
         Parse(
             // const color =
@@ -304,7 +308,7 @@ const char* flecs_script_parse_var(
                 LookAhead_2(EcsTokIdentifier, ':',
                     pos = lookahead;
 
-                    var->type = Token(3);
+                    var->type = Token(3 + token_offset);
 
                     // const color = Color: {
                     LookAhead_1('{',
@@ -348,6 +352,33 @@ error:
     return NULL;
 }
 
+static
+const char* flecs_script_parse_const(
+    ecs_parser_t *parser,
+    const char *pos,
+    ecs_tokenizer_t *tokenizer)
+{
+    return flecs_script_parse_var(parser, pos, tokenizer, EcsAstConst);
+}
+
+static
+const char* flecs_script_parse_export_const(
+    ecs_parser_t *parser,
+    const char *pos,
+    ecs_tokenizer_t *tokenizer)
+{
+    return flecs_script_parse_var(parser, pos, tokenizer, EcsAstExportConst);
+}
+
+static
+const char* flecs_script_parse_prop(
+    ecs_parser_t *parser,
+    const char *pos,
+    ecs_tokenizer_t *tokenizer)
+{
+    return flecs_script_parse_var(parser, pos, tokenizer, EcsAstProp);
+}
+
 /* Parse a single statement */
 const char* flecs_script_stmt(
     ecs_parser_t *parser,
@@ -370,6 +401,7 @@ const char* flecs_script_stmt(
         case EcsTokKeywordTemplate:   goto template_stmt;
         case EcsTokKeywordProp:       goto prop_var;
         case EcsTokKeywordConst:      goto const_var;
+        case EcsTokKeywordExport:     goto export_var;
         case EcsTokKeywordIf:         goto if_stmt;
         case EcsTokKeywordFor:        goto for_stmt;
         EcsTokEndOfStatement:         EndOfRule;
@@ -540,13 +572,21 @@ template_stmt: {
 // prop
 prop_var: {
     // prop color = Color:
-    return flecs_script_parse_var(parser, pos, tokenizer, true);
+    return flecs_script_parse_prop(parser, pos, tokenizer);
+}
+
+// export
+export_var: {
+    // export const
+    Parse_1(EcsTokKeywordConst,
+        return flecs_script_parse_export_const(parser, pos, tokenizer);
+    )
 }
 
 // const
 const_var: {
     // const color
-    return flecs_script_parse_var(parser, pos, tokenizer, false);
+    return flecs_script_parse_const(parser, pos, tokenizer);
 }
 
 // if

@@ -122,6 +122,8 @@ void Eval_scope_after_assign(void);
 void Eval_assign_after_inherit(void);
 void Eval_multiple_tags_single_line(void);
 void Eval_multiple_pairs_single_line(void);
+void Eval_var_single_line_no_newline(void);
+void Eval_var_single_line_composite_type_no_newline(void);
 void Eval_multiple_vars_single_line(void);
 void Eval_multiple_assignments_single_line(void);
 void Eval_2_stmts_in_scope_w_no_parent(void);
@@ -357,6 +359,16 @@ void Eval_assign_new_w_inheritance_to_entity_member(void);
 void Eval_assign_new_w_name_w_inheritance_to_entity_member(void);
 void Eval_assign_new_w_child_w_name_to_const(void);
 void Eval_assign_new_w_child_w_name_to_entity_member(void);
+void Eval_assign_new_to_const_in_scope(void);
+void Eval_export_const_var(void);
+void Eval_export_const_var_w_type(void);
+void Eval_export_const_var_w_struct(void);
+void Eval_export_const_var_redeclared(void);
+void Eval_export_const_var_redeclared_w_local_var(void);
+void Eval_local_const_var_redeclared_w_export_var(void);
+void Eval_export_const_var_used_by_other_script(void);
+void Eval_export_const_var_as_component(void);
+void Eval_export_const_var_in_scope(void);
 
 // Testsuite 'Template'
 void Template_template_no_scope(void);
@@ -1474,6 +1486,14 @@ bake_test_case Eval_testcases[] = {
         Eval_multiple_pairs_single_line
     },
     {
+        "var_single_line_no_newline",
+        Eval_var_single_line_no_newline
+    },
+    {
+        "var_single_line_composite_type_no_newline",
+        Eval_var_single_line_composite_type_no_newline
+    },
+    {
         "multiple_vars_single_line",
         Eval_multiple_vars_single_line
     },
@@ -2412,6 +2432,46 @@ bake_test_case Eval_testcases[] = {
     {
         "assign_new_w_child_w_name_to_entity_member",
         Eval_assign_new_w_child_w_name_to_entity_member
+    },
+    {
+        "assign_new_to_const_in_scope",
+        Eval_assign_new_to_const_in_scope
+    },
+    {
+        "export_const_var",
+        Eval_export_const_var
+    },
+    {
+        "export_const_var_w_type",
+        Eval_export_const_var_w_type
+    },
+    {
+        "export_const_var_w_struct",
+        Eval_export_const_var_w_struct
+    },
+    {
+        "export_const_var_redeclared",
+        Eval_export_const_var_redeclared
+    },
+    {
+        "export_const_var_redeclared_w_local_var",
+        Eval_export_const_var_redeclared_w_local_var
+    },
+    {
+        "local_const_var_redeclared_w_export_var",
+        Eval_local_const_var_redeclared_w_export_var
+    },
+    {
+        "export_const_var_used_by_other_script",
+        Eval_export_const_var_used_by_other_script
+    },
+    {
+        "export_const_var_as_component",
+        Eval_export_const_var_as_component
+    },
+    {
+        "export_const_var_in_scope",
+        Eval_export_const_var_in_scope
     }
 };
 
@@ -5029,7 +5089,7 @@ static bake_test_suite suites[] = {
         "Eval",
         NULL,
         NULL,
-        348,
+        360,
         Eval_testcases
     },
     {
