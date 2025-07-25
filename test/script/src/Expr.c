@@ -6387,6 +6387,31 @@ void Expr_remainder_after_initializer_w_newlines(void) {
     ecs_fini(world);
 }
 
+void Expr_remainder_after_initializer_w_crlf(void) {
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT(world, Position);
+
+    ecs_struct(world, {
+        .entity = ecs_id(Position),
+        .members = {
+            { "x", ecs_id(ecs_f32_t) },
+            { "y", ecs_id(ecs_f32_t) }
+        }
+    });
+
+    Position v = {0, 0};
+    ecs_expr_eval_desc_t desc = { .disable_folding = disable_folding };
+    const char *ptr = ecs_expr_run(world, "{\r\n10,\r\n 20\r\n} foo", 
+        &ecs_value_ptr(Position, &v), &desc);
+    test_assert(ptr != NULL);
+    test_str(ptr, " foo");
+    test_int(v.x, 10);
+    test_int(v.y, 20);
+
+    ecs_fini(world);
+}
+
 void Expr_remainder_after_initializer_before_parens(void) {
     ecs_world_t *world = ecs_init();
 
@@ -6432,6 +6457,20 @@ void Expr_newline_at_start(void) {
     int32_t v = false;
     ecs_expr_eval_desc_t desc = { .disable_folding = disable_folding };
     const char *ptr = ecs_expr_run(world, "\n10 + 20", 
+        &ecs_value_ptr(ecs_i32_t, &v), &desc);
+    test_assert(ptr != NULL);
+    test_assert(ptr[0] == 0);
+    test_int(v, 30);
+
+    ecs_fini(world);
+}
+
+void Expr_crlf_at_start(void) {
+    ecs_world_t *world = ecs_init();
+
+    int32_t v = false;
+    ecs_expr_eval_desc_t desc = { .disable_folding = disable_folding };
+    const char *ptr = ecs_expr_run(world, "\r\n10 + 20", 
         &ecs_value_ptr(ecs_i32_t, &v), &desc);
     test_assert(ptr != NULL);
     test_assert(ptr[0] == 0);
@@ -8056,6 +8095,337 @@ void Expr_initializer_w_identifier_as_var(void) {
     test_int(p.y, 20);
 
     ecs_script_vars_fini(vars);
+
+    ecs_fini(world);
+}
+
+void Expr_new_entity(void) {
+    ecs_world_t *world = ecs_init();
+
+    ecs_expr_eval_desc_t desc = { .disable_folding = disable_folding };
+
+    ecs_entity_t e = 0;
+    ecs_value_t v = { .type = ecs_id(ecs_entity_t), .ptr = &e };
+    test_assert(ecs_expr_run(world, "new {}", &v, &desc) != NULL);
+    test_assert(e != 0);
+    test_assert(ecs_is_alive(world, e));
+    test_int(ecs_get_type(world, e)->count, 0);
+
+    ecs_fini(world);
+}
+
+void Expr_new_entity_w_component(void) {
+    ecs_world_t *world = ecs_init();
+
+    typedef struct {
+        int32_t x;
+        int32_t y;
+    } Position;
+
+    ecs_entity_t ecs_id(Position) = ecs_struct(world, {
+        .entity = ecs_entity(world, { .name = "Position" }),
+        .members = {
+            {"x", ecs_id(ecs_i32_t)},
+            {"y", ecs_id(ecs_i32_t)}
+        }
+    });
+
+    ecs_expr_eval_desc_t desc = { .disable_folding = disable_folding };
+
+    ecs_entity_t e = 0;
+    ecs_value_t v = { .type = ecs_id(ecs_entity_t), .ptr = &e };
+    test_assert(ecs_expr_run(world, "new { Position: {10, 20} }", &v, &desc) != NULL);
+    test_assert(e != 0);
+    test_assert(ecs_is_alive(world, e));
+    test_int(ecs_get_type(world, e)->count, 1);
+
+    const Position *p = ecs_get(world, e, Position);
+    test_assert(p != NULL);
+    test_int(p->x, 10);
+    test_int(p->y, 20);
+
+    ecs_fini(world);
+}
+
+void Expr_new_entity_w_component_w_newline(void) {
+    ecs_world_t *world = ecs_init();
+
+    typedef struct {
+        int32_t x;
+        int32_t y;
+    } Position;
+
+    ecs_entity_t ecs_id(Position) = ecs_struct(world, {
+        .entity = ecs_entity(world, { .name = "Position" }),
+        .members = {
+            {"x", ecs_id(ecs_i32_t)},
+            {"y", ecs_id(ecs_i32_t)}
+        }
+    });
+
+    ecs_expr_eval_desc_t desc = { .disable_folding = disable_folding };
+
+    ecs_entity_t e = 0;
+    ecs_value_t v = { .type = ecs_id(ecs_entity_t), .ptr = &e };
+    test_assert(ecs_expr_run(world, "new {\n Position: {\n10, 20\n}\n}", &v, &desc) != NULL);
+    test_assert(e != 0);
+    test_assert(ecs_is_alive(world, e));
+    test_int(ecs_get_type(world, e)->count, 1);
+
+    const Position *p = ecs_get(world, e, Position);
+    test_assert(p != NULL);
+    test_int(p->x, 10);
+    test_int(p->y, 20);
+
+    ecs_fini(world);
+}
+
+void Expr_new_entity_w_kind(void) {
+    ecs_world_t *world = ecs_init();
+
+    typedef struct {
+        int32_t x;
+        int32_t y;
+    } Position;
+
+    ecs_entity_t ecs_id(Position) = ecs_struct(world, {
+        .entity = ecs_entity(world, { .name = "Position" }),
+        .members = {
+            {"x", ecs_id(ecs_i32_t)},
+            {"y", ecs_id(ecs_i32_t)}
+        }
+    });
+
+    ecs_expr_eval_desc_t desc = { .disable_folding = disable_folding };
+
+    ecs_entity_t e = 0;
+    ecs_value_t v = { .type = ecs_id(ecs_entity_t), .ptr = &e };
+    test_assert(ecs_expr_run(world, "new Position(10, 20)", &v, &desc) != NULL);
+    test_assert(e != 0);
+    test_assert(ecs_is_alive(world, e));
+    test_int(ecs_get_type(world, e)->count, 1);
+
+    const Position *p = ecs_get(world, e, Position);
+    test_assert(p != NULL);
+    test_int(p->x, 10);
+    test_int(p->y, 20);
+
+    ecs_fini(world);
+}
+
+void Expr_new_entity_w_component_w_vars(void) {
+    ecs_world_t *world = ecs_init();
+
+    typedef struct {
+        int32_t x;
+        int32_t y;
+    } Position;
+
+    ecs_entity_t ecs_id(Position) = ecs_struct(world, {
+        .entity = ecs_entity(world, { .name = "Position" }),
+        .members = {
+            {"x", ecs_id(ecs_i32_t)},
+            {"y", ecs_id(ecs_i32_t)}
+        }
+    });
+
+    ecs_script_vars_t *vars = ecs_script_vars_init(world);
+    ecs_script_var_t *x_var = ecs_script_vars_define(vars, "x", ecs_i32_t);
+    *(int32_t*)x_var->value.ptr = 10;
+    ecs_script_var_t *y_var = ecs_script_vars_define(vars, "y", ecs_i32_t);
+    *(int32_t*)y_var->value.ptr = 20;
+
+    ecs_expr_eval_desc_t desc = { .disable_folding = disable_folding, .vars = vars };
+
+    ecs_entity_t e = 0;
+    ecs_value_t v = { .type = ecs_id(ecs_entity_t), .ptr = &e };
+    test_assert(ecs_expr_run(world, "new { Position: {$x, $y} }", &v, &desc) != NULL);
+    test_assert(e != 0);
+    test_assert(ecs_is_alive(world, e));
+    test_int(ecs_get_type(world, e)->count, 1);
+
+    const Position *p = ecs_get(world, e, Position);
+    test_assert(p != NULL);
+    test_int(p->x, 10);
+    test_int(p->y, 20);
+
+    ecs_script_vars_fini(vars);
+
+    ecs_fini(world);
+}
+
+void Expr_new_named_entity(void) {
+    ecs_world_t *world = ecs_init();
+
+    ecs_expr_eval_desc_t desc = { .disable_folding = disable_folding };
+
+    ecs_entity_t e = 0;
+    ecs_value_t v = { .type = ecs_id(ecs_entity_t), .ptr = &e };
+    test_assert(ecs_expr_run(world, "new Foo {}", &v, &desc) != NULL);
+    test_assert(e != 0);
+    test_assert(ecs_is_alive(world, e));
+    test_str(ecs_get_name(world, e), "Foo");
+
+    ecs_fini(world);
+}
+
+void Expr_new_named_entity_w_component(void) {
+    ecs_world_t *world = ecs_init();
+
+    typedef struct {
+        int32_t x;
+        int32_t y;
+    } Position;
+
+    ecs_entity_t ecs_id(Position) = ecs_struct(world, {
+        .entity = ecs_entity(world, { .name = "Position" }),
+        .members = {
+            {"x", ecs_id(ecs_i32_t)},
+            {"y", ecs_id(ecs_i32_t)}
+        }
+    });
+
+    ecs_expr_eval_desc_t desc = { .disable_folding = disable_folding };
+
+    ecs_entity_t e = 0;
+    ecs_value_t v = { .type = ecs_id(ecs_entity_t), .ptr = &e };
+    test_assert(ecs_expr_run(world, "new Foo { Position: {10, 20} }", &v, &desc) != NULL);
+    test_assert(e != 0);
+    test_assert(ecs_is_alive(world, e));
+    test_str(ecs_get_name(world, e), "Foo");
+
+    const Position *p = ecs_get(world, e, Position);
+    test_assert(p != NULL);
+    test_int(p->x, 10);
+    test_int(p->y, 20);
+
+    ecs_fini(world);
+}
+
+void Expr_new_named_entity_w_kind(void) {
+    ecs_world_t *world = ecs_init();
+
+    typedef struct {
+        int32_t x;
+        int32_t y;
+    } Position;
+
+    ecs_entity_t ecs_id(Position) = ecs_struct(world, {
+        .entity = ecs_entity(world, { .name = "Position" }),
+        .members = {
+            {"x", ecs_id(ecs_i32_t)},
+            {"y", ecs_id(ecs_i32_t)}
+        }
+    });
+
+    ecs_expr_eval_desc_t desc = { .disable_folding = disable_folding };
+
+    ecs_entity_t e = 0;
+    ecs_value_t v = { .type = ecs_id(ecs_entity_t), .ptr = &e };
+    test_assert(ecs_expr_run(world, "new Position Foo(10, 20)", &v, &desc) != NULL);
+    test_assert(e != 0);
+    test_assert(ecs_is_alive(world, e));
+    test_str(ecs_get_name(world, e), "Foo");
+
+    const Position *p = ecs_get(world, e, Position);
+    test_assert(p != NULL);
+    test_int(p->x, 10);
+    test_int(p->y, 20);
+
+    ecs_fini(world);
+}
+
+void Expr_new_name_expr_entity(void) {
+    ecs_world_t *world = ecs_init();
+
+    ecs_expr_eval_desc_t desc = { .disable_folding = disable_folding };
+
+    ecs_entity_t e = 0;
+    ecs_value_t v = { .type = ecs_id(ecs_entity_t), .ptr = &e };
+    test_assert(ecs_expr_run(world, "new \"Foo\" {}", &v, &desc) != NULL);
+    test_assert(e != 0);
+    test_assert(ecs_is_alive(world, e));
+    test_str(ecs_get_name(world, e), "Foo");
+
+    ecs_fini(world);
+}
+
+void Expr_new_name_expr_entity_w_component(void) {
+    ecs_world_t *world = ecs_init();
+
+    typedef struct {
+        int32_t x;
+        int32_t y;
+    } Position;
+
+    ecs_entity_t ecs_id(Position) = ecs_struct(world, {
+        .entity = ecs_entity(world, { .name = "Position" }),
+        .members = {
+            {"x", ecs_id(ecs_i32_t)},
+            {"y", ecs_id(ecs_i32_t)}
+        }
+    });
+
+    ecs_expr_eval_desc_t desc = { .disable_folding = disable_folding };
+
+    ecs_entity_t e = 0;
+    ecs_value_t v = { .type = ecs_id(ecs_entity_t), .ptr = &e };
+    test_assert(ecs_expr_run(world, "new \"Foo\" { Position: {10, 20} }", &v, &desc) != NULL);
+    test_assert(e != 0);
+    test_assert(ecs_is_alive(world, e));
+    test_str(ecs_get_name(world, e), "Foo");
+
+    const Position *p = ecs_get(world, e, Position);
+    test_assert(p != NULL);
+    test_int(p->x, 10);
+    test_int(p->y, 20);
+
+    ecs_fini(world);
+}
+
+void Expr_new_name_expr_entity_w_kind(void) {
+    ecs_world_t *world = ecs_init();
+
+    typedef struct {
+        int32_t x;
+        int32_t y;
+    } Position;
+
+    ecs_entity_t ecs_id(Position) = ecs_struct(world, {
+        .entity = ecs_entity(world, { .name = "Position" }),
+        .members = {
+            {"x", ecs_id(ecs_i32_t)},
+            {"y", ecs_id(ecs_i32_t)}
+        }
+    });
+
+    ecs_expr_eval_desc_t desc = { .disable_folding = disable_folding };
+
+    ecs_entity_t e = 0;
+    ecs_value_t v = { .type = ecs_id(ecs_entity_t), .ptr = &e };
+    test_assert(ecs_expr_run(world, "new Position \"Foo\"(10, 20)", &v, &desc) != NULL);
+    test_assert(e != 0);
+    test_assert(ecs_is_alive(world, e));
+    test_str(ecs_get_name(world, e), "Foo");
+
+    const Position *p = ecs_get(world, e, Position);
+    test_assert(p != NULL);
+    test_int(p->x, 10);
+    test_int(p->y, 20);
+
+    ecs_fini(world);
+}
+
+void Expr_new_entity_w_unterminated_scope(void) {
+    ecs_world_t *world = ecs_init();
+
+    ecs_expr_eval_desc_t desc = { .disable_folding = disable_folding };
+
+    ecs_entity_t e = 0;
+    ecs_value_t v = { .type = ecs_id(ecs_entity_t), .ptr = &e };
+    ecs_log_set_level(-4);
+    test_assert(ecs_expr_run(world, "new {", &v, &desc) == NULL);
+    test_assert(e == 0);
 
     ecs_fini(world);
 }

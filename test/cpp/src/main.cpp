@@ -1383,6 +1383,17 @@ void World_fini_copy_move_assign(void);
 void World_world_init_fini_log_all(void);
 void World_exclusive_access_self_mutate(void);
 void World_exclusive_access_other_mutate(void);
+void World_id_if_registered(void);
+void World_get_type_info_t(void);
+void World_get_type_info_T(void);
+void World_get_type_info_r_t(void);
+void World_get_type_info_R_t(void);
+void World_get_type_info_R_T(void);
+void World_get_type_info_t_tag(void);
+void World_get_type_info_T_tag(void);
+void World_get_type_info_r_t_tag(void);
+void World_get_type_info_R_t_tag(void);
+void World_get_type_info_R_T_tag(void);
 
 // Testsuite 'Singleton'
 void Singleton_set_get_singleton(void);
@@ -1489,6 +1500,24 @@ void Misc_alert_w_severity_filter_severity_type_enum_constant_w_var(void);
 void Misc_alert_for_member_range(void);
 void Misc_alert_w_member_range_from_var(void);
 void Misc_map_api(void);
+void Misc_get_const_var(void);
+void Misc_get_const_var_struct(void);
+void Misc_get_const_var_as_f32(void);
+void Misc_get_const_var_as_i32(void);
+void Misc_get_const_var_as_u32(void);
+void Misc_get_const_var_w_out(void);
+void Misc_get_const_var_struct_w_out(void);
+void Misc_get_const_var_struct_w_out_not_found(void);
+void Misc_get_const_var_as_f32_w_out(void);
+void Misc_get_const_var_as_i32_w_out(void);
+void Misc_get_const_var_as_u32_w_out(void);
+void Misc_get_const_var_not_found(void);
+void Misc_get_const_var_not_a_var(void);
+void Misc_get_scoped_const_var(void);
+void Misc_get_module_const_var(void);
+void Misc_get_module_const_var_from_script_module(void);
+void Misc_get_module_const_var_from_nested_script_module(void);
+void Misc_get_module_const_var_from_nested_module_no_script_module(void);
 
 // Testsuite 'Meta'
 void Meta_struct(void);
@@ -7002,6 +7031,50 @@ bake_test_case World_testcases[] = {
     {
         "exclusive_access_other_mutate",
         World_exclusive_access_other_mutate
+    },
+    {
+        "id_if_registered",
+        World_id_if_registered
+    },
+    {
+        "get_type_info_t",
+        World_get_type_info_t
+    },
+    {
+        "get_type_info_T",
+        World_get_type_info_T
+    },
+    {
+        "get_type_info_r_t",
+        World_get_type_info_r_t
+    },
+    {
+        "get_type_info_R_t",
+        World_get_type_info_R_t
+    },
+    {
+        "get_type_info_R_T",
+        World_get_type_info_R_T
+    },
+    {
+        "get_type_info_t_tag",
+        World_get_type_info_t_tag
+    },
+    {
+        "get_type_info_T_tag",
+        World_get_type_info_T_tag
+    },
+    {
+        "get_type_info_r_t_tag",
+        World_get_type_info_r_t_tag
+    },
+    {
+        "get_type_info_R_t_tag",
+        World_get_type_info_R_t_tag
+    },
+    {
+        "get_type_info_R_T_tag",
+        World_get_type_info_R_T_tag
     }
 };
 
@@ -7412,6 +7485,78 @@ bake_test_case Misc_testcases[] = {
     {
         "map_api",
         Misc_map_api
+    },
+    {
+        "get_const_var",
+        Misc_get_const_var
+    },
+    {
+        "get_const_var_struct",
+        Misc_get_const_var_struct
+    },
+    {
+        "get_const_var_as_f32",
+        Misc_get_const_var_as_f32
+    },
+    {
+        "get_const_var_as_i32",
+        Misc_get_const_var_as_i32
+    },
+    {
+        "get_const_var_as_u32",
+        Misc_get_const_var_as_u32
+    },
+    {
+        "get_const_var_w_out",
+        Misc_get_const_var_w_out
+    },
+    {
+        "get_const_var_struct_w_out",
+        Misc_get_const_var_struct_w_out
+    },
+    {
+        "get_const_var_struct_w_out_not_found",
+        Misc_get_const_var_struct_w_out_not_found
+    },
+    {
+        "get_const_var_as_f32_w_out",
+        Misc_get_const_var_as_f32_w_out
+    },
+    {
+        "get_const_var_as_i32_w_out",
+        Misc_get_const_var_as_i32_w_out
+    },
+    {
+        "get_const_var_as_u32_w_out",
+        Misc_get_const_var_as_u32_w_out
+    },
+    {
+        "get_const_var_not_found",
+        Misc_get_const_var_not_found
+    },
+    {
+        "get_const_var_not_a_var",
+        Misc_get_const_var_not_a_var
+    },
+    {
+        "get_scoped_const_var",
+        Misc_get_scoped_const_var
+    },
+    {
+        "get_module_const_var",
+        Misc_get_module_const_var
+    },
+    {
+        "get_module_const_var_from_script_module",
+        Misc_get_module_const_var_from_script_module
+    },
+    {
+        "get_module_const_var_from_nested_script_module",
+        Misc_get_module_const_var_from_nested_script_module
+    },
+    {
+        "get_module_const_var_from_nested_module_no_script_module",
+        Misc_get_module_const_var_from_nested_module_no_script_module
     }
 };
 
@@ -8005,7 +8150,7 @@ static bake_test_suite suites[] = {
         "World",
         NULL,
         NULL,
-        119,
+        130,
         World_testcases
     },
     {
@@ -8019,7 +8164,7 @@ static bake_test_suite suites[] = {
         "Misc",
         Misc_setup,
         NULL,
-        52,
+        70,
         Misc_testcases
     },
     {
