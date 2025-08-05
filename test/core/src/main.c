@@ -827,6 +827,7 @@ void Reference_get_nonexisting(void);
 void Reference_aba_table(void);
 void Reference_recycled_table(void);
 void Reference_recycled_table_twice(void);
+void Reference_ref_after_shrink(void);
 
 // Testsuite 'Delete'
 void Delete_setup(void);
@@ -1274,6 +1275,7 @@ void ComponentLifecycle_on_replace_set_2_entities(void);
 void ComponentLifecycle_copy_ctor_w_override(void);
 void ComponentLifecycle_copy_ctor_w_override_w_emplace(void);
 void ComponentLifecycle_copy_ctor_w_override_w_ensure(void);
+void ComponentLifecycle_shrink(void);
 
 // Testsuite 'Pairs'
 void Pairs_type_w_one_pair(void);
@@ -5811,6 +5813,10 @@ bake_test_case Reference_testcases[] = {
     {
         "recycled_table_twice",
         Reference_recycled_table_twice
+    },
+    {
+        "ref_after_shrink",
+        Reference_ref_after_shrink
     }
 };
 
@@ -7547,6 +7553,10 @@ bake_test_case ComponentLifecycle_testcases[] = {
     {
         "copy_ctor_w_override_w_ensure",
         ComponentLifecycle_copy_ctor_w_override_w_ensure
+    },
+    {
+        "shrink",
+        ComponentLifecycle_shrink
     }
 };
 
@@ -13020,7 +13030,7 @@ static bake_test_suite suites[] = {
         "Reference",
         Reference_setup,
         NULL,
-        22,
+        23,
         Reference_testcases
     },
     {
@@ -13076,7 +13086,7 @@ static bake_test_suite suites[] = {
         "ComponentLifecycle",
         ComponentLifecycle_setup,
         NULL,
-        131,
+        132,
         ComponentLifecycle_testcases
     },
     {
