@@ -16158,6 +16158,7 @@ FLECS_API extern const ecs_entity_t ecs_id(EcsTypeSerializer);  /**< Id for comp
 FLECS_API extern const ecs_entity_t ecs_id(EcsPrimitive);       /**< Id for component that stores reflection data for a primitive type. */
 FLECS_API extern const ecs_entity_t ecs_id(EcsEnum);            /**< Id for component that stores reflection data for an enum type. */
 FLECS_API extern const ecs_entity_t ecs_id(EcsBitmask);         /**< Id for component that stores reflection data for a bitmask type. */
+FLECS_API extern const ecs_entity_t ecs_id(EcsConstants);       /**< Id for component that stores reflection data for a constants. */
 FLECS_API extern const ecs_entity_t ecs_id(EcsMember);          /**< Id for component that stores reflection data for struct members. */
 FLECS_API extern const ecs_entity_t ecs_id(EcsMemberRanges);    /**< Id for component that stores min/max ranges for member values. */
 FLECS_API extern const ecs_entity_t ecs_id(EcsStruct);          /**< Id for component that stores reflection data for a struct type. */
@@ -16326,12 +16327,6 @@ typedef struct ecs_enum_constant_t {
 /** Component added to enum type entities */
 typedef struct EcsEnum {
     ecs_entity_t underlying_type;
-
-    /** Populated from child entities with Constant component */
-    ecs_map_t *constants; /**< map<i32_t, ecs_enum_constant_t> */
-
-    /** Stores the constants in registration order */
-    ecs_vec_t ordered_constants; /**< vector<ecs_enum_constants_t> */
 } EcsEnum;
 
 /** Type that describes an bitmask constant */
@@ -16351,11 +16346,17 @@ typedef struct ecs_bitmask_constant_t {
 
 /** Component added to bitmask type entities */
 typedef struct EcsBitmask {
-    /* Populated from child entities with Constant component */
-    ecs_map_t *constants; /**< map<u32_t, ecs_bitmask_constant_t> */
-    /** Stores the constants in registration order */
-    ecs_vec_t ordered_constants; /**< vector<ecs_bitmask_constants_t>  */
+    int32_t dummy_;
 } EcsBitmask;
+
+/** Component with datastructures for looking up enum/bitmask constants. */
+typedef struct EcsConstants {
+    /** Populated from child entities with Constant component */
+    ecs_map_t *constants; /**< map<i32_t, ecs_enum_constant_t> */
+
+    /** Stores the constants in registration order */
+    ecs_vec_t ordered_constants; /**< vector<ecs_enum_constants_t> */
+} EcsConstants;
 
 /** Component added to array type entities */
 typedef struct EcsArray {
@@ -16609,6 +16610,7 @@ typedef enum ecs_meta_op_kind_t {
 /** Meta type serializer instruction data. */
 typedef struct ecs_meta_op_t {
     ecs_meta_op_kind_t kind;                       /**< Instruction opcode. */
+    ecs_meta_op_kind_t underlying_kind;            /**< Underlying type kind (for enums). */
     ecs_size_t offset;                             /**< Offset of current field. */
     const char *name;                              /**< Name of value (only used for struct members) */
     ecs_size_t elem_size;                          /**< Element size (for PushArray/PushVector) and element count (for PopArray) */
@@ -21124,6 +21126,14 @@ struct script_builder;
 
 using Script = EcsScript;
 
+namespace script {
+namespace _ {
+
+void init(flecs::world& world);
+
+} // namespace _
+}
+
 /** @} */
 
 }
@@ -21897,7 +21907,7 @@ inline void set(world_t *world, flecs::entity_t entity, T&& value, flecs::id_t i
     ecs_cpp_get_mut_t res = ecs_cpp_set(world, entity, id, &value, sizeof(T));
 
     T& dst = *static_cast<remove_reference_t<T>*>(res.ptr);
-    dst = FLECS_MOV(value);
+    dst = FLECS_FWD(value);
 
     if (res.call_modified) {
         ecs_modified_id(world, entity, id);
@@ -21913,7 +21923,7 @@ inline void set(world_t *world, flecs::entity_t entity, const T& value, flecs::i
     ecs_cpp_get_mut_t res = ecs_cpp_set(world, entity, id, &value, sizeof(T));
 
     T& dst = *static_cast<remove_reference_t<T>*>(res.ptr);
-    dst = FLECS_MOV(value);
+    dst = value;
 
     if (res.call_modified) {
         ecs_modified_id(world, entity, id);
@@ -21944,7 +21954,7 @@ inline void assign(world_t *world, flecs::entity_t entity, T&& value, flecs::id_
         world, entity, id, &value, sizeof(T));
 
     T& dst = *static_cast<remove_reference_t<T>*>(res.ptr);
-    dst = FLECS_MOV(value);
+    dst = FLECS_FWD(value);
 
     if (res.call_modified) {
         ecs_modified_id(world, entity, id);
@@ -21961,7 +21971,7 @@ inline void assign(world_t *world, flecs::entity_t entity, const T& value, flecs
         world, entity, id, &value, sizeof(T));
 
     T& dst = *static_cast<remove_reference_t<T>*>(res.ptr);
-    dst = FLECS_MOV(value);
+    dst = value;
 
     if (res.call_modified) {
         ecs_modified_id(world, entity, id);
@@ -23848,7 +23858,7 @@ flecs::entity vector();
  * @memberof flecs::world
  * @ingroup cpp_addons_json
  */
-flecs::string to_json(flecs::entity_t tid, const void* value) {
+flecs::string to_json(flecs::entity_t tid, const void* value) const {
     char *json = ecs_ptr_to_json(world_, tid, value);
     return flecs::string(json);
 }
@@ -23859,7 +23869,7 @@ flecs::string to_json(flecs::entity_t tid, const void* value) {
  * @ingroup cpp_addons_json
  */
 template <typename T>
-flecs::string to_json(const T* value) {
+flecs::string to_json(const T* value) const {
     flecs::entity_t tid = _::type<T>::id(world_);
     return to_json(tid, value);
 }
@@ -23869,7 +23879,7 @@ flecs::string to_json(const T* value) {
  * @memberof flecs::world
  * @ingroup cpp_addons_json
  */
-flecs::string to_json() {
+flecs::string to_json() const {
     return flecs::string( ecs_world_to_json(world_, nullptr) );
 }
 
@@ -34855,6 +34865,7 @@ inline flecs::entity script_builder::run() const {
 }
 
 namespace _ {
+
     inline ecs_value_t get_const_var(const flecs::world_t *world, const char *name) {
         flecs::entity_t v = ecs_lookup_path_w_sep(
             world, 0, name, "::", "::", false);
@@ -35025,6 +35036,17 @@ void world::get_const_var(
 
     out = flecs::_::get_const_value<T>(
         world_, name, value, type, default_value);
+}
+
+
+namespace script {
+namespace _ {
+
+inline void init(flecs::world& world) {
+    world.component<Script>("flecs::script::Script");
+}
+
+}
 }
 
 }
@@ -35259,6 +35281,9 @@ inline void world::init_builtin_components() {
 #   endif
 #   ifdef FLECS_META
     meta::_::init(*this);
+#   endif
+#   ifdef FLECS_SCRIPT
+    script::_::init(*this);
 #   endif
 }
 

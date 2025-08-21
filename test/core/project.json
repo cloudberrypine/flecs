@@ -405,7 +405,8 @@
                 "recycle_1_of_2",
                 "recycle_1_of_3",
                 "recycle_2_of_3",
-                "bulk_init_w_table"
+                "bulk_init_w_table",
+                "bulk_init_w_alive_entity"
             ]
         }, {
             "id": "Add",
@@ -482,6 +483,7 @@
                 "owns_pair",
                 "owns_pair_wildcard",
                 "get",
+                "get_wildcard",
                 "add_remove",
                 "add_remove_tag",
                 "add_remove_pair",
@@ -788,10 +790,14 @@
                 "change_order_not_null_children_zero_count",
                 "change_order_on_parent_without_ordered_children",
                 "change_order",
+                "ordered_children_w_name",
                 "get_ordered_children_empty",
                 "get_ordered_children_invalid",
                 "get_ordered_children",
-                "get_ordered_children_from_stage"
+                "get_ordered_children_from_stage",
+                "get_ordered_children_from_prefab_instance_no_children",
+                "get_ordered_children_from_prefab_instance_3_children",
+                "get_ordered_children_from_prefab_instance_nested_children"
             ]
         }, {
             "id": "Has",
@@ -1826,6 +1832,22 @@
                 "create_multi_observer_after_in_use_w_delete_component",
                 "on_set_override_after_on_add",
                 "on_set_two_overrides_after_on_add",
+                "1_term_on_add_is_set",
+                "1_term_on_remove_is_set",
+                "1_term_on_set_is_set",
+                "1_term_on_add_is_set_component",
+                "1_term_on_remove_is_set_component",
+                "2_terms_on_add_is_set",
+                "2_terms_on_remove_is_set",
+                "2_terms_on_set_is_set",
+                "2_terms_on_add_is_set_component",
+                "2_terms_on_remove_is_set_component",
+                "1_term_on_add_yield_existing_is_set",
+                "1_term_on_add_yield_existing_is_set_component",
+                "1_term_on_set_yield_existing_is_set",
+                "2_terms_on_add_yield_existing_is_set",
+                "2_terms_on_add_yield_existing_is_set_component",
+                "2_terms_on_set_yield_existing_is_set",
                 "cache_test_1",
                 "cache_test_2",
                 "cache_test_3",
@@ -2232,9 +2254,13 @@
                 "rename_builtin",
                 "remove_name_builtin",
                 "delete_flecs",
+                "delete_flecs_core",
                 "remove_name_from_flecs",
                 "reparent_flecs",
-                "rename_flecs"
+                "rename_flecs",
+                "reparent_flecs_core",
+                "rename_flecs_core",
+                "user_entity_w_flecs_parent"
             ]
         }, {
             "id": "ExclusiveAccess",

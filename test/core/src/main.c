@@ -387,6 +387,7 @@ void New_w_Count_recycle_1_of_2(void);
 void New_w_Count_recycle_1_of_3(void);
 void New_w_Count_recycle_2_of_3(void);
 void New_w_Count_bulk_init_w_table(void);
+void New_w_Count_bulk_init_w_alive_entity(void);
 
 // Testsuite 'Add'
 void Add_zero(void);
@@ -452,6 +453,7 @@ void Sparse_owns(void);
 void Sparse_owns_pair(void);
 void Sparse_owns_pair_wildcard(void);
 void Sparse_get(void);
+void Sparse_get_wildcard(void);
 void Sparse_add_remove(void);
 void Sparse_add_remove_tag(void);
 void Sparse_add_remove_pair(void);
@@ -754,10 +756,14 @@ void OrderedChildren_change_order_null_children_nonzero_count(void);
 void OrderedChildren_change_order_not_null_children_zero_count(void);
 void OrderedChildren_change_order_on_parent_without_ordered_children(void);
 void OrderedChildren_change_order(void);
+void OrderedChildren_ordered_children_w_name(void);
 void OrderedChildren_get_ordered_children_empty(void);
 void OrderedChildren_get_ordered_children_invalid(void);
 void OrderedChildren_get_ordered_children(void);
 void OrderedChildren_get_ordered_children_from_stage(void);
+void OrderedChildren_get_ordered_children_from_prefab_instance_no_children(void);
+void OrderedChildren_get_ordered_children_from_prefab_instance_3_children(void);
+void OrderedChildren_get_ordered_children_from_prefab_instance_nested_children(void);
 
 // Testsuite 'Has'
 void Has_zero(void);
@@ -1761,6 +1767,22 @@ void Observer_create_multi_observer_before_in_use_w_delete_component(void);
 void Observer_create_multi_observer_after_in_use_w_delete_component(void);
 void Observer_on_set_override_after_on_add(void);
 void Observer_on_set_two_overrides_after_on_add(void);
+void Observer_1_term_on_add_is_set(void);
+void Observer_1_term_on_remove_is_set(void);
+void Observer_1_term_on_set_is_set(void);
+void Observer_1_term_on_add_is_set_component(void);
+void Observer_1_term_on_remove_is_set_component(void);
+void Observer_2_terms_on_add_is_set(void);
+void Observer_2_terms_on_remove_is_set(void);
+void Observer_2_terms_on_set_is_set(void);
+void Observer_2_terms_on_add_is_set_component(void);
+void Observer_2_terms_on_remove_is_set_component(void);
+void Observer_1_term_on_add_yield_existing_is_set(void);
+void Observer_1_term_on_add_yield_existing_is_set_component(void);
+void Observer_1_term_on_set_yield_existing_is_set(void);
+void Observer_2_terms_on_add_yield_existing_is_set(void);
+void Observer_2_terms_on_add_yield_existing_is_set_component(void);
+void Observer_2_terms_on_set_yield_existing_is_set(void);
 void Observer_cache_test_1(void);
 void Observer_cache_test_2(void);
 void Observer_cache_test_3(void);
@@ -2153,9 +2175,13 @@ void World_delete_builtin(void);
 void World_rename_builtin(void);
 void World_remove_name_builtin(void);
 void World_delete_flecs(void);
+void World_delete_flecs_core(void);
 void World_remove_name_from_flecs(void);
 void World_reparent_flecs(void);
 void World_rename_flecs(void);
+void World_reparent_flecs_core(void);
+void World_rename_flecs_core(void);
+void World_user_entity_w_flecs_parent(void);
 
 // Testsuite 'ExclusiveAccess'
 void ExclusiveAccess_self(void);
@@ -4119,6 +4145,10 @@ bake_test_case New_w_Count_testcases[] = {
     {
         "bulk_init_w_table",
         New_w_Count_bulk_init_w_table
+    },
+    {
+        "bulk_init_w_alive_entity",
+        New_w_Count_bulk_init_w_alive_entity
     }
 };
 
@@ -4355,6 +4385,10 @@ bake_test_case Sparse_testcases[] = {
     {
         "get",
         Sparse_get
+    },
+    {
+        "get_wildcard",
+        Sparse_get_wildcard
     },
     {
         "add_remove",
@@ -5551,6 +5585,10 @@ bake_test_case OrderedChildren_testcases[] = {
         OrderedChildren_change_order
     },
     {
+        "ordered_children_w_name",
+        OrderedChildren_ordered_children_w_name
+    },
+    {
         "get_ordered_children_empty",
         OrderedChildren_get_ordered_children_empty
     },
@@ -5565,6 +5603,18 @@ bake_test_case OrderedChildren_testcases[] = {
     {
         "get_ordered_children_from_stage",
         OrderedChildren_get_ordered_children_from_stage
+    },
+    {
+        "get_ordered_children_from_prefab_instance_no_children",
+        OrderedChildren_get_ordered_children_from_prefab_instance_no_children
+    },
+    {
+        "get_ordered_children_from_prefab_instance_3_children",
+        OrderedChildren_get_ordered_children_from_prefab_instance_3_children
+    },
+    {
+        "get_ordered_children_from_prefab_instance_nested_children",
+        OrderedChildren_get_ordered_children_from_prefab_instance_nested_children
     }
 };
 
@@ -9484,6 +9534,70 @@ bake_test_case Observer_testcases[] = {
         Observer_on_set_two_overrides_after_on_add
     },
     {
+        "1_term_on_add_is_set",
+        Observer_1_term_on_add_is_set
+    },
+    {
+        "1_term_on_remove_is_set",
+        Observer_1_term_on_remove_is_set
+    },
+    {
+        "1_term_on_set_is_set",
+        Observer_1_term_on_set_is_set
+    },
+    {
+        "1_term_on_add_is_set_component",
+        Observer_1_term_on_add_is_set_component
+    },
+    {
+        "1_term_on_remove_is_set_component",
+        Observer_1_term_on_remove_is_set_component
+    },
+    {
+        "2_terms_on_add_is_set",
+        Observer_2_terms_on_add_is_set
+    },
+    {
+        "2_terms_on_remove_is_set",
+        Observer_2_terms_on_remove_is_set
+    },
+    {
+        "2_terms_on_set_is_set",
+        Observer_2_terms_on_set_is_set
+    },
+    {
+        "2_terms_on_add_is_set_component",
+        Observer_2_terms_on_add_is_set_component
+    },
+    {
+        "2_terms_on_remove_is_set_component",
+        Observer_2_terms_on_remove_is_set_component
+    },
+    {
+        "1_term_on_add_yield_existing_is_set",
+        Observer_1_term_on_add_yield_existing_is_set
+    },
+    {
+        "1_term_on_add_yield_existing_is_set_component",
+        Observer_1_term_on_add_yield_existing_is_set_component
+    },
+    {
+        "1_term_on_set_yield_existing_is_set",
+        Observer_1_term_on_set_yield_existing_is_set
+    },
+    {
+        "2_terms_on_add_yield_existing_is_set",
+        Observer_2_terms_on_add_yield_existing_is_set
+    },
+    {
+        "2_terms_on_add_yield_existing_is_set_component",
+        Observer_2_terms_on_add_yield_existing_is_set_component
+    },
+    {
+        "2_terms_on_set_yield_existing_is_set",
+        Observer_2_terms_on_set_yield_existing_is_set
+    },
+    {
         "cache_test_1",
         Observer_cache_test_1
     },
@@ -11005,6 +11119,10 @@ bake_test_case World_testcases[] = {
         World_delete_flecs
     },
     {
+        "delete_flecs_core",
+        World_delete_flecs_core
+    },
+    {
         "remove_name_from_flecs",
         World_remove_name_from_flecs
     },
@@ -11015,6 +11133,18 @@ bake_test_case World_testcases[] = {
     {
         "rename_flecs",
         World_rename_flecs
+    },
+    {
+        "reparent_flecs_core",
+        World_reparent_flecs_core
+    },
+    {
+        "rename_flecs_core",
+        World_rename_flecs_core
+    },
+    {
+        "user_entity_w_flecs_parent",
+        World_user_entity_w_flecs_parent
     }
 };
 
@@ -12958,7 +13088,7 @@ static bake_test_suite suites[] = {
         "New_w_Count",
         NULL,
         NULL,
-        22,
+        23,
         New_w_Count_testcases
     },
     {
@@ -12986,7 +13116,7 @@ static bake_test_suite suites[] = {
         "Sparse",
         Sparse_setup,
         NULL,
-        167,
+        168,
         Sparse_testcases,
         1,
         Sparse_params
@@ -13002,7 +13132,7 @@ static bake_test_suite suites[] = {
         "OrderedChildren",
         NULL,
         NULL,
-        33,
+        37,
         OrderedChildren_testcases
     },
     {
@@ -13107,7 +13237,7 @@ static bake_test_suite suites[] = {
         "Observer",
         NULL,
         NULL,
-        250,
+        266,
         Observer_testcases
     },
     {
@@ -13156,7 +13286,7 @@ static bake_test_suite suites[] = {
         "World",
         World_setup,
         NULL,
-        89,
+        93,
         World_testcases
     },
     {
