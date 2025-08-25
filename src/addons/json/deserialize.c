@@ -413,6 +413,15 @@ const char* flecs_json_deser_components(
                     goto error;
                 }
             } else {
+                if (ti->component == 361)
+                {
+                    assert(strcmp(ti->name, "EcsMember") == 0);
+                    skip = true;
+                } else if (ti->component == 1)
+                {
+                    assert(strcmp(ti->name, "EcsComponent") == 0);
+                    skip = true;
+                }
                 void *ptr = ecs_ensure_id(world, e, id, 
                     flecs_ito(size_t, ti->size));
 
