@@ -49886,12 +49886,27 @@ int flecs_json_ser_enum(
     const void *base, 
     ecs_strbuf_t *str) 
 {
-    int32_t value = *(const int32_t*)base;
+    ecs_map_key_t value;
+    ecs_meta_op_kind_t kind = op->underlying_kind;
+
+    if (kind == EcsOpU8 || kind == EcsOpI8) {
+        value = *(const uint8_t*)base;
+    } else if (kind == EcsOpU16 || kind == EcsOpI16) {
+        value = *(const uint16_t*)base;
+    } else if (kind == EcsOpU32 || kind == EcsOpI32) {
+        value = *(const uint32_t*)base;
+    } else if (kind == EcsOpUPtr || kind == EcsOpIPtr) {
+        value = *(const uintptr_t*)base;
+    } else if (kind == EcsOpU64 || kind == EcsOpI64) {
+        value = *(const uint64_t*)base;
+    } else {
+        ecs_abort(ECS_INTERNAL_ERROR, "invalid underlying type");
+    }
     
     /* Enumeration constants are stored in a map that is keyed on the
      * enumeration value. */
     ecs_enum_constant_t *constant = ecs_map_get_deref(op->is.constants,
-        ecs_enum_constant_t, (ecs_map_key_t)value);
+        ecs_enum_constant_t, value);
     if (!constant) {
         /* If the value is not found, it is not a valid enumeration constant */
         char *name = ecs_get_path(world, op->type);
@@ -55335,10 +55350,61 @@ int flecs_meta_serialize_enum(
     op->type_info = ecs_get_type_info(world, type);
     ecs_assert(op->type_info != NULL, ECS_INTERNAL_ERROR, NULL);
 
-    const EcsConstants *enum_type = ecs_get(world, type, EcsConstants);
-    ecs_assert(enum_type != NULL, ECS_INVALID_PARAMETER, NULL);
-    op->is.constants = enum_type->constants;
+    const EcsConstants *constants = ecs_get(world, type, EcsConstants);
+    ecs_assert(constants != NULL, ECS_INVALID_PARAMETER, NULL);
+    op->is.constants = constants->constants;
     ecs_assert(op->is.constants != NULL, ECS_INTERNAL_ERROR, NULL);
+
+    const EcsEnum *enum_type = ecs_get(world, type, EcsEnum);
+    ecs_assert(enum_type != NULL, ECS_INVALID_PARAMETER, NULL);
+    ecs_entity_t underlying = enum_type->underlying_type;
+    ecs_assert(underlying != 0, ECS_INTERNAL_ERROR, NULL);
+
+    const EcsPrimitive *prim_type = ecs_get(world, underlying, EcsPrimitive);
+    ecs_assert(prim_type != NULL, ECS_INTERNAL_ERROR, NULL);
+
+    switch(prim_type->kind) {
+    case EcsU8: 
+        op->underlying_kind = EcsOpU8; 
+        break;
+    case EcsU16:
+        op->underlying_kind = EcsOpU16;
+        break;
+    case EcsU32:
+        op->underlying_kind = EcsOpU32;
+        break;
+    case EcsUPtr:
+        op->underlying_kind = EcsOpUPtr;
+        break;
+    case EcsU64:
+        op->underlying_kind = EcsOpU64;
+        break;
+    case EcsI8:
+        op->underlying_kind = EcsOpI8;
+        break;
+    case EcsI16:
+        op->underlying_kind = EcsOpI16;
+        break;
+    case EcsI32:
+        op->underlying_kind = EcsOpI32;
+        break;
+    case EcsIPtr:
+        op->underlying_kind = EcsOpIPtr;
+        break;
+    case EcsI64:
+        op->underlying_kind = EcsOpI64;
+        break;
+    case EcsBool:
+    case EcsChar:
+    case EcsByte:
+    case EcsF32:
+    case EcsF64:
+    case EcsString:
+    case EcsEntity:
+    case EcsId:
+        ecs_abort(ECS_INTERNAL_ERROR, 
+            "invalid primitive type kind for underlying enum type");
+    }
 
     return 0;
 }
@@ -62284,6 +62350,7 @@ void FlecsScriptImport(
  * @brief Serialize values to string.
  */
 
+#include <inttypes.h>
 
 #ifdef FLECS_SCRIPT
 
@@ -62317,15 +62384,31 @@ int flecs_expr_ser_enum(
     const void *base, 
     ecs_strbuf_t *str) 
 {
-    int32_t val = *(const int32_t*)base;
+    ecs_map_key_t value;
+    ecs_meta_op_kind_t kind = op->underlying_kind;
+
+    if (kind == EcsOpU8 || kind == EcsOpI8) {
+        value = *(const uint8_t*)base;
+    } else if (kind == EcsOpU16 || kind == EcsOpI16) {
+        value = *(const uint16_t*)base;
+    } else if (kind == EcsOpU32 || kind == EcsOpI32) {
+        value = *(const uint32_t*)base;
+    } else if (kind == EcsOpUPtr || kind == EcsOpIPtr) {
+        value = *(const uintptr_t*)base;
+    } else if (kind == EcsOpU64 || kind == EcsOpI64) {
+        value = *(const uint64_t*)base;
+    } else {
+        ecs_abort(ECS_INTERNAL_ERROR, "invalid underlying type");
+    }
     
     /* Enumeration constants are stored in a map that is keyed on the
      * enumeration value. */
     ecs_enum_constant_t *c = ecs_map_get_deref(op->is.constants, 
-        ecs_enum_constant_t, (ecs_map_key_t)val);
+        ecs_enum_constant_t, value);
     if (!c) {
         char *path = ecs_get_path(world, op->type);
-        ecs_err("value %d is not valid for enum type '%s'", val, path);
+        ecs_err("value %" PRIu64 " is not valid for enum type '%s'", 
+            value, path);
         ecs_os_free(path);
         goto error;
     }
@@ -80018,7 +80101,7 @@ bool flecs_query_trivial_test(
 }
 
 /**
- * @file addons/meta/type_support/array.c
+ * @file addons/meta/type_support/array_ts.c
  * @brief Array type support.
  */
 
@@ -80158,7 +80241,7 @@ void flecs_meta_array_init(
 #endif
 
 /**
- * @file addons/meta/type_support/enum.c
+ * @file addons/meta/type_support/enum_ts.c
  * @brief Enum type support.
  */
 
@@ -80819,7 +80902,7 @@ void flecs_meta_enum_init(
 #endif
 
 /**
- * @file addons/meta/type_support/opaque.c
+ * @file addons/meta/type_support/opaque_ts.c
  * @brief Opaque type support.
  */
 
@@ -80834,12 +80917,19 @@ void flecs_set_opaque_type(ecs_iter_t *it) {
     int i, count = it->count;
     for (i = 0; i < count; i ++) {
         ecs_entity_t e = it->entities[i];
-        ecs_entity_t elem_type = serialize[i].as_type;
+        ecs_entity_t as_type = serialize[i].as_type;
 
-        if (!elem_type) {
+        if (!as_type) {
             ecs_err(
                 "opaque type '%s' has no mapping type", ecs_get_name(world, e));
             continue;
+        }
+
+        /* If the as_type is anonymous and has no parent, parent it under the
+        * opaque type. That way we don't end up with a bunch of anonymous entities
+        * in the root scope. */
+        if (!ecs_get_parent(world, as_type) && !ecs_get_name(world, as_type)) {
+            ecs_add_pair(world, as_type, EcsChildOf, e);
         }
 
         const EcsComponent *comp = ecs_get(world, e, EcsComponent);
@@ -80902,7 +80992,7 @@ void flecs_meta_opaque_init(
 #endif
 
 /**
- * @file addons/meta/type_support/primitive.c
+ * @file addons/meta/type_support/primitive_ts.c
  * @brief Primitives type support.
  */
 
@@ -81461,7 +81551,7 @@ void flecs_meta_primitives_init(
 #endif
 
 /**
- * @file addons/meta/type_support/struct.c
+ * @file addons/meta/type_support/struct_ts.c
  * @brief Struct type support.
  */
 
@@ -82056,7 +82146,7 @@ void flecs_meta_struct_init(
 #endif
 
 /**
- * @file addons/meta/type_support/units.c
+ * @file addons/meta/type_support/units_ts.c
  * @brief Units type support.
  */
 

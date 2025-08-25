@@ -675,6 +675,16 @@ void SerializeToJson_array_array_i32_3(void);
 void SerializeToJson_vector_i32_3(void);
 void SerializeToJson_vector_struct_i32_i32(void);
 void SerializeToJson_vector_array_i32_3(void);
+void SerializeToJson_enum_underlying_i8(void);
+void SerializeToJson_enum_underlying_i16(void);
+void SerializeToJson_enum_underlying_i32(void);
+void SerializeToJson_enum_underlying_i64(void);
+void SerializeToJson_enum_underlying_iptr(void);
+void SerializeToJson_enum_underlying_u8(void);
+void SerializeToJson_enum_underlying_u16(void);
+void SerializeToJson_enum_underlying_u32(void);
+void SerializeToJson_enum_underlying_u64(void);
+void SerializeToJson_enum_underlying_uptr(void);
 void SerializeToJson_serialize_from_stage(void);
 
 // Testsuite 'SerializeEntityToJson'
@@ -1021,6 +1031,9 @@ void OpaqueTypes_ser_deser_world_w_ser_opaque(void);
 void OpaqueTypes_ser_deser_entity(void);
 void OpaqueTypes_ser_deser_0_entity(void);
 void OpaqueTypes_const_string(void);
+void OpaqueTypes_anonymous_opaque_as_type_parent(void);
+void OpaqueTypes_named_opaque_as_type_parent(void);
+void OpaqueTypes_parented_opaque_as_type_parent(void);
 
 // Testsuite 'Misc'
 void Misc_primitive_from_stage(void);
@@ -3719,6 +3732,46 @@ bake_test_case SerializeToJson_testcases[] = {
         SerializeToJson_vector_array_i32_3
     },
     {
+        "enum_underlying_i8",
+        SerializeToJson_enum_underlying_i8
+    },
+    {
+        "enum_underlying_i16",
+        SerializeToJson_enum_underlying_i16
+    },
+    {
+        "enum_underlying_i32",
+        SerializeToJson_enum_underlying_i32
+    },
+    {
+        "enum_underlying_i64",
+        SerializeToJson_enum_underlying_i64
+    },
+    {
+        "enum_underlying_iptr",
+        SerializeToJson_enum_underlying_iptr
+    },
+    {
+        "enum_underlying_u8",
+        SerializeToJson_enum_underlying_u8
+    },
+    {
+        "enum_underlying_u16",
+        SerializeToJson_enum_underlying_u16
+    },
+    {
+        "enum_underlying_u32",
+        SerializeToJson_enum_underlying_u32
+    },
+    {
+        "enum_underlying_u64",
+        SerializeToJson_enum_underlying_u64
+    },
+    {
+        "enum_underlying_uptr",
+        SerializeToJson_enum_underlying_uptr
+    },
+    {
         "serialize_from_stage",
         SerializeToJson_serialize_from_stage
     }
@@ -5066,6 +5119,18 @@ bake_test_case OpaqueTypes_testcases[] = {
     {
         "const_string",
         OpaqueTypes_const_string
+    },
+    {
+        "anonymous_opaque_as_type_parent",
+        OpaqueTypes_anonymous_opaque_as_type_parent
+    },
+    {
+        "named_opaque_as_type_parent",
+        OpaqueTypes_named_opaque_as_type_parent
+    },
+    {
+        "parented_opaque_as_type_parent",
+        OpaqueTypes_parented_opaque_as_type_parent
     }
 };
 
@@ -5508,7 +5573,7 @@ static bake_test_suite suites[] = {
         "SerializeToJson",
         NULL,
         NULL,
-        46,
+        56,
         SerializeToJson_testcases
     },
     {
@@ -5557,7 +5622,7 @@ static bake_test_suite suites[] = {
         "OpaqueTypes",
         NULL,
         NULL,
-        28,
+        31,
         OpaqueTypes_testcases
     },
     {
