@@ -36727,7 +36727,7 @@ int flecs_term_finalize(
         if (second->id & EcsIsVariable) {
             if (!ecs_id_is_wildcard(second_id) || second_id == EcsAny) {
                 trivial_term = false;
-                if (term->oper != EcsNot || second_id != EcsAny) {
+                if (second_id != EcsAny) {
                     cacheable_term = false;
                 }
             }
@@ -46480,6 +46480,10 @@ const char* ecs_ptr_from_json(
     char *token = token_buffer;
     int depth = 0;
 
+    bool strict = desc ? desc->strict : false;
+    bool skip = false;
+    int skip_depth = 0;
+
     const char *name = NULL;
     const char *expr = NULL;
 
@@ -46496,6 +46500,25 @@ const char* ecs_ptr_from_json(
     }
 
     while ((json = flecs_json_parse(json, &token_kind, token))) {
+        if (skip) {
+            /* Skip over tokens in case an unknown member was encountered */
+            if (token_kind == JsonObjectOpen || token_kind == JsonArrayOpen) {
+                skip_depth ++;
+            } else
+            if (token_kind == JsonObjectClose || token_kind == JsonArrayClose) {
+                skip_depth --;
+                if (!skip_depth) {
+                    skip = false;
+                }
+            } else {
+                if (!skip_depth) {
+                    skip = false;
+                }
+            }
+
+            continue;
+        }
+
         if (token_kind == JsonLargeString) {
             ecs_strbuf_t large_token = ECS_STRBUF_INIT;
             json = flecs_json_parse_large_string(json, &large_token);
@@ -46563,8 +46586,14 @@ const char* ecs_ptr_from_json(
             if (token_kind == JsonColon) {
                 /* Member assignment */
                 json = lah;
-                if (ecs_meta_dotmember(&cur, token) != 0) {
-                    goto error;
+                if (strict) {
+                    if (ecs_meta_dotmember(&cur, token) != 0) {
+                        goto error;
+                    }
+                } else {
+                    if (ecs_meta_try_dotmember(&cur, token) != 0) {
+                        skip = true;
+                    }
                 }
             } else {
                 if (ecs_meta_set_string(&cur, token) != 0) {
@@ -51638,12 +51667,14 @@ int ecs_meta_elem(
     return 0;
 }
 
-int ecs_meta_member(
+static
+int flecs_meta_member(
     ecs_meta_cursor_t *cursor,
-    const char *name)
+    const char *name,
+    bool try)
 {
     if (cursor->depth == 0) {
-        ecs_err("cannot move to member in root scope (push first)");
+        if (!try) ecs_err("cannot move to member in root scope (push first)");
         return -1;
     }
 
@@ -51654,14 +51685,14 @@ int ecs_meta_member(
     const ecs_world_t *world = cursor->world;
 
     if (!members) {
-        ecs_err("cannot move to member '%s' for non-struct type '%s'", 
+        if (!try) ecs_err("cannot move to member '%s' for non-struct type '%s'", 
             name, flecs_errstr(ecs_get_path(world, scope->type)));
         return -1;
     }
 
     const uint64_t *cur_ptr = flecs_name_index_find_ptr(members, name, 0, 0);
     if (!cur_ptr) {
-        ecs_err("unknown member '%s' for type '%s'", 
+        if (!try) ecs_err("unknown member '%s' for type '%s'", 
             name, flecs_errstr(ecs_get_path(world, scope->type)));
         return -1;
     }
@@ -51671,12 +51702,26 @@ int ecs_meta_member(
     const EcsOpaque *opaque = scope->opaque;
     if (opaque) {
         if (!opaque->ensure_member) {
-            ecs_err("missing ensure_member for opaque type %s",
+            if (!try) ecs_err("missing ensure_member for opaque type %s",
                 flecs_errstr(ecs_get_path(world, scope->type)));
         }
     }
 
     return 0;
+}
+
+int ecs_meta_member(
+    ecs_meta_cursor_t *cursor,
+    const char *name)
+{
+    return flecs_meta_member(cursor, name, false);
+}
+
+int ecs_meta_try_member(
+    ecs_meta_cursor_t *cursor,
+    const char *name)
+{
+    return flecs_meta_member(cursor, name, true);
 }
 
 static
@@ -51702,9 +51747,11 @@ const char* flecs_meta_parse_member(
     return ptr;
 }
 
-int ecs_meta_dotmember(
+static
+int flecs_meta_dotmember(
     ecs_meta_cursor_t *cursor,
-    const char *name)
+    const char *name,
+    bool try)
 {
     ecs_meta_scope_t *cur_scope = flecs_cursor_get_scope(cursor);
     flecs_cursor_restore_scope(cursor, cur_scope);
@@ -51719,7 +51766,7 @@ int ecs_meta_dotmember(
             ecs_meta_push(cursor);
         }
 
-        if (ecs_meta_member(cursor, token)) {
+        if (flecs_meta_member(cursor, token, try)) {
             goto error;
         }
 
@@ -51738,6 +51785,20 @@ int ecs_meta_dotmember(
     return 0;
 error:
     return -1;
+}
+
+int ecs_meta_dotmember(
+    ecs_meta_cursor_t *cursor,
+    const char *name)
+{
+    return flecs_meta_dotmember(cursor, name, false);
+}
+
+int ecs_meta_try_dotmember(
+    ecs_meta_cursor_t *cursor,
+    const char *name)
+{
+    return flecs_meta_dotmember(cursor, name, true);
 }
 
 int ecs_meta_push(
@@ -77803,6 +77864,24 @@ typedef struct {
     bool has_bitset;
 } flecs_query_row_mask_t;
 
+/* Portable count-trailing-zeros for 64-bit values. Input must be nonzero. */
+static inline int32_t flecs_ctz64(uint64_t v) {
+#if defined(__clang__) || defined(__GNUC__)
+    return (int32_t)__builtin_ctzll(v);
+#elif defined(_MSC_VER) && (defined(_M_X64) || defined(_M_ARM64))
+    unsigned long idx;
+    _BitScanForward64(&idx, v);
+    return (int32_t)idx;
+#else
+    int32_t count = 0;
+    while ((v & 1u) == 0u) {
+        v >>= 1;
+        count ++;
+    }
+    return count;
+#endif
+}
+
 static
 flecs_query_row_mask_t flecs_query_get_row_mask(
     ecs_iter_t *it,
@@ -77950,14 +78029,12 @@ bool flecs_query_toggle_cmp(
         }
     }
 
-    int32_t i, j;
-    int32_t first, last, block_index, cur;
+    int32_t last, block_index, cur;
     uint64_t block = 0;
     if (!redo) {
         op_ctx->range = range;
         cur = op_ctx->cur = range.offset;
         block_index = op_ctx->block_index = -1;
-        first = range.offset;
         last = range.offset + range.count;
     } else {
         if (!op_ctx->has_bitset) {
@@ -77971,13 +78048,12 @@ bool flecs_query_toggle_cmp(
             goto done;
         }
 
-        first = cur;
         block_index = op_ctx->block_index;
         block = op_ctx->block;
     }
 
     /* If end of last iteration is start of new block, compute new block */    
-    int32_t new_block_index = cur / 64, row = first;
+    int32_t new_block_index = cur / 64;
     if (new_block_index != block_index) {
 compute_block:
         block_index = op_ctx->block_index = new_block_index;
@@ -78012,7 +78088,7 @@ next_block:
         op_ctx->block = block;
     }
 
-    /* Find first enabled bit (TODO: use faster bitmagic) */
+    /* Find first enabled bit using bit operations */
     int32_t first_bit = cur - (block_index * 64);
     int32_t last_bit = ECS_MIN(64, last - (block_index * 64));
     ecs_assert(first_bit >= 0, ECS_INTERNAL_ERROR, NULL);
@@ -78021,32 +78097,31 @@ next_block:
     ecs_assert(last_bit <= 64, ECS_INTERNAL_ERROR, NULL);
     ecs_assert(last_bit >= first_bit, ECS_INTERNAL_ERROR, NULL);
 
-    for (i = first_bit; i < last_bit; i ++) {
-        uint64_t bit = (1ull << i);
-        bool cond = 0 != (block & bit);
-        if (cond) {
-            /* Find last enabled bit */
-            for (j = i; j < last_bit; j ++) {
-                bit = (1ull << j);
-                cond = !(block & bit);
-                if (cond) {
-                    break;
-                }
-            }
+    uint64_t low_mask = (first_bit == 0) ? UINT64_MAX : (~0ull << first_bit);
+    uint64_t high_mask = (last_bit == 64) ? UINT64_MAX : ((1ull << last_bit) - 1ull);
+    uint64_t masked = block & low_mask & high_mask;
 
-            row = i + (block_index * 64);
-            cur = j + (block_index * 64);
-            break;
-        }
-    }
-
-    if (i == last_bit) {
+    if (!masked) {
         goto next_block;
     }
 
-    ecs_assert(row >= first, ECS_INTERNAL_ERROR, NULL);
+    int32_t tz = flecs_ctz64(masked);
+    uint64_t run = masked >> tz; /* ones from start of run */
+    int32_t run_len;
+    if (~run == 0ull) {
+        run_len = 64 - tz;
+    } else {
+        run_len = flecs_ctz64(~run);
+    }
+    int32_t max_len = last_bit - tz;
+    if (run_len > max_len) {
+        run_len = max_len;
+    }
+
+    int32_t row = tz + (block_index * 64);
+    cur = tz + run_len + (block_index * 64);
+
     ecs_assert(cur <= last, ECS_INTERNAL_ERROR, NULL);
-    ecs_assert(cur >= first, ECS_INTERNAL_ERROR, NULL);
 
     if (!(cur - row)) {
         goto done;
