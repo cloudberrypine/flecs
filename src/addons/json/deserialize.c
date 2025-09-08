@@ -413,13 +413,11 @@ const char* flecs_json_deser_components(
                     goto error;
                 }
             } else {
-                if (ti->component == 361)
+                if (ti->component == ecs_id(EcsMember))
                 {
-                    assert(strcmp(ti->name, "EcsMember") == 0);
                     skip = true;
-                } else if (ti->component == 1)
+                } else if (ti->component == ecs_id(EcsComponent))
                 {
-                    assert(strcmp(ti->name, "EcsComponent") == 0);
                     skip = true;
                 }
                 void *ptr = ecs_ensure_id(world, e, id, 
