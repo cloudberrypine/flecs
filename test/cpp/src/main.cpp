@@ -371,6 +371,11 @@ void Entity_defer_on_replace_w_assign_batched_existing_twice(void);
 void Entity_set_lvalue_to_mutable(void);
 void Entity_set_lvalue_to_const(void);
 void Entity_set_rvalue(void);
+void Entity_assign_rvalue(void);
+void Entity_set_non_copy_assignable(void);
+void Entity_set_non_copy_assignable_w_move_assign(void);
+void Entity_assign_non_copy_assignable(void);
+void Entity_assign_non_copy_assignable_w_move_assign(void);
 
 // Testsuite 'OrderedChildren'
 void OrderedChildren_iter_no_children(void);
@@ -969,6 +974,9 @@ void QueryBuilder_each_w_untyped_field_w_fixed_src(void);
 void QueryBuilder_each_w_untyped_field_at_w_fixed_src(void);
 void QueryBuilder_singleton_pair(void);
 void QueryBuilder_query_w_this_second(void);
+void QueryBuilder_pred_eq(void);
+void QueryBuilder_pred_eq_name(void);
+void QueryBuilder_pred_match(void);
 
 // Testsuite 'SystemBuilder'
 void SystemBuilder_builder_assign_same_type(void);
@@ -1193,6 +1201,7 @@ void Refs_get_component(void);
 void Refs_untyped_get_ref_by_method(void);
 void Refs_untyped_pair_ref(void);
 void Refs_untyped_runtime_component_ref(void);
+void Refs_ref_world(void);
 
 // Testsuite 'Module'
 void Module_import(void);
@@ -1588,9 +1597,6 @@ void Meta_entity_to_json_w_default_desc(void);
 void Meta_query_to_json_w_default_desc(void);
 void Meta_script_to_std_vector_int(void);
 void Meta_script_to_std_vector_std_string(void);
-void Meta_anonymous_opaque_as_type_parent(void);
-void Meta_named_opaque_as_type_parent(void);
-void Meta_parented_opaque_as_type_parent(void);
 
 // Testsuite 'Table'
 void Table_each(void);
@@ -3085,6 +3091,26 @@ bake_test_case Entity_testcases[] = {
     {
         "set_rvalue",
         Entity_set_rvalue
+    },
+    {
+        "assign_rvalue",
+        Entity_assign_rvalue
+    },
+    {
+        "set_non_copy_assignable",
+        Entity_set_non_copy_assignable
+    },
+    {
+        "set_non_copy_assignable_w_move_assign",
+        Entity_set_non_copy_assignable_w_move_assign
+    },
+    {
+        "assign_non_copy_assignable",
+        Entity_assign_non_copy_assignable
+    },
+    {
+        "assign_non_copy_assignable_w_move_assign",
+        Entity_assign_non_copy_assignable_w_move_assign
     }
 };
 
@@ -5423,6 +5449,18 @@ bake_test_case QueryBuilder_testcases[] = {
     {
         "query_w_this_second",
         QueryBuilder_query_w_this_second
+    },
+    {
+        "pred_eq",
+        QueryBuilder_pred_eq
+    },
+    {
+        "pred_eq_name",
+        QueryBuilder_pred_eq_name
+    },
+    {
+        "pred_match",
+        QueryBuilder_pred_match
     }
 };
 
@@ -6299,6 +6337,10 @@ bake_test_case Refs_testcases[] = {
     {
         "untyped_runtime_component_ref",
         Refs_untyped_runtime_component_ref
+    },
+    {
+        "ref_world",
+        Refs_ref_world
     }
 };
 
@@ -7840,18 +7882,6 @@ bake_test_case Meta_testcases[] = {
     {
         "script_to_std_vector_std_string",
         Meta_script_to_std_vector_std_string
-    },
-    {
-        "anonymous_opaque_as_type_parent",
-        Meta_anonymous_opaque_as_type_parent
-    },
-    {
-        "named_opaque_as_type_parent",
-        Meta_named_opaque_as_type_parent
-    },
-    {
-        "parented_opaque_as_type_parent",
-        Meta_parented_opaque_as_type_parent
     }
 };
 
@@ -8062,7 +8092,7 @@ static bake_test_suite suites[] = {
         "Entity",
         NULL,
         NULL,
-        358,
+        363,
         Entity_testcases
     },
     {
@@ -8132,7 +8162,7 @@ static bake_test_suite suites[] = {
         "QueryBuilder",
         QueryBuilder_setup,
         NULL,
-        176,
+        179,
         QueryBuilder_testcases,
         1,
         QueryBuilder_params
@@ -8162,7 +8192,7 @@ static bake_test_suite suites[] = {
         "Refs",
         NULL,
         NULL,
-        26,
+        27,
         Refs_testcases
     },
     {
@@ -8211,7 +8241,7 @@ static bake_test_suite suites[] = {
         "Meta",
         NULL,
         NULL,
-        68,
+        65,
         Meta_testcases
     },
     {

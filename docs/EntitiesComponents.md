@@ -1296,7 +1296,7 @@ ecs_set_hooks(world, Position, {
 <li><b class="tab-title">C++</b>
 
 ```cpp
-ecs.component<Position>()
+world.component<Position>()
     .on_set([](Position& p) {
         std::cout << "{" << p.x << ", " << p.y << "}" << std::endl;
     });
@@ -1333,7 +1333,62 @@ world
 </ul>
 </div>
 
-For the `on_replace` hook, the previous value can be accessed through the second field (with index 1).
+For the `on_replace` hook, the previous value is provided as the first field, and the new value as the second field. An example:
+
+<div class="flecs-snippet-tabs">
+<ul>
+<li><b class="tab-title">C</b>
+
+```c
+void on_replace_position(ecs_iter_t *it) {
+    Position *prev = ecs_field(it, Position, 0);
+    Position *next = ecs_field(it, Position, 1);
+
+    for (int i = 0; i < it->count; i ++) {
+        printf("prev = {%f, %f}\n", prev[i].x, prev[i].y);
+        printf("next = {%f, %f}\n", next[i].x, next[i].y);
+    }
+}
+
+ECS_COMPONENT(world, Position);
+
+ecs_set_hooks(world, Position, {
+    .on_replace = on_replace_position
+});
+```
+
+</li>
+<li><b class="tab-title">C++</b>
+
+```cpp
+world.component<Position>()
+    .on_replace([](Position& prev, Position& next) {
+        std::cout << "prev = {" << prev.x << ", " << prev.y << "}" << std::endl;
+        std::cout << "next = {" << next.x << ", " << next.y << "}" << std::endl;
+    });
+```
+
+</li>
+<li><b class="tab-title">C#</b>
+
+```cs
+// TODO
+```
+
+</li>
+<li><b class="tab-title">Rust</b>
+
+```rust
+world
+    .component::<Position>()
+    .on_replace(|entity, prev, next| {
+        println!("prev = {:?}", prev);
+        println!("next = {:?}", next);
+    });
+```
+</li>
+</ul>
+</div>
 
 ### Components have entity handles
 In an ECS framework, components need to be uniquely identified. In Flecs this is done by making each component is its own unique entity. If an application has a component `Position` and `Velocity`, there  will be two entities, one for each component. Component entities can be distinguished from "regular" entities as they have a `Component` component. An example:
@@ -1546,17 +1601,15 @@ int main(int argc, char *argv[]) {
 In C++ components are automatically registered upon first usage. The following example shows how:
 
 ```cpp
-int main(int argc, char *argv[]) {
-    flecs::world world;
+flecs::world world;
 
-    flecs::entity e1 = world.entity()
-        .set(Position{10, 20}) // Position registered here
-        .set(Velocity{1, 2}); // Velocity registered here
-
-    flecs::entity e1 = world.entity()
-        .set(Position{10, 20}) // Position already registered
-        .set(Velocity{1, 2}); // Velocity already registered
-}
+flecs::entity e1 = world.entity()
+    .set(Position{10, 20}) // Position registered here
+    .set(Velocity{1, 2}); // Velocity registered here
+    
+flecs::entity e2 = world.entity()
+    .set(Position{10, 20}) // Position already registered
+    .set(Velocity{1, 2}); // Velocity already registered
 ```
 
 Components can be registered in advance, which can be done for several reasons:
@@ -1583,11 +1636,9 @@ struct movement {
     }
 };
 
-int main(int argc, char *argv[]) {
     flecs::world world;
 
     world.import<movement>();
-}
 
 ```
 
@@ -1980,7 +2031,7 @@ ecs_set(world, ecs_id(TimeOfDay), TimeOfDay, {0.5});
 world.set<TimeOfDay>({ 0.5 });
 
 // Equivalent to:
-world.component<TimeOfDay>().set(TimeOfDay{ 0.5 })
+world.component<TimeOfDay>().set(TimeOfDay{ 0.5 });
 ```
 
 </li>
@@ -2047,7 +2098,7 @@ e.enabled<Position>(); // False
 
 // Enable component
 e.enable<Position>();
-e.enabled<Position>()  // True
+e.enabled<Position>();  // True
 ```
 
 </li>
