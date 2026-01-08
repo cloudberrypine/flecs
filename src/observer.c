@@ -163,7 +163,7 @@ void flecs_register_observer_for_id(
         ecs_assert(idt != NULL, ECS_INTERNAL_ERROR, NULL);
 
         ecs_map_t *observers = ECS_OFFSET(idt, offset);
-        ecs_map_init_w_params_if(observers, &world->allocators.ptr);
+        ecs_map_init_if(observers, &world->allocator);
         ecs_map_insert_ptr(observers, impl->id, o);
 
         flecs_inc_observer_count(world, event, er, term_id, 1);
@@ -361,7 +361,7 @@ void flecs_uni_observer_invoke(
     int32_t event_cur = it->event_cur;
     ecs_entity_t old_system = flecs_stage_set_system(
         world->stages[0], o->entity);
-    ecs_flags32_t cur_set_fields = it->set_fields;
+    ecs_flags32_t set_fields_cur = it->set_fields;
     it->set_fields = 1;
 
     ecs_query_t *query = o->query;
@@ -393,7 +393,7 @@ void flecs_uni_observer_invoke(
             ecs_os_inc(&query->eval_count);
         } else {
             /* Not a $this field, translate the iterator data from a $this field to
-            * a field with it->sources set. */
+             * a field with it->sources set. */
             ecs_entity_t observer_src = ECS_TERM_REF_ID(&term->src);
             ecs_assert(observer_src != 0, ECS_INTERNAL_ERROR, NULL);
             const ecs_entity_t *entities = it->entities;
@@ -442,7 +442,7 @@ void flecs_uni_observer_invoke(
 
     it->event = event;
     it->event_cur = event_cur;
-    it->set_fields = cur_set_fields;
+    it->set_fields = set_fields_cur;
 
     ecs_log_pop_3();
 
@@ -464,6 +464,10 @@ void flecs_observers_invoke(
             ecs_observer_t *o = ecs_map_ptr(&oit);
             ecs_assert(it->table == table, ECS_INTERNAL_ERROR, NULL);
             flecs_uni_observer_invoke(world, o, it, table, trav);
+
+            ecs_assert(ecs_map_iter_valid(&oit), ECS_INVALID_OPERATION, 
+                "observer list modified while notifying: "
+                "cannot create observer from observer");
         }
 
         ecs_table_unlock(it->world, table);
@@ -1038,25 +1042,13 @@ ecs_observer_t* flecs_observer_init(
             if (trivial_observer) {
                 dummy_query.flags |= desc->query.flags;
                 query = &dummy_query;
-                if (terms[0].flags_ & EcsTermKeepAlive) {
-                    impl->flags |= EcsObserverKeepAlive;
-                }
             } else {
                 /* We're going to create an actual query, so undo the keep_alive
                  * increment of the dummy_query. */
                 int32_t i, count = dummy_query.term_count;
                 for (i = 0; i < count; i ++) {
                     ecs_term_t *term = &terms[i];
-                    if (term->flags_ & EcsTermKeepAlive) {
-                        ecs_component_record_t *cr = flecs_components_get(
-                            world, term->id);
-
-                        /* If keep_alive was set, component record must exist */
-                        ecs_assert(cr != NULL, ECS_INTERNAL_ERROR, NULL);
-                        cr->keep_alive --;
-                        ecs_assert(cr->keep_alive >= 0, 
-                            ECS_INTERNAL_ERROR, NULL);
-                    }
+                    flecs_component_unlock(world, term->id);
                 }
             }
         }
@@ -1093,11 +1085,6 @@ ecs_observer_t* flecs_observer_init(
         "observers with only non-$this variable sources are not yet supported");
     (void)var_count;
 
-    ecs_observable_t *observable = desc->observable;
-    if (!observable) {
-        observable = flecs_get_observable(world);
-    }
-
     o->run = desc->run;
     o->callback = desc->callback;
     o->ctx = desc->ctx;
@@ -1106,7 +1093,7 @@ ecs_observer_t* flecs_observer_init(
     o->ctx_free = desc->ctx_free;
     o->callback_ctx_free = desc->callback_ctx_free;
     o->run_ctx_free = desc->run_ctx_free;
-    o->observable = observable;
+    o->observable = flecs_get_observable(world);
     o->entity = entity;
     o->world = world;
     impl->term_index = desc->term_index_;
@@ -1336,20 +1323,8 @@ void flecs_observer_fini(
     /* Cleanup queries */
     if (o->query) {
         ecs_query_fini(o->query);
-    } else if (impl->flags & EcsObserverKeepAlive) {
-        /* Observer is keeping a refcount on the observed component. */
-        ecs_component_record_t *cr = flecs_components_get(
-            world, impl->register_id);
-        
-        /* Component record should still exist since we had a refcount, except
-         * during the final stages of world fini where refcounts are no longer 
-         * checked. */
-        if (cr) {
-            cr->keep_alive --;
-            ecs_assert(cr->keep_alive >= 0, ECS_INTERNAL_ERROR, NULL);
-        } else {
-            ecs_assert(world->flags & EcsWorldQuit, ECS_INTERNAL_ERROR, NULL);
-        }
+    } else if (impl->register_id) {
+        flecs_component_unlock(world, impl->register_id);
     }
 
     if (impl->not_query) {

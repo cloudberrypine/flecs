@@ -33,7 +33,7 @@
 /* Flecs version macros */
 #define FLECS_VERSION_MAJOR 4  /**< Flecs major version. */
 #define FLECS_VERSION_MINOR 1  /**< Flecs minor version. */
-#define FLECS_VERSION_PATCH 1  /**< Flecs patch version. */
+#define FLECS_VERSION_PATCH 4  /**< Flecs patch version. */
 
 /** Flecs version. */
 #define FLECS_VERSION FLECS_VERSION_IMPL(\
@@ -1368,14 +1368,8 @@ typedef struct ecs_observer_desc_t {
     /** Callback to free run ctx. */
     ecs_ctx_free_t run_ctx_free;
 
-    /** Observable with which to register the observer */
-    ecs_poly_t *observable;
-
-    /** Optional shared last event id for multiple observers. Ensures only one
-     * of the observers with the shared id gets triggered for an event */
+    /** Used for internal purposes. Do not set. */
     int32_t *last_event_id;
-
-    /** Used for internal purposes */
     int8_t term_index_;
     ecs_flags32_t flags_;
 } ecs_observer_desc_t;
@@ -1495,7 +1489,7 @@ typedef struct ecs_world_info_t {
     struct {
         int64_t add_count;             /**< Add commands processed */
         int64_t remove_count;          /**< Remove commands processed */
-        int64_t delete_count;          /**< Selete commands processed */
+        int64_t delete_count;          /**< Delete commands processed */
         int64_t clear_count;           /**< Clear commands processed */
         int64_t set_count;             /**< Set commands processed */
         int64_t ensure_count;          /**< Ensure/emplace commands processed */
@@ -2319,24 +2313,11 @@ void ecs_merge(
  * @see ecs_is_deferred()
  * @see ecs_defer_resume()
  * @see ecs_defer_suspend()
+ * @see ecs_is_defer_suspended()
  */
 FLECS_API
 bool ecs_defer_begin(
     ecs_world_t *world);
-
-/** Test if deferring is enabled for current stage.
- *
- * @param world The world.
- * @return True if deferred, false if not.
- *
- * @see ecs_defer_begin()
- * @see ecs_defer_end()
- * @see ecs_defer_resume()
- * @see ecs_defer_suspend()
- */
-FLECS_API
-bool ecs_is_deferred(
-    const ecs_world_t *world);
 
 /** End block of operations to defer.
  * See ecs_defer_begin().
@@ -2386,6 +2367,36 @@ void ecs_defer_suspend(
 FLECS_API
 void ecs_defer_resume(
     ecs_world_t *world);
+
+/** Test if deferring is enabled for current stage.
+ *
+ * @param world The world.
+ * @return True if deferred, false if not.
+ *
+ * @see ecs_defer_begin()
+ * @see ecs_defer_end()
+ * @see ecs_defer_resume()
+ * @see ecs_defer_suspend()
+ * @see ecs_is_defer_suspended()
+ */
+FLECS_API
+bool ecs_is_deferred(
+    const ecs_world_t *world);
+
+/** Test if deferring is suspended for current stage.
+ *
+ * @param world The world.
+ * @return True if suspended, false if not.
+ *
+ * @see ecs_defer_begin()
+ * @see ecs_defer_end()
+ * @see ecs_is_deferred()
+ * @see ecs_defer_resume()
+ * @see ecs_defer_suspend()
+ */
+FLECS_API
+bool ecs_is_defer_suspended(
+    const ecs_world_t *world);
 
 /** Configure world to have N stages.
  * This initializes N stages, which allows applications to defer operations to
@@ -3596,6 +3607,15 @@ void ecs_set_version(
     ecs_world_t *world,
     ecs_entity_t entity);
 
+/** Get generation of an entity.
+ *
+ * @param entity Entity for which to get the generation of.
+ * @return The generation of the entity.
+ */
+FLECS_API
+uint32_t ecs_get_version(
+    ecs_entity_t entity);
+
 /** @} */
 
 /**
@@ -4590,6 +4610,12 @@ bool ecs_each_next(
  * which case this operation will return a single result with the ordered 
  * child entity ids.
  * 
+ * This operation is equivalent to doing:
+ * 
+ * @code
+ * ecs_children_w_rel(world, EcsChildOf, parent);
+ * @endcode
+ * 
  * @param world The world.
  * @param parent The parent.
  * @return An iterator that iterates all children of the parent.
@@ -4597,8 +4623,21 @@ bool ecs_each_next(
  * @see ecs_each_id()
 */
 FLECS_API
-ecs_iter_t ecs_children(
+FLECS_ALWAYS_INLINE ecs_iter_t ecs_children(
     const ecs_world_t *world,
+    ecs_entity_t parent);
+
+/** Same as ecs_children() but with custom relationship argument. 
+ * 
+ * @param world The world.
+ * @param relationship The relationship.
+ * @param parent The parent.
+ * @return An iterator that iterates all children of the parent.
+ */
+FLECS_API
+FLECS_ALWAYS_INLINE ecs_iter_t ecs_children_w_rel(
+    const ecs_world_t *world,
+    ecs_entity_t relationship,
     ecs_entity_t parent);
 
 /** Progress an iterator created with ecs_children().
@@ -5862,6 +5901,23 @@ bool ecs_table_has_id(
     const ecs_world_t *world,
     const ecs_table_t *table,
     ecs_id_t component);
+
+/** Get relationship target for table.
+ * 
+ * @param world The world.
+ * @param table The table.
+ * @param relationship The relationship for which to obtain the target.
+ * @param index The index, in case the table has multiple instances of the relationship.
+ * @return The requested relationship target.
+ * 
+ * @see ecs_get_target()
+ */
+FLECS_API
+ecs_entity_t ecs_table_get_target(
+    const ecs_world_t *world,
+    const ecs_table_t *table,
+    ecs_entity_t relationship,
+    int32_t index);
 
 /** Return depth for table in tree for relationship rel.
  * Depth is determined by counting the number of targets encountered while

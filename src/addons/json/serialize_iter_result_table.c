@@ -38,7 +38,7 @@ bool flecs_json_serialize_table_type_info(
         const ecs_table_record_t *tr = &table->_->records[i];
         ecs_component_record_t *cr = tr->hdr.cr;
         ecs_id_t id = table->type.array[i];
-        if (!(cr->flags & EcsIdIsSparse) && 
+        if (!(cr->flags & EcsIdSparse) && 
              (!table->column_map || (table->column_map[i] == -1))) 
         {
             continue;
@@ -106,7 +106,7 @@ bool flecs_json_serialize_table_tags(
                 continue;
             }
         }
-        if (cr->flags & EcsIdIsSparse) {
+        if (cr->flags & EcsIdSparse) {
             continue;
         }
 
@@ -175,7 +175,7 @@ bool flecs_json_serialize_table_pairs(
                 continue;
             }
         }
-        if (cr->flags & EcsIdIsSparse) {
+        if (cr->flags & EcsIdSparse) {
             continue;
         }
 
@@ -252,6 +252,9 @@ int flecs_json_serialize_table_components(
         }
 
         ecs_id_t id = table->type.array[i];
+        if(desc->component_filter && !desc->component_filter(world, id)) {
+            continue;
+        }
         if (!desc || !desc->serialize_builtin) {
             if (flecs_json_is_builtin(id)) {
                 continue;
@@ -275,7 +278,7 @@ int flecs_json_serialize_table_components(
             ti = column->ti;
             ptr = ECS_ELEM(column->data, ti->size, row);
         } else {
-            if (!(cr->flags & EcsIdIsSparse)) {
+            if (!(cr->flags & EcsIdSparse)) {
                 continue;
             }
             ecs_entity_t e = ecs_table_entities(table)[row];

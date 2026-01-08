@@ -959,7 +959,7 @@ void flecs_cmd_batch_for_entity(
                 flecs_find_table_remove(world, table, id, diff);
             if ((table != next) && (table->flags & EcsTableHasIsA)) {
                 /* Abort batch. It's possible that we removed an override, and
-                 * if we're readding the component in the same batch we need to
+                 * if we're reading the component in the same batch we need to
                  * reapply the override. If we do nothing here, an add for the
                  * same component would cancel out the remove and we'd won't get
                  * the override for the component. */
@@ -1127,8 +1127,10 @@ void flecs_cmd_batch_for_entity(
              * count of r->cr would always be >0.
              * Since those tables are new, we don't have to invoke component 
              * monitors since queries will have correctly matched them. */
-            ecs_assert(r->cr != NULL, ECS_INTERNAL_ERROR, NULL);
-            if (ecs_map_count(&r->cr->cache.index)) {
+            ecs_component_record_t *cr = flecs_components_get(
+                world, ecs_pair(EcsWildcard, entity));
+            ecs_assert(cr != NULL, ECS_INTERNAL_ERROR, NULL);
+            if (ecs_map_count(&cr->cache.index)) {
                 flecs_update_component_monitors(world, &added, NULL);
             }
         }

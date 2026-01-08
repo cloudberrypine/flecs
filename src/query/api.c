@@ -308,23 +308,14 @@ void flecs_query_fini(
     flecs_free_n(a, int32_t, impl->pub.field_count, impl->monitor);
 
     ecs_query_t *q = &impl->pub;
-    int i, count = q->term_count;
-    for (i = 0; i < count; i ++) {
-        ecs_term_t *term = &q->terms[i];
-        if (!(term->flags_ & EcsTermKeepAlive)) {
-            continue;
-        }
+    if (q->flags & EcsQueryValid) {
+        int i, count = q->term_count;
+        for (i = 0; i < count; i ++) {
+            ecs_term_t *term = &q->terms[i];
 
-        ecs_component_record_t *cr = flecs_components_get(q->real_world, term->id);
-        if (cr) {
             if (!(ecs_world_get_flags(q->world) & EcsWorldQuit)) {
-                if (ecs_os_has_threading()) {
-                    int32_t cr_keep_alive = ecs_os_adec(&cr->keep_alive);
-                    ecs_assert(cr_keep_alive >= 0, ECS_INTERNAL_ERROR, NULL);
-                    (void)cr_keep_alive;
-                } else {
-                    cr->keep_alive --;
-                    ecs_assert(cr->keep_alive >= 0, ECS_INTERNAL_ERROR, NULL);
+                if (!ecs_term_match_0(term)) {
+                    flecs_component_unlock(q->real_world, term->id);
                 }
             }
         }
@@ -384,6 +375,8 @@ ecs_query_t* ecs_query_init(
     ecs_world_t *world, 
     const ecs_query_desc_t *const_desc)
 {
+    ecs_os_perf_trace_push("flecs.query_init");
+
     ecs_world_t *world_arg = world;
     ecs_stage_t *stage = flecs_stage_from_world(&world);
 
@@ -455,10 +448,15 @@ ecs_query_t* ecs_query_init(
         flecs_poly_modified(world, entity, ecs_query_t);
     }
 
+    ecs_os_perf_trace_pop("flecs.query_init");
+
     return &result->pub;
 error:
     result->pub.entity = 0;
     ecs_query_fini(&result->pub);
+
+    ecs_os_perf_trace_pop("flecs.query_init");
+
     return NULL;
 }
 

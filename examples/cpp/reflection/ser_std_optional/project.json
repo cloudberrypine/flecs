@@ -1,10 +1,11 @@
 {
-    "id": "custom_runner",
+    "id": "ser_std_optional",
     "type": "application",
     "value": {
         "use": [
             "flecs"
         ],
+        "language": "c++",
         "public": false
     }
 }

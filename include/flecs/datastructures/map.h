@@ -33,6 +33,10 @@ struct ecs_map_t {
     unsigned count : 26;
     unsigned bucket_shift : 6;
     struct ecs_allocator_t *allocator;
+#ifdef FLECS_DEBUG
+    int32_t change_count;           /* Track modifications while iterating */
+    ecs_map_key_t last_iterated;    /* Currently iterated element */
+#endif
 };
 
 typedef struct ecs_map_iter_t {
@@ -40,11 +44,10 @@ typedef struct ecs_map_iter_t {
     ecs_bucket_t *bucket;
     ecs_bucket_entry_t *entry;
     ecs_map_data_t *res;
+#ifdef FLECS_DEBUG
+    int32_t change_count;
+#endif
 } ecs_map_iter_t;
-
-typedef struct ecs_map_params_t {
-    struct ecs_allocator_t *allocator;
-} ecs_map_params_t;
 
 /* Function/macro postfixes meaning:
  *   _ptr:    access ecs_map_val_t as void*
@@ -54,22 +57,11 @@ typedef struct ecs_map_params_t {
  *   _free:   if _ptr is not NULL, free
  */
 
-FLECS_API
-void ecs_map_params_init(
-    ecs_map_params_t *params,
-    struct ecs_allocator_t *allocator);
-
 /** Initialize new map. */
 FLECS_API
 void ecs_map_init(
     ecs_map_t *map,
     struct ecs_allocator_t *allocator);
-
-/** Initialize new map. */
-FLECS_API
-void ecs_map_init_w_params(
-    ecs_map_t *map,
-    ecs_map_params_t *params);
 
 /** Initialize new map if uninitialized, leave as is otherwise */
 FLECS_API
@@ -77,10 +69,10 @@ void ecs_map_init_if(
     ecs_map_t *map,
     struct ecs_allocator_t *allocator);
 
+/** Reclaim map memory.  */
 FLECS_API
-void ecs_map_init_w_params_if(
-    ecs_map_t *result,
-    ecs_map_params_t *params);
+void ecs_map_reclaim(
+    ecs_map_t *map);
 
 /** Deinitialize map. */
 FLECS_API
@@ -153,6 +145,11 @@ void ecs_map_clear(
 FLECS_API
 ecs_map_iter_t ecs_map_iter(
     const ecs_map_t *map);
+
+/** Return whether map iterator is valid. */
+FLECS_API
+bool ecs_map_iter_valid(
+    ecs_map_iter_t *iter);
 
 /** Obtain next element in map from iterator. */
 FLECS_API

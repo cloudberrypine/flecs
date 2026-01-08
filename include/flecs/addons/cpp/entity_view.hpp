@@ -218,16 +218,9 @@ struct entity_view : public id {
 
         flecs::world world(world_);
 
-        if (rel == flecs::ChildOf) {
-            ecs_iter_t it = ecs_children(world_, id_);
-            while (ecs_children_next(&it)) {
-                _::each_delegate<Func>(FLECS_MOV(func)).invoke(&it);
-            }
-        } else {
-            ecs_iter_t it = ecs_each_id(world_, ecs_pair(rel, id_));
-            while (ecs_each_next(&it)) {
-                _::each_delegate<Func>(FLECS_MOV(func)).invoke(&it);
-            }
+        ecs_iter_t it = ecs_children_w_rel(world_, rel, id_);
+        while (ecs_children_next(&it)) {
+            _::each_delegate<Func>(FLECS_MOV(func)).invoke(&it);
         }
     }
 
@@ -1072,6 +1065,17 @@ struct entity_view : public id {
         return owns(
             _::type<First>::id(world_),
             _::type<Second>::id(world_));
+    }
+
+    /** Check if entity owns the provided pair.
+     *
+     * @param first The first element of the pair.
+     * @tparam Second The second element of the pair.
+     * @return True if the entity owns the provided component, false otherwise.
+     */
+    template <typename Second>
+    bool owns_second(flecs::entity_t first) const {
+        return owns(first, _::type<Second>::id(world_));
     }
 
     /** Test if id is enabled.

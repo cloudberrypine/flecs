@@ -76,6 +76,37 @@ ecs_size_t flecs_hashmap_memory_get(
 }
 
 static
+ecs_size_t flecs_sparse_memory_get(
+    const ecs_sparse_t *sparse,
+    ecs_size_t element_size)
+{
+    if (!sparse) {
+        return 0;
+    }
+
+    ecs_size_t result = 0;
+    
+    result += ecs_vec_size(&sparse->dense) * ECS_SIZEOF(uint64_t);
+    result += ecs_vec_size(&sparse->pages) * ECS_SIZEOF(ecs_sparse_page_t);
+
+    int32_t i, pages_count = ecs_vec_count(&sparse->pages);
+    ecs_sparse_page_t *pages = ecs_vec_first_t(
+        &sparse->pages, ecs_sparse_page_t);
+    int32_t page_count = 0;
+    for (i = 0; i < pages_count; i++) {
+        ecs_sparse_page_t *page = &pages[i];
+        if (page->sparse) {
+            page_count ++;
+        }
+    }
+
+    result += page_count * ECS_SIZEOF(int32_t) * FLECS_SPARSE_PAGE_SIZE;
+    result += page_count * element_size * FLECS_SPARSE_PAGE_SIZE;
+
+    return result;
+}
+
+static
 ecs_size_t flecs_allocator_memory_get(
     const ecs_allocator_t *allocator)
 {
@@ -90,46 +121,67 @@ ecs_size_t flecs_allocator_memory_get(
         result += flecs_ballocator_memory_get(ba);
     }
     result += flecs_ballocator_memory_get(&allocator->chunks);
+    
+    result += flecs_sparse_memory_get(&allocator->sizes, 
+        ECS_SIZEOF(ecs_block_allocator_t));
 #endif
 
     return result;
 }
 
 static
-void flecs_sparse_memory_get(
-    const ecs_sparse_t *sparse,
-    ecs_size_t element_size,
-    ecs_size_t *used,
-    ecs_size_t *unused,
-    ecs_size_t *overhead)
+ecs_size_t flecs_stack_memory_get(
+    const ecs_stack_t *stack)
 {
-    if (!sparse) {
-        return;
+    ecs_size_t result = 0;
+    ecs_stack_page_t *page = stack->first;
+    while (page) {
+        result += 
+            FLECS_STACK_PAGE_OFFSET + FLECS_STACK_PAGE_SIZE;
+        page = page->next;
     }
+    return result;
+}
 
-    int32_t count = flecs_sparse_count(sparse);
-    int32_t size = ecs_vec_size(&sparse->dense);
-    
-    *overhead += size * ECS_SIZEOF(uint64_t);
-
-    int32_t i, pages_count = ecs_vec_count(&sparse->pages);
-    ecs_sparse_page_t *pages = ecs_vec_first_t(
-        &sparse->pages, ecs_sparse_page_t);
-    int32_t page_count = 0;
-    for (i = 0; i < pages_count; i++) {
-        ecs_sparse_page_t *page = &pages[i];
-        if (page->sparse) {
-            page_count ++;
+static
+ecs_size_t flecs_identifier_memory_get(
+    const ecs_world_t *world,
+    ecs_entity_t tag)
+{
+    ecs_size_t result = 0;
+    ecs_iter_t it = ecs_each_id(world, ecs_pair_t(EcsIdentifier, tag));
+    while (ecs_each_next(&it)) {
+        EcsIdentifier *ptr = ecs_field(&it, EcsIdentifier, 0);
+        int32_t i, count = it.count;
+        for (i = 0; i < count; i ++) {
+            if (ptr[i].value) {
+                result += ecs_os_strlen(ptr[i].value) + 1;
+            }
         }
     }
-
-    *overhead += pages_count * ECS_SIZEOF(ecs_sparse_page_t);
-    *overhead += page_count * ECS_SIZEOF(int32_t) * FLECS_SPARSE_PAGE_SIZE;
-
-    int32_t total_size = page_count * element_size * FLECS_SPARSE_PAGE_SIZE;
-    *used += count * element_size;
-    *unused += total_size - (count * element_size);
+    return result;
 }
+
+#ifdef FLECS_DOC
+static
+ecs_size_t flecs_doc_string_memory_get(
+    const ecs_world_t *world,
+    ecs_entity_t tag)
+{
+    ecs_size_t result = 0;
+    ecs_iter_t it = ecs_each_id(world, ecs_pair_t(EcsDocDescription, tag));
+    while (ecs_each_next(&it)) {
+        EcsDocDescription *ptr = ecs_field(&it, EcsDocDescription, 0);
+        int32_t i, count = it.count;
+        for (i = 0; i < count; i ++) {
+            if (ptr[i].value) {
+                result += ecs_os_strlen(ptr[i].value) + 1;
+            }
+        }
+    }
+    return result;
+}
+#endif
 
 ecs_entities_memory_t ecs_entity_memory_get(
     const ecs_world_t *world)
@@ -138,72 +190,46 @@ ecs_entities_memory_t ecs_entity_memory_get(
     
     const ecs_entity_index_t *index = &world->store.entity_index;
     ecs_entities_memory_t result = {0};
-    
+
     result.alive_count = index->alive_count - 1;
     result.not_alive_count = ecs_vec_count(&index->dense) - index->alive_count;
-    
-    /* Dense array */
-    int32_t dense_size = ecs_vec_size(&index->dense);
-    int32_t dense_count = ecs_vec_count(&index->dense);
-    result.bytes_alive = result.alive_count * ECS_SIZEOF(uint64_t);
-    result.bytes_not_alive = result.not_alive_count * ECS_SIZEOF(uint64_t);
-    result.bytes_unused = (dense_size - dense_count) * ECS_SIZEOF(uint64_t);
-    
-    /* Pages vector memory */
-    int32_t pages_size = ecs_vec_size(&index->pages);
-    int32_t pages_count = ecs_vec_count(&index->pages);
-    result.bytes_unused += (pages_size - pages_count) * 
+
+    result.bytes_entity_index = 
+        ecs_vec_size(&index->dense) * ECS_SIZEOF(uint64_t);
+    result.bytes_entity_index += ecs_vec_size(&index->pages) * 
         ECS_SIZEOF(ecs_entity_index_page_t*);
-    
-    /* Pages memory */
+
     ecs_entity_index_page_t **pages = ecs_vec_first(&index->pages);
-    int32_t page_count = 0;
-    for (int32_t i = 0; i < pages_count; i++) {
+    int32_t i, page_count = 0, pages_count = ecs_vec_count(&index->pages);
+    for (i = 0; i < pages_count; i++) {
         if (pages[i]) {
             page_count ++;
         }
     }
 
-    ecs_size_t alive_records = ECS_SIZEOF(ecs_record_t) * result.alive_count;
-    ecs_size_t not_alive_records = 
-        ECS_SIZEOF(ecs_record_t) * result.not_alive_count;
-    ecs_size_t total_records = page_count * ECS_SIZEOF(ecs_entity_index_page_t);
-    result.bytes_alive += alive_records;
-    result.bytes_not_alive += not_alive_records;
-    result.bytes_unused += total_records - alive_records - not_alive_records;
+    result.bytes_entity_index += page_count * 
+        ECS_SIZEOF(ecs_entity_index_page_t);
 
     /* Entity names, symbols, aliases */
-    {
-        ecs_iter_t it = ecs_each_pair_t(world, EcsIdentifier, EcsWildcard);
-        while (ecs_each_next(&it)) {
-            EcsIdentifier *ptr = ecs_field(&it, EcsIdentifier, 0);
-            int32_t i, count = it.count;
-            for (i = 0; i < count; i ++) {
-                result.bytes_names += ecs_os_strlen(ptr[i].value) + 1;
-            }
-        }
-    }
+    result.bytes_names += flecs_identifier_memory_get(world, EcsName);
+    result.bytes_names += flecs_identifier_memory_get(world, EcsSymbol);
+    result.bytes_names += flecs_identifier_memory_get(world, EcsAlias);
 
 #ifdef FLECS_DOC
     /* Doc strings */
-    {
-        ecs_iter_t it = ecs_each_pair_t(world, EcsDocDescription, EcsWildcard);
-        while (ecs_each_next(&it)) {
-            EcsDocDescription *ptr = ecs_field(&it, EcsDocDescription, 0);
-            int32_t i, count = it.count;
-            for (i = 0; i < count; i ++) {
-                result.bytes_doc_strings += ecs_os_strlen(ptr[i].value) + 1;
-            }
-        }
-    }
+    result.bytes_doc_strings += flecs_doc_string_memory_get(world, EcsName);
+    result.bytes_doc_strings += flecs_doc_string_memory_get(world, EcsDocBrief);
+    result.bytes_doc_strings += flecs_doc_string_memory_get(world, EcsDocDetail);
+    result.bytes_doc_strings += flecs_doc_string_memory_get(world, EcsDocUuid);
+    result.bytes_doc_strings += flecs_doc_string_memory_get(world, EcsDocLink);
+    result.bytes_doc_strings += flecs_doc_string_memory_get(world, EcsDocColor);
 #endif
-    
+
 error:
     return result;
 }
 
-static
-void flecs_component_index_memory_record_get(
+void ecs_component_record_memory_get(
     const ecs_component_record_t *cr,
     ecs_component_index_memory_t *result)
 {
@@ -216,7 +242,13 @@ void flecs_component_index_memory_record_get(
     
     const ecs_map_t *map = &cache->index;
     result->bytes_table_cache += flecs_map_memory_get(map, 0);
-    
+
+#ifdef FLECS_DEBUG_INFO
+    if (cr->str) {
+        result->bytes_component_record += ecs_os_strlen(cr->str);
+    }
+#endif
+
     if (cr->pair) {
         ecs_pair_record_t *pair = cr->pair;
 
@@ -244,30 +276,16 @@ ecs_component_index_memory_t ecs_component_index_memory_get(
     ecs_check(world != NULL, ECS_INVALID_PARAMETER, NULL);
     
     ecs_component_index_memory_t result = {0};
-    
-    int32_t i;
-    for (i = 0; i < FLECS_HI_ID_RECORD_ID; i++) {
-        ecs_component_record_t *cr = world->id_index_lo[i];
-        if (cr) {
-            flecs_component_index_memory_record_get(cr, &result);
-        }
-    }
-    
-    ecs_map_iter_t it = ecs_map_iter(&world->id_index_hi);
-    while (ecs_map_next(&it)) {
-        ecs_component_record_t *cr = ecs_map_ptr(&it);
-        flecs_component_index_memory_record_get(cr, &result);
-    }
 
-    result.bytes_type_info += flecs_map_memory_get(
-        &world->type_info, ECS_SIZEOF(ecs_type_info_t));
+    FLECS_EACH_COMPONENT_RECORD(cr, {
+        ecs_component_record_memory_get(cr, &result);
+    })
     
 error:
     return result;
 }
 
-static
-void flecs_query_memory_get(
+void ecs_query_memory_get(
     const ecs_query_t *query,
     ecs_query_memory_t *result)
 {
@@ -275,7 +293,6 @@ void flecs_query_memory_get(
 
     result->count++;
     result->bytes_query += ECS_SIZEOF(ecs_query_impl_t);
-
     result->bytes_terms += query->term_count * ECS_SIZEOF(ecs_term_t);
     
     if (impl->ops) {
@@ -313,18 +330,15 @@ void flecs_query_memory_get(
                 ECS_SIZEOF(ecs_query_cache_table_t));
         result->bytes_group_by += 
             flecs_map_memory_get(&cache->groups, 
-                ECS_SIZEOF(ecs_query_cache_group_t*));
+                ECS_SIZEOF(ecs_query_cache_group_t));
         
         ecs_size_t cache_elem_size = flecs_query_cache_elem_size(cache);
         ecs_query_cache_group_t *cur = cache->first_group;
         do {
-            result->bytes_group_by += 
-                ECS_SIZEOF(ecs_query_cache_group_t);
+            result->bytes_cache += ecs_vec_size(&cur->tables) * cache_elem_size;
 
-            int32_t group_table_count = ecs_vec_count(&cur->tables);
-            result->bytes_cache += group_table_count * cache_elem_size;
-            
             if (!(cache->query->flags & EcsQueryTrivialCache)) {
+                int32_t group_table_count = ecs_vec_count(&cur->tables);
                 for (int32_t j = 0; j < group_table_count; j++) {
                     ecs_query_cache_match_t *match = 
                         ecs_vec_get(&cur->tables, cache_elem_size, j);
@@ -346,7 +360,7 @@ void flecs_query_memory_get(
             
             cur = cur->next;
         } while (cur && cur != cache->first_group);
-        
+
         result->bytes_order_by += 
             ecs_vec_size(&cache->table_slices) * 
                 ECS_SIZEOF(ecs_table_range_t);
@@ -360,27 +374,43 @@ void flecs_query_memory_get(
             result->bytes_cache += query->field_count * ECS_SIZEOF(int8_t);
         }
 
-        flecs_query_memory_get(cache->query, result);
+        result->bytes_cache += flecs_ballocator_memory_get(&cache->allocators.ids);
+        result->bytes_cache += flecs_ballocator_memory_get(&cache->allocators.monitors);
+        result->bytes_cache += flecs_ballocator_memory_get(&cache->allocators.pointers);
+
+        ecs_query_memory_get(cache->query, result);
+        result->count --; /* Don't double count query */
     }
 }
 
-ecs_query_memory_t ecs_query_memory_get(
+static
+ecs_size_t flecs_query_total_memory_get(
+    const ecs_query_t *query)
+{
+    ecs_query_memory_t memory = {0};
+    ecs_query_memory_get(query, &memory);
+    
+    ecs_size_t result = 0;
+    result += memory.bytes_query;
+    result += memory.bytes_cache;
+    result += memory.bytes_group_by;
+    result += memory.bytes_order_by;
+    result += memory.bytes_plan;
+    result += memory.bytes_terms;
+    result += memory.bytes_misc;
+    return result;
+}
+
+ecs_query_memory_t ecs_queries_memory_get(
     const ecs_world_t *world)
 {
     ecs_check(world != NULL, ECS_INVALID_PARAMETER, NULL);
     
     ecs_query_memory_t result = (ecs_query_memory_t){0};
 
-    ecs_iter_t it = ecs_each_pair(world, ecs_id(EcsPoly), EcsQuery);
-    while (ecs_iter_next(&it)) {
-        EcsPoly *queries = ecs_field(&it, EcsPoly, 0);
-
-        for (int32_t i = 0; i < it.count; i++) {
-            ecs_query_t *query = queries[i].poly;
-            flecs_poly_assert(query, ecs_query_t);
-            flecs_query_memory_get(query, &result);
-        }
-    }
+    FLECS_EACH_QUERY(query, {
+        ecs_query_memory_get(query, &result);
+    })
 
 error:
     return result;
@@ -397,13 +427,41 @@ void flecs_component_memory_get_sparse(
     }
 
     ecs_size_t component_size = cr->type_info ? cr->type_info->size : 0;
-    flecs_sparse_memory_get(sparse, component_size, 
-        &result->bytes_sparse_components, 
-        &result->bytes_sparse_components_unused, 
-        &result->bytes_sparse_overhead);
+    result->bytes_sparse_components += flecs_sparse_memory_get(
+        sparse, component_size);
 
     if (component_size) {
         result->instances += flecs_sparse_count(sparse);
+    }
+}
+
+void ecs_table_component_memory_get(
+    const ecs_table_t *table,
+    ecs_component_memory_t *result)
+{
+    int32_t count = ecs_table_count(table);
+    int32_t size = ecs_table_size(table);
+    ecs_column_t *columns = table->data.columns;
+
+    int32_t col;
+    for (col = 0; col < table->column_count; col++) {
+        ecs_column_t *column = &columns[col];
+        
+        ecs_size_t component_size = column->ti->size;
+        ecs_size_t used = count * component_size;
+        ecs_size_t allocated = size * component_size;
+        
+        result->bytes_table_components += used;
+        result->bytes_table_components_unused += allocated - used;
+    }
+
+    result->instances += count * table->column_count;
+
+    if (table->_) {
+        result->bytes_toggle_bitsets += 
+            table->_->bs_count * ECS_SIZEOF(ecs_bitset_t);
+        result->bytes_toggle_bitsets += 
+            (count / 64) * ECS_SIZEOF(uint64_t) * table->_->bs_count;
     }
 }
 
@@ -420,50 +478,13 @@ ecs_component_memory_t ecs_component_memory_get(
     
     for (i = 0; i < table_count; i++) {
         ecs_table_t *table = flecs_sparse_get_dense_t(tables, ecs_table_t, i);
-
-        int32_t count = ecs_table_count(table);
-        int32_t size = ecs_table_size(table);
-        ecs_column_t *columns = table->data.columns;
-
-        int32_t col;
-        for (col = 0; col < table->column_count; col++) {
-            ecs_column_t *column = &columns[col];
-            
-            ecs_size_t component_size = column->ti->size;
-            ecs_size_t used = count * component_size;
-            ecs_size_t allocated = size * component_size;
-            
-            result.bytes_table_components += used;
-            result.bytes_table_components_unused += allocated - used;
-
-            if (table->flags & EcsTableHasBuiltins) {
-                result.bytes_builtin += used;
-            }
-        }
-
-        result.instances += count * table->column_count;
-
-        if (table->_) {
-            result.bytes_toggle_bitsets += 
-                table->_->bs_count * ECS_SIZEOF(ecs_bitset_t);
-            result.bytes_toggle_bitsets += 
-                (count / 64) * ECS_SIZEOF(uint64_t) * table->_->bs_count;
-        }
+        ecs_table_component_memory_get(table, &result);
     }
 
     /* Sparse components */
-    for (i = 0; i < FLECS_HI_ID_RECORD_ID; i++) {
-        ecs_component_record_t *cr = world->id_index_lo[i];
-        if (cr) {
-            flecs_component_memory_get_sparse(cr, &result);
-        }
-    }
-    
-    ecs_map_iter_t it = ecs_map_iter(&world->id_index_hi);
-    while (ecs_map_next(&it)) {
-        ecs_component_record_t *cr = ecs_map_ptr(&it);
+    FLECS_EACH_COMPONENT_RECORD(cr, {
         flecs_component_memory_get_sparse(cr, &result);
-    }
+    })
     
 error:
     return result;
@@ -471,7 +492,7 @@ error:
 
 static
 void flecs_table_graph_edge_memory_get(
-    ecs_graph_edge_t *edge,
+    const ecs_graph_edge_t *edge,
     ecs_table_memory_t *result)
 {
     result->bytes_edges += ECS_SIZEOF(ecs_graph_edge_t);
@@ -486,7 +507,7 @@ void flecs_table_graph_edge_memory_get(
 
 static
 void flecs_table_graph_edges_memory_get(
-    ecs_graph_edges_t *edges,
+    const ecs_graph_edges_t *edges,
     ecs_table_memory_t *result)
 {
     if (edges->lo) {
@@ -508,7 +529,60 @@ void flecs_table_graph_edges_memory_get(
     }
 }
 
-ecs_table_memory_t ecs_table_memory_get(
+void ecs_table_memory_get(
+    const ecs_table_t *table,
+    ecs_table_memory_t *result)
+{
+    ecs_assert(table != NULL, ECS_INVALID_PARAMETER, NULL);
+
+    result->bytes_table += ECS_SIZEOF(ecs_table_t);
+    
+    int32_t entity_count = ecs_table_count(table);
+    int32_t entity_size = ecs_table_size(table);
+    int32_t type_count = table->type.count;
+    int32_t column_count = table->column_count;
+    
+    result->column_count += column_count;
+
+    if (entity_count == 0) {
+        result->empty_count++;
+    }
+    
+    result->bytes_type += type_count * ECS_SIZEOF(ecs_id_t);
+
+    result->bytes_entities += 
+        entity_size * ECS_SIZEOF(ecs_entity_t);
+    
+    if (table->data.overrides) {
+        result->bytes_overrides += ECS_SIZEOF(ecs_table_overrides_t);
+        result->bytes_overrides += column_count * ECS_SIZEOF(ecs_ref_t);
+    }
+    
+    result->bytes_columns += column_count * ECS_SIZEOF(ecs_column_t);
+
+    if (table->_) {
+        result->bytes_table += ECS_SIZEOF(ecs_table__t);
+        result->bytes_table_records += 
+            table->_->record_count * ECS_SIZEOF(ecs_table_record_t);
+    }
+
+    result->bytes_column_map += 
+        (type_count + column_count) * ECS_SIZEOF(int16_t);
+    if (table->component_map) {
+        result->bytes_component_map += 
+            FLECS_HI_COMPONENT_ID * ECS_SIZEOF(int16_t);
+    }
+
+    if (table->dirty_state) {
+        result->bytes_dirty_state += 
+            (column_count + 1) * ECS_SIZEOF(int32_t);
+    }
+    
+    flecs_table_graph_edges_memory_get(&table->node.add, result);
+    flecs_table_graph_edges_memory_get(&table->node.remove, result);
+}
+
+ecs_table_memory_t ecs_tables_memory_get(
     const ecs_world_t *world)
 {
     ecs_check(world != NULL, ECS_INVALID_PARAMETER, NULL);
@@ -519,61 +593,14 @@ ecs_table_memory_t ecs_table_memory_get(
 
     result.count = count;
 
-    flecs_sparse_memory_get(tables, ECS_SIZEOF(ecs_table_t), 
-        &result.bytes_table, 
-        &result.bytes_table_overhead, 
-        &result.bytes_table_overhead);
+    result.bytes_table += 
+        flecs_sparse_memory_get(tables, ECS_SIZEOF(ecs_table_t));
 
     for (i = 0; i < count; i++) {
         ecs_table_t *table = flecs_sparse_get_dense_t(tables, ecs_table_t, i);
-        ecs_assert(table != NULL, ECS_INVALID_PARAMETER, NULL);
-        
-        int32_t entity_count = ecs_table_count(table);
-        int32_t entity_size = ecs_table_size(table);
-        int32_t type_count = table->type.count;
-        int32_t column_count = table->column_count;
-        
-        result.column_count += column_count;
-
-        if (entity_count == 0) {
-            result.empty_count++;
-        }
-        
-        result.bytes_type += type_count * ECS_SIZEOF(ecs_id_t);
-
-        result.bytes_entities += 
-            entity_size * ECS_SIZEOF(ecs_entity_t);
-        
-        if (table->data.overrides) {
-            result.bytes_overrides += ECS_SIZEOF(ecs_table_overrides_t);
-            result.bytes_overrides += column_count * ECS_SIZEOF(ecs_ref_t);
-        }
-        
-        result.bytes_columns += column_count * ECS_SIZEOF(ecs_column_t);
-
-        if (table->_) {
-            result.bytes_table += ECS_SIZEOF(ecs_table__t);
-            result.bytes_table_records += 
-                table->_->record_count * ECS_SIZEOF(ecs_table_record_t);
-        }
-
-        result.bytes_column_map += 
-            (type_count + column_count) * ECS_SIZEOF(int16_t);
-        if (table->component_map) {
-            result.bytes_component_map += 
-                FLECS_HI_COMPONENT_ID * ECS_SIZEOF(int16_t);
-        }
-
-        if (table->dirty_state) {
-            result.bytes_dirty_state += 
-                (column_count + 1) * ECS_SIZEOF(int32_t);
-        }
-        
-        ecs_graph_edges_t *add_edges = &table->node.add;
-        ecs_graph_edges_t *remove_edges = &table->node.remove;
-        
-        flecs_table_graph_edges_memory_get(add_edges, &result);
-        flecs_table_graph_edges_memory_get(remove_edges, &result);
+        ecs_table_memory_get(table, &result);
+        /* Already accounted for by flecs_sparse_memory_get */
+        result.bytes_table -= ECS_SIZEOF(ecs_table_t);
     }
 
 error:
@@ -622,45 +649,93 @@ ecs_table_histogram_t ecs_table_histogram_get(
 }
 
 static
-void flecs_observer_memory_get(
-    const ecs_world_t *world,
-    ecs_misc_memory_t *result)
+ecs_size_t flecs_event_record_memory_get(
+    const ecs_event_record_t *er)
 {
+    ecs_size_t result = flecs_map_memory_get(&er->event_ids, 
+        ECS_SIZEOF(ecs_event_id_record_t));
+
+    ecs_map_iter_t mit = ecs_map_iter(&er->event_ids);
+    while (ecs_map_next(&mit)) {
+        ecs_event_id_record_t *eir = ecs_map_ptr(&mit);
+        result += flecs_map_memory_get(&eir->self, 0);
+        result += flecs_map_memory_get(&eir->self_up, 0);
+        result += flecs_map_memory_get(&eir->up, 0);
+    }
+
+    return result;
+}
+
+static
+ecs_size_t flecs_observer_memory_get(
+    const ecs_observer_impl_t *o)
+{
+    ecs_size_t result = ECS_SIZEOF(ecs_observer_impl_t);
+    result += ecs_vec_size(&o->children) * ECS_SIZEOF(void*);
+
+    if (o->pub.query) {
+        result += flecs_query_total_memory_get(o->pub.query);
+    }
+
+    if (o->not_query) {
+        result += flecs_query_total_memory_get(o->not_query);
+    }
+
+    ecs_observer_impl_t **children = ecs_vec_first(&o->children);
+    int32_t i, count = ecs_vec_count(&o->children);
+    for (i = 0; i < count; i ++) {
+        result += flecs_observer_memory_get(children[i]);
+    }
+
+    return result;
+}
+
+static
+ecs_size_t flecs_observers_memory_get(
+    const ecs_world_t *world)
+{
+    ecs_size_t result = 0;
+
     ecs_iter_t it = ecs_each_pair_t(world, EcsPoly, EcsObserver);
     while (ecs_each_next(&it)) {
         EcsPoly *p = ecs_field(&it, EcsPoly, 0);
-        result->bytes_observers += it.count * ECS_SIZEOF(ecs_observer_impl_t);
         int32_t i, count = it.count;
         for (i = 0; i < count; i ++) {
             ecs_observer_impl_t *o = p[i].poly;
-            result->bytes_observers += ecs_vec_size(&o->children);
+            if (!o) {
+                continue;
+            }
+
+            result += flecs_observer_memory_get(o);
         }
     }
 
-    const ecs_sparse_t *events = &world->observable.events;
-    flecs_sparse_memory_get(events,
-        ECS_SIZEOF(ecs_event_record_t), &result->bytes_observer_index, 
-        &result->bytes_observer_index, &result->bytes_observer_index);
+    return result;
+}
+
+static
+ecs_size_t flecs_observer_index_memory_get(
+    const ecs_world_t *world)
+{
+    const ecs_observable_t *o = &world->observable;
+    ecs_size_t result = 0;
+    result += flecs_event_record_memory_get(&o->on_add);
+    result += flecs_event_record_memory_get(&o->on_remove);
+    result += flecs_event_record_memory_get(&o->on_set);
+    result += flecs_event_record_memory_get(&o->on_wildcard);
+
+    const ecs_sparse_t *events = &o->events;
+    result += flecs_sparse_memory_get(events,
+        ECS_SIZEOF(ecs_event_record_t));
 
     int32_t i, count = flecs_sparse_count(events);
     for (i = 0; i < count; i ++) {
         ecs_event_record_t *er = flecs_sparse_get_dense_t(
             events, ecs_event_record_t, i);
-        result->bytes_observer_index += 
-            flecs_map_memory_get(&er->event_ids, 
-                ECS_SIZEOF(ecs_event_id_record_t));
-
-        ecs_map_iter_t mit = ecs_map_iter(&er->event_ids);
-        while (ecs_map_next(&mit)) {
-            ecs_event_id_record_t *eir = ecs_map_ptr(&mit);
-            result->bytes_observer_index += 
-                flecs_map_memory_get(&eir->self, ECS_SIZEOF(void*));
-            result->bytes_observer_index += 
-                flecs_map_memory_get(&eir->self_up, ECS_SIZEOF(void*));
-            result->bytes_observer_index += 
-                flecs_map_memory_get(&eir->up, ECS_SIZEOF(void*));
-        }
+        result += flecs_event_record_memory_get(er);
     }
+
+    return result;
 }
 
 static
@@ -675,7 +750,13 @@ void flecs_system_memory_get(
         int32_t i, count = it.count;
         for (i = 0; i < count; i ++) {
             ecs_system_t *s = p[i].poly;
-            result->bytes_systems += ecs_os_strlen(s->name);
+            if (!s) {
+                continue;
+            }
+            
+            if (s->name) {
+                result->bytes_systems += ecs_os_strlen(s->name);
+            }
         }
     }
 }
@@ -692,6 +773,10 @@ void flecs_pipeline_memory_get(
         int32_t i, count = it.count;
         for (i = 0; i < count; i ++) {
             ecs_pipeline_state_t *ps = p[i].state;
+            if (!ps) {
+                continue;
+            }
+            
             result->bytes_pipelines += ecs_vec_size(&ps->ops) *
                 ECS_SIZEOF(ecs_pipeline_op_t);
             result->bytes_pipelines += ecs_vec_size(&ps->systems) *
@@ -771,7 +856,7 @@ void flecs_reflection_memory_get(
                 int32_t o, ocount = ecs_vec_count(&s[i].ops);
                 ecs_meta_op_t *ops = ecs_vec_first(&s[i].ops);
 
-                result->bytes_reflection += ocount *
+                result->bytes_reflection += ecs_vec_size(&s[i].ops) *
                     ECS_SIZEOF(ecs_meta_op_t);
 
                 for (o = 0; o < ocount; o ++) {
@@ -783,7 +868,7 @@ void flecs_reflection_memory_get(
                         op->kind == EcsOpBitmask) 
                     {
                         result->bytes_reflection += flecs_map_memory_get(
-                            op->is.constants, ECS_SIZEOF(ecs_entity_t));
+                            op->is.constants, 0);
                     }
                 }
             }
@@ -797,11 +882,16 @@ void flecs_stats_memory_get(
     const ecs_world_t *world,
     ecs_misc_memory_t *result)
 {
-    result->bytes_stats += ECS_SIZEOF(ecs_world_stats_t) * ecs_count_id(
-        world, ecs_pair_t(EcsWorldStats, EcsWildcard));
+    ecs_entity_t periods[] = {
+        EcsPeriod1s, EcsPeriod1m, EcsPeriod1h, EcsPeriod1d, EcsPeriod1w};
+    int32_t p, period_count = 5;
 
-    {
-        ecs_iter_t it = ecs_each_pair_t(world, EcsSystemStats, EcsWildcard);
+    result->bytes_stats += ECS_SIZEOF(ecs_world_stats_t) * ecs_count_id(world,
+        ecs_pair_t(EcsWorldStats, EcsWildcard));
+
+    for (p = 0; p < period_count; p ++) {
+        ecs_iter_t it = ecs_each_id(world, 
+            ecs_pair_t(EcsSystemStats, periods[p]));
         while (ecs_each_next(&it)) {
             EcsSystemStats *ss = ecs_field(&it, EcsSystemStats, 0);
             int32_t i, count = it.count;
@@ -811,9 +901,9 @@ void flecs_stats_memory_get(
             }
         }
     }
-
-    {
-        ecs_iter_t it = ecs_each_pair_t(world, EcsPipelineStats, EcsWildcard);
+    for (p = 0; p < period_count; p ++) {
+        ecs_iter_t it = ecs_each_id(world, 
+            ecs_pair_t(EcsPipelineStats, periods[p]));
         while (ecs_each_next(&it)) {
             EcsPipelineStats *ps = ecs_field(&it, EcsPipelineStats, 0);
             int32_t i, count = it.count;
@@ -842,13 +932,11 @@ void flecs_http_memory_get(
 {
     result->bytes_rest += ECS_SIZEOF(ecs_http_server_t);
 
-    flecs_sparse_memory_get(&srv->connections, 
-        ECS_SIZEOF(ecs_http_connection_t), &result->bytes_rest,
-            &result->bytes_rest, &result->bytes_rest);
+    result->bytes_rest += flecs_sparse_memory_get(&srv->connections, 
+        ECS_SIZEOF(ecs_http_connection_t));
 
-    flecs_sparse_memory_get(&srv->requests, 
-        ECS_SIZEOF(ecs_http_request_t), &result->bytes_rest,
-            &result->bytes_rest, &result->bytes_rest);
+    result->bytes_rest += flecs_sparse_memory_get(&srv->requests, 
+        ECS_SIZEOF(ecs_http_request_t));
 
     result->bytes_rest += flecs_hashmap_memory_get(&srv->request_cache);
 
@@ -884,6 +972,9 @@ void flecs_rest_memory_get(
         int32_t i, count = it.count;
         for (i = 0; i < count; i ++) {
             result->bytes_rest += ECS_SIZEOF(ecs_rest_ctx_t);
+            if (!r[i].impl) {
+                continue;
+            }
             flecs_http_memory_get(r[i].impl->srv, result);
         }
     }
@@ -901,12 +992,15 @@ ecs_misc_memory_t ecs_misc_memory_get(
     ecs_stage_t **stages = world->stages;
 
     result.bytes_world = ECS_SIZEOF(ecs_world_t) + 
-        ECS_SIZEOF(ecs_stage_t) * stage_count;
+        ECS_SIZEOF(ecs_stage_t) * stage_count +
+        ECS_SIZEOF(ecs_stage_t*) * stage_count;
     
-    flecs_observer_memory_get(world, &result);
+    result.bytes_observers = flecs_observers_memory_get(world);
+    result.bytes_observers = flecs_observer_index_memory_get(world);
     flecs_system_memory_get(world, &result);
     flecs_pipeline_memory_get(world, &result);
     flecs_rematch_monitor_memory_get(world, &result);
+
     #ifdef FLECS_META
         flecs_reflection_memory_get(world, &result);
     #endif
@@ -918,6 +1012,18 @@ ecs_misc_memory_t ecs_misc_memory_get(
     result.bytes_component_ids += 
         ecs_vec_size(&world->component_ids) * ECS_SIZEOF(ecs_entity_t);
     
+    result.bytes_table_lookup += 
+        flecs_hashmap_memory_get(&world->store.table_map);
+
+    result.bytes_component_record_lookup += FLECS_HI_ID_RECORD_ID * 
+        ECS_SIZEOF(ecs_component_record_t*);
+
+    result.bytes_component_record_lookup += flecs_map_memory_get(
+        &world->id_index_hi, 0);
+
+    result.bytes_type_info += flecs_map_memory_get(
+        &world->type_info, ECS_SIZEOF(ecs_type_info_t));
+
     /* Iterate through all stages to collect command memory usage */
     for (int32_t i = 0; i < stage_count; i++) {
         ecs_stage_t *stage = stages[i];
@@ -925,26 +1031,25 @@ ecs_misc_memory_t ecs_misc_memory_get(
             ecs_commands_t *cmd = &stage->cmd_stack[j];
             
             /* Calculate queue memory (ecs_vec_t) */
-            result.bytes_cmd_queue += 
+            result.bytes_commands += 
                 ecs_vec_size(&cmd->queue) * ECS_SIZEOF(ecs_cmd_t);
             
             /* Calculate entries memory (ecs_sparse_t) */
             ecs_sparse_t *entries = &cmd->entries;
-            flecs_sparse_memory_get(entries, 0, 
-                &result.bytes_cmd_entries, 
-                &result.bytes_cmd_entries, 
-                &result.bytes_cmd_entries);
-            
+            result.bytes_commands += flecs_sparse_memory_get(entries, 
+                ECS_SIZEOF(ecs_cmd_entry_t));
+
             /* Calculate stack memory (ecs_stack_t) */
-            ecs_stack_t *stack = &cmd->stack;
-            ecs_stack_page_t *page = stack->first;
-            while (page) {
-                result.bytes_cmd_stack += 
-                    FLECS_STACK_PAGE_OFFSET + FLECS_STACK_PAGE_SIZE;
-                page = page->next;
-            }
+            result.bytes_commands += flecs_stack_memory_get(&cmd->stack);
         }
     }
+
+#ifdef FLECS_DEBUG
+    result.bytes_locked_components += flecs_map_memory_get(
+        &world->locked_components, 0);
+    result.bytes_locked_components += flecs_map_memory_get(
+        &world->locked_entities, 0);
+#endif
 
 error:
     return result;
@@ -971,17 +1076,35 @@ ecs_allocator_memory_t ecs_allocator_memory_get(
         &world->allocators.sparse_chunk);
 
     result.bytes_allocator = flecs_allocator_memory_get(&world->allocator);
+    result.bytes_misc += ecs_vec_size(&world->allocators.diff_builder.added) *
+        ECS_SIZEOF(ecs_id_t);
+
+    result.bytes_misc += ecs_vec_size(&world->allocators.diff_builder.removed) *
+        ECS_SIZEOF(ecs_id_t);
+    result.bytes_misc += ecs_vec_size(&world->store.records) *
+        ECS_SIZEOF(ecs_table_record_t);
+    result.bytes_misc += ecs_vec_size(&world->store.marked_ids) *
+        ECS_SIZEOF(ecs_marked_id_t);
+    result.bytes_misc += ecs_vec_size(&world->store.deleted_components) *
+        ECS_SIZEOF(ecs_entity_t);
 
     int32_t i, stage_count = world->stage_count;
     ecs_stage_t **stages = world->stages;
     for (i = 0; i < stage_count; i++) {
         ecs_stage_t *stage = stages[i];
+        result.bytes_allocator += flecs_allocator_memory_get(&stage->allocator);
         result.bytes_cmd_entry_chunk += flecs_ballocator_memory_get(
             &stage->allocators.cmd_entry_chunk);
         result.bytes_query_impl += flecs_ballocator_memory_get(
             &stage->allocators.query_impl);
         result.bytes_query_cache += flecs_ballocator_memory_get(
             &stage->allocators.query_cache);
+        result.bytes_misc += ecs_vec_size(&stage->variables) * 
+            ECS_SIZEOF(ecs_query_var_t);
+        result.bytes_misc += ecs_vec_size(&stage->operations) * 
+            ECS_SIZEOF(ecs_query_op_t);
+        result.bytes_stack_allocator += 
+            flecs_stack_memory_get(&stage->allocators.iter_stack);
     }
 
 error:
@@ -1008,8 +1131,8 @@ int flecs_world_memory_serialize(
     value.entities = ecs_entity_memory_get(world);
     value.components = ecs_component_memory_get(world);
     value.component_index = ecs_component_index_memory_get(world);
-    value.queries = ecs_query_memory_get(world);
-    value.tables = ecs_table_memory_get(world);
+    value.queries = ecs_queries_memory_get(world);
+    value.tables = ecs_tables_memory_get(world);
     value.table_histogram = ecs_table_histogram_get(world);
     value.misc = ecs_misc_memory_get(world);
     value.allocators = ecs_allocator_memory_get(world);
@@ -1056,11 +1179,20 @@ void flecs_stats_memory_register_reflection(
         .members = {
             { .name = "alive_count", .type = ecs_id(ecs_i32_t) },
             { .name = "not_alive_count", .type = ecs_id(ecs_i32_t) },
-            { .name = "bytes_alive", .type = ecs_id(ecs_i32_t), .unit = unit },
-            { .name = "bytes_not_alive", .type = ecs_id(ecs_i32_t), .unit = unit },
-            { .name = "bytes_unused", .type = ecs_id(ecs_i32_t), .unit = unit },
+            { .name = "bytes_entity_index", .type = ecs_id(ecs_i32_t), .unit = unit },
             { .name = "bytes_names", .type = ecs_id(ecs_i32_t), .unit = unit },
-            { .name = "bytes_doc_names", .type = ecs_id(ecs_i32_t), .unit = unit }
+            { .name = "bytes_doc_strings", .type = ecs_id(ecs_i32_t), .unit = unit }
+        }
+    });
+
+    ecs_id(ecs_component_memory_t) = ecs_struct(world, {
+        .entity = ecs_entity(world, { .name = "component_memory_t" }),
+        .members = {
+            { .name = "instances", .type = ecs_id(ecs_i32_t) },
+            { .name = "bytes_table_components", .type = ecs_id(ecs_i32_t), .unit = unit },
+            { .name = "bytes_table_components_unused", .type = ecs_id(ecs_i32_t), .unit = unit },
+            { .name = "bytes_toggle_bitset", .type = ecs_id(ecs_i32_t), .unit = unit },
+            { .name = "bytes_sparse_components", .type = ecs_id(ecs_i32_t), .unit = unit }
         }
     });
 
@@ -1072,8 +1204,7 @@ void flecs_stats_memory_register_reflection(
             { .name = "bytes_table_cache", .type = ecs_id(ecs_i32_t), .unit = unit },
             { .name = "bytes_name_index", .type = ecs_id(ecs_i32_t), .unit = unit },
             { .name = "bytes_ordered_children", .type = ecs_id(ecs_i32_t), .unit = unit },
-            { .name = "bytes_reachable_cache", .type = ecs_id(ecs_i32_t), .unit = unit },
-            { .name = "bytes_type_info", .type = ecs_id(ecs_i32_t), .unit = unit }
+            { .name = "bytes_reachable_cache", .type = ecs_id(ecs_i32_t), .unit = unit }
         }
     });
 
@@ -1092,20 +1223,6 @@ void flecs_stats_memory_register_reflection(
         }
     });
 
-    ecs_id(ecs_component_memory_t) = ecs_struct(world, {
-        .entity = ecs_entity(world, { .name = "component_memory_t" }),
-        .members = {
-            { .name = "instances", .type = ecs_id(ecs_i32_t) },
-            { .name = "bytes_table_components", .type = ecs_id(ecs_i32_t), .unit = unit },
-            { .name = "bytes_table_components_unused", .type = ecs_id(ecs_i32_t), .unit = unit },
-            { .name = "bytes_table_bitset", .type = ecs_id(ecs_i32_t), .unit = unit },
-            { .name = "bytes_sparse_components", .type = ecs_id(ecs_i32_t), .unit = unit },
-            { .name = "bytes_sparse_components_unused", .type = ecs_id(ecs_i32_t), .unit = unit },
-            { .name = "bytes_sparse_overhead", .type = ecs_id(ecs_i32_t), .unit = unit },
-            { .name = "bytes_builtin", .type = ecs_id(ecs_i32_t), .unit = unit }
-        }
-    });
-
     ecs_id(ecs_table_memory_t) = ecs_struct(world, {
         .entity = ecs_entity(world, { .name = "table_memory_t" }),
         .members = {
@@ -1113,7 +1230,6 @@ void flecs_stats_memory_register_reflection(
             { .name = "empty_count", .type = ecs_id(ecs_i32_t) },
             { .name = "column_count", .type = ecs_id(ecs_i32_t) },
             { .name = "bytes_table", .type = ecs_id(ecs_i32_t), .unit = unit },
-            { .name = "bytes_table_overhead", .type = ecs_id(ecs_i32_t), .unit = unit },
             { .name = "bytes_type", .type = ecs_id(ecs_i32_t), .unit = unit },
             { .name = "bytes_entities", .type = ecs_id(ecs_i32_t), .unit = unit },
             { .name = "bytes_overrides", .type = ecs_id(ecs_i32_t), .unit = unit },
@@ -1138,12 +1254,13 @@ void flecs_stats_memory_register_reflection(
         .members = {
             { .name = "bytes_world", .type = ecs_id(ecs_i32_t), .unit = unit },
             { .name = "bytes_observers", .type = ecs_id(ecs_i32_t), .unit = unit },
-            { .name = "bytes_observer_index", .type = ecs_id(ecs_i32_t), .unit = unit },
             { .name = "bytes_systems", .type = ecs_id(ecs_i32_t), .unit = unit },
             { .name = "bytes_pipelines", .type = ecs_id(ecs_i32_t), .unit = unit },
-            { .name = "bytes_cmd_queue", .type = ecs_id(ecs_i32_t), .unit = unit },
-            { .name = "bytes_cmd_entries", .type = ecs_id(ecs_i32_t), .unit = unit },
-            { .name = "bytes_cmd_stack", .type = ecs_id(ecs_i32_t), .unit = unit },
+            { .name = "bytes_table_lookup", .type = ecs_id(ecs_i32_t), .unit = unit },
+            { .name = "bytes_component_record_lookup", .type = ecs_id(ecs_i32_t), .unit = unit },
+            { .name = "bytes_locked_components", .type = ecs_id(ecs_i32_t), .unit = unit },
+            { .name = "bytes_type_info", .type = ecs_id(ecs_i32_t), .unit = unit },
+            { .name = "bytes_commands", .type = ecs_id(ecs_i32_t), .unit = unit },
             { .name = "bytes_rematch_monitor", .type = ecs_id(ecs_i32_t), .unit = unit },
             { .name = "bytes_component_ids", .type = ecs_id(ecs_i32_t), .unit = unit },
             { .name = "bytes_reflection", .type = ecs_id(ecs_i32_t), .unit = unit },
@@ -1161,9 +1278,11 @@ void flecs_stats_memory_register_reflection(
             { .name = "bytes_table_diff", .type = ecs_id(ecs_i32_t), .unit = unit },
             { .name = "bytes_sparse_chunk", .type = ecs_id(ecs_i32_t), .unit = unit },
             { .name = "bytes_allocator", .type = ecs_id(ecs_i32_t), .unit = unit },
+            { .name = "bytes_stack_allocator", .type = ecs_id(ecs_i32_t), .unit = unit },
             { .name = "bytes_cmd_entry_chunk", .type = ecs_id(ecs_i32_t), .unit = unit },
             { .name = "bytes_query_impl", .type = ecs_id(ecs_i32_t), .unit = unit },
-            { .name = "bytes_query_cache", .type = ecs_id(ecs_i32_t), .unit = unit }
+            { .name = "bytes_query_cache", .type = ecs_id(ecs_i32_t), .unit = unit },
+            { .name = "bytes_misc", .type = ecs_id(ecs_i32_t), .unit = unit }
         }
     });
 
@@ -1188,6 +1307,83 @@ void flecs_stats_memory_register_reflection(
         .type.serialize = flecs_world_memory_serialize
     });
 #endif
+}
+
+static
+ecs_size_t flecs_get_memory_total(
+    const ecs_world_t *world,
+    const void *ptr,
+    ecs_entity_t type)
+{
+    (void)world;
+    (void)ptr;
+    (void)type;
+
+    if (!type) {
+        ecs_warn("import flecs.stats module before calling ecs_memory_get");
+        return 0;
+    }
+
+    ecs_size_t result = 0;
+#ifdef FLECS_META
+    const EcsTypeSerializer *s = ecs_get(world, type, EcsTypeSerializer);
+    ecs_meta_op_t *ops = ecs_vec_first(&s->ops);
+    int32_t i, count = ecs_vec_count(&s->ops);
+
+    for (i = 0; i < count; i ++) {
+        ecs_meta_op_t *op = &ops[i];
+        if (!op->name) {
+            continue;
+        }
+
+        if (!ecs_os_strncmp(op->name, "bytes_", 6)) {
+            result += *(ecs_size_t*)ECS_OFFSET(ptr, op->offset);
+        }
+    }
+#else
+    ecs_warn("FLECS_META addon required for ecs_memory_get");
+#endif
+
+    return result;
+}
+
+ecs_size_t ecs_memory_get(
+    const ecs_world_t *world)
+{
+    flecs_poly_assert(world, ecs_world_t);
+    
+    ecs_entities_memory_t entities = {0};
+    ecs_component_memory_t component = {0};
+    ecs_component_index_memory_t component_index = {0};
+    ecs_query_memory_t query = {0};
+    ecs_table_memory_t table = {0};
+    ecs_misc_memory_t misc = {0};
+    ecs_allocator_memory_t allocator = {0};
+
+    entities = ecs_entity_memory_get(world);
+    component = ecs_component_memory_get(world);
+    component_index = ecs_component_index_memory_get(world);
+    query = ecs_queries_memory_get(world);
+    table = ecs_tables_memory_get(world);
+    misc = ecs_misc_memory_get(world);
+    allocator = ecs_allocator_memory_get(world);
+
+    ecs_size_t result = 0;
+    result += flecs_get_memory_total(world, &entities, 
+        ecs_id(ecs_entities_memory_t));
+    result += flecs_get_memory_total(world, &component, 
+        ecs_id(ecs_component_memory_t));
+    result += flecs_get_memory_total(world, &component_index, 
+        ecs_id(ecs_component_index_memory_t));
+    result += flecs_get_memory_total(world, &query, 
+        ecs_id(ecs_query_memory_t));
+    result += flecs_get_memory_total(world, &table, 
+        ecs_id(ecs_table_memory_t));
+    result += flecs_get_memory_total(world, &misc, 
+        ecs_id(ecs_misc_memory_t));
+    result += flecs_get_memory_total(world, &allocator, 
+        ecs_id(ecs_allocator_memory_t));
+    return result;
 }
 
 #endif

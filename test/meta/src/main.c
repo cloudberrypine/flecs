@@ -512,6 +512,7 @@ void DeserializeFromJson_struct_string(void);
 void DeserializeFromJson_struct_entity(void);
 void DeserializeFromJson_struct_id(void);
 void DeserializeFromJson_struct_enum(void);
+void DeserializeFromJson_struct_enum_underlying_i8(void);
 void DeserializeFromJson_struct_bitmask(void);
 void DeserializeFromJson_struct_i32_i32(void);
 void DeserializeFromJson_struct_nested_i32(void);
@@ -631,6 +632,8 @@ void DeserializeFromJson_deser_unknown_component_no_spaces_strict(void);
 void DeserializeFromJson_deser_unknown_member(void);
 void DeserializeFromJson_deser_valid_after_unknown_member(void);
 void DeserializeFromJson_deser_unknown_member_w_strict(void);
+void DeserializeFromJson_deser_pretty_printed_identifier_pair(void);
+void DeserializeFromJson_ser_deser_alias(void);
 
 // Testsuite 'SerializeToJson'
 void SerializeToJson_struct_bool(void);
@@ -769,6 +772,9 @@ void SerializeEntityToJson_serialize_toggle(void);
 void SerializeEntityToJson_serialize_toggle_pair(void);
 void SerializeEntityToJson_serialize_null_doc_name(void);
 void SerializeEntityToJson_serialize_base_w_invalid_component(void);
+void SerializeEntityToJson_serialize_w_blacklist(void);
+void SerializeEntityToJson_serialize_w_allow_blacklist(void);
+void SerializeEntityToJson_serialize_w_partial_blacklist(void);
 
 // Testsuite 'SerializeIterToJson'
 void SerializeIterToJson_serialize_1_comps_empty(void);
@@ -3090,6 +3096,10 @@ bake_test_case DeserializeFromJson_testcases[] = {
         DeserializeFromJson_struct_enum
     },
     {
+        "struct_enum_underlying_i8",
+        DeserializeFromJson_struct_enum_underlying_i8
+    },
+    {
         "struct_bitmask",
         DeserializeFromJson_struct_bitmask
     },
@@ -3564,6 +3574,14 @@ bake_test_case DeserializeFromJson_testcases[] = {
     {
         "deser_unknown_member_w_strict",
         DeserializeFromJson_deser_unknown_member_w_strict
+    },
+    {
+        "deser_pretty_printed_identifier_pair",
+        DeserializeFromJson_deser_pretty_printed_identifier_pair
+    },
+    {
+        "ser_deser_alias",
+        DeserializeFromJson_ser_deser_alias
     }
 };
 
@@ -4106,6 +4124,18 @@ bake_test_case SerializeEntityToJson_testcases[] = {
     {
         "serialize_base_w_invalid_component",
         SerializeEntityToJson_serialize_base_w_invalid_component
+    },
+    {
+        "serialize_w_blacklist",
+        SerializeEntityToJson_serialize_w_blacklist
+    },
+    {
+        "serialize_w_allow_blacklist",
+        SerializeEntityToJson_serialize_w_allow_blacklist
+    },
+    {
+        "serialize_w_partial_blacklist",
+        SerializeEntityToJson_serialize_w_partial_blacklist
     }
 };
 
@@ -5591,7 +5621,7 @@ static bake_test_suite suites[] = {
         "DeserializeFromJson",
         NULL,
         NULL,
-        141,
+        144,
         DeserializeFromJson_testcases
     },
     {
@@ -5605,7 +5635,7 @@ static bake_test_suite suites[] = {
         "SerializeEntityToJson",
         NULL,
         NULL,
-        78,
+        81,
         SerializeEntityToJson_testcases
     },
     {

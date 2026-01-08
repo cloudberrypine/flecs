@@ -16,7 +16,6 @@ extern "C" {
 
 /** Record for entity index. */
 struct ecs_record_t {
-    ecs_component_record_t *cr;               /**< component record to (*, entity) for target entities */
     ecs_table_t *table;                        /**< Identifies a type (and table) in world */
     uint32_t row;                              /**< Table row of the entity */
     int32_t dense;                             /**< Index in dense array of entity index */    
@@ -231,6 +230,16 @@ FLECS_ALWAYS_INLINE ecs_component_record_t* flecs_components_get(
 FLECS_API
 ecs_id_t flecs_component_get_id(
     const ecs_component_record_t *cr);
+
+/** Get component flags for component.
+ * 
+ * @param id The component id.
+ * @return The flags for the component id.
+ */
+FLECS_API
+ecs_flags32_t flecs_component_get_flags(
+    const ecs_world_t *world,
+    ecs_id_t id);
 
 /** Find table record for component record.
  * This operation returns the table record for the table/component record if it

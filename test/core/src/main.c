@@ -102,6 +102,9 @@ void Entity_is_0_valid(void);
 void Entity_is_junk_valid(void);
 void Entity_is_not_alive_valid(void);
 void Entity_is_nonzero_gen_valid(void);
+void Entity_is_get_alive_alive(void);
+void Entity_get_alive_after_delete(void);
+void Entity_get_alive_after_delete_twice(void);
 void Entity_init_w_name_deferred(void);
 void Entity_init_w_name_twice_deferred(void);
 void Entity_init_w_nested_name_twice_deferred(void);
@@ -118,6 +121,8 @@ void Entity_make_alive_zero_gen_exists(void);
 void Entity_make_alive_nonzero_gen_exists(void);
 void Entity_make_alive_zero_gen_exists_alive(void);
 void Entity_make_alive_nonzero_gen_exists_alive(void);
+void Entity_make_alive_pair_nonzero_tgt(void);
+void Entity_make_alive_pair_nonzero_existing_tgt(void);
 void Entity_set_scope_w_entity_init_from_stage(void);
 void Entity_entity_init_w_scope_twice(void);
 void Entity_entity_init_w_childof_twice(void);
@@ -167,6 +172,7 @@ void Entity_entity_from_conflicting_digit(void);
 void Entity_set_version_on_nonempty_entity(void);
 void Entity_set_version_while_deferred(void);
 void Entity_set_version_on_not_alive(void);
+void Entity_get_version_after_reuse(void);
 void Entity_commit_w_on_add(void);
 void Entity_commit_w_on_remove(void);
 void Entity_commit_w_cmd_in_observer(void);
@@ -479,6 +485,12 @@ void Sparse_emplace_no_is_new(void);
 void Sparse_set(void);
 void Sparse_clone(void);
 void Sparse_clone_w_value(void);
+void Sparse_clone_pair(void);
+void Sparse_clone_pair_w_value(void);
+void Sparse_clone_tag(void);
+void Sparse_clone_tag_w_value(void);
+void Sparse_clone_tag_pair(void);
+void Sparse_clone_tag_pair_w_value(void);
 void Sparse_modified_no_on_set(void);
 void Sparse_insert_1(void);
 void Sparse_insert_2(void);
@@ -627,6 +639,33 @@ void Sparse_remove_pair_before_recycle_sparse_target(void);
 void Sparse_recycle_after_delete_table(void);
 void Sparse_recycle_pair_after_delete_table(void);
 void Sparse_add_sparse_pair_to_recycled(void);
+void Sparse_entity_w_sparse_pair_to_child_delete_child(void);
+void Sparse_entity_w_sparse_pair_to_child_delete_parent(void);
+void Sparse_entity_w_sparse_pair_to_recycled_child_delete_child(void);
+void Sparse_entity_w_sparse_pair_to_recycled_child_delete_parent(void);
+void Sparse_entity_w_sparse_pair_to_child_delete_child_exclusive(void);
+void Sparse_entity_w_sparse_pair_to_child_delete_parent_exclusive(void);
+void Sparse_entity_w_sparse_pair_to_recycled_child_delete_child_exclusive(void);
+void Sparse_entity_w_sparse_pair_to_recycled_child_delete_parent_exclusive(void);
+void Sparse_fini_w_sparse_tgt_in_module(void);
+void Sparse_add_not_alive_target(void);
+void Sparse_deferred_delete_w_symmetric(void);
+void Sparse_query_after_delete(void);
+void Sparse_query_after_delete_symmetric(void);
+void Sparse_instantiate_prefab_w_component_w_with_sparse(void);
+void Sparse_children_for_sparse(void);
+void Sparse_children_for_sparse_no_children(void);
+void Sparse_children_for_sparse_after_delete_children(void);
+void Sparse_on_remove_before_hook_before_dtor(void);
+void Sparse_on_remove_before_hook_before_dtor_pair(void);
+void Sparse_check_sparse_in_regular_observer(void);
+void Sparse_check_sparse_target_in_regular_observer(void);
+void Sparse_check_sparse_exclusive_target_in_regular_observer(void);
+void Sparse_check_regular_in_sparse_observer(void);
+void Sparse_check_regular_target_in_sparse_observer(void);
+void Sparse_check_regular_exclusive_target_in_sparse_observer(void);
+void Sparse_child_of_component_w_sparse(void);
+void Sparse_child_of_component_w_sparse_exclusive(void);
 
 // Testsuite 'Hierarchies'
 void Hierarchies_setup(void);
@@ -776,7 +815,15 @@ void OrderedChildren_get_ordered_children(void);
 void OrderedChildren_get_ordered_children_from_stage(void);
 void OrderedChildren_get_ordered_children_from_prefab_instance_no_children(void);
 void OrderedChildren_get_ordered_children_from_prefab_instance_3_children(void);
+void OrderedChildren_get_ordered_children_from_prefab_instance_3_children_different_table(void);
 void OrderedChildren_get_ordered_children_from_prefab_instance_nested_children(void);
+void OrderedChildren_prefab_w_nested_ordered_children(void);
+void OrderedChildren_prefab_w_nested_ordered_children_2(void);
+void OrderedChildren_prefab_w_slots(void);
+void OrderedChildren_recreate_named_child(void);
+void OrderedChildren_lookup_after_move_to_root(void);
+void OrderedChildren_lookup_after_clear(void);
+void OrderedChildren_bulk_create_ordered_children(void);
 
 // Testsuite 'Has'
 void Has_zero(void);
@@ -847,6 +894,7 @@ void Reference_aba_table(void);
 void Reference_recycled_table(void);
 void Reference_recycled_table_twice(void);
 void Reference_ref_after_shrink(void);
+void Reference_ref_after_shrink_2(void);
 void Reference_ref_after_shrink_w_freed_pages(void);
 
 // Testsuite 'Delete'
@@ -1296,6 +1344,8 @@ void ComponentLifecycle_copy_ctor_w_override(void);
 void ComponentLifecycle_copy_ctor_w_override_w_emplace(void);
 void ComponentLifecycle_copy_ctor_w_override_w_ensure(void);
 void ComponentLifecycle_shrink(void);
+void ComponentLifecycle_dtor_after_add_exclusive_component(void);
+void ComponentLifecycle_dtor_after_add_exclusive_component_last(void);
 
 // Testsuite 'Pairs'
 void Pairs_type_w_one_pair(void);
@@ -1423,6 +1473,7 @@ void Pairs_force_relationship_on_relationship(void);
 void Pairs_force_target_on_component(void);
 void Pairs_force_target_on_relationship(void);
 void Pairs_force_target_on_target(void);
+void Pairs_relationship_with_exclusive(void);
 
 // Testsuite 'Trigger'
 void Trigger_on_add_trigger_before_table(void);
@@ -1800,6 +1851,31 @@ void Observer_2_terms_on_set_yield_existing_is_set(void);
 void Observer_2_singleton_terms_on_add(void);
 void Observer_2_singleton_terms_on_remove(void);
 void Observer_2_singleton_terms_on_set(void);
+void Observer_1_term_field_size(void);
+void Observer_2_terms_field_size(void);
+void Observer_1_up_term_field_size(void);
+void Observer_2_up_terms_field_size(void);
+void Observer_1_fixed_src_term_field_size(void);
+void Observer_2_fixed_src_terms_field_size(void);
+void Observer_1_singleton_term_field_size(void);
+void Observer_2_singleton_terms_field_size(void);
+void Observer_1_on_set_overridden_term_field_size(void);
+void Observer_2_on_set_overridden_terms_field_size(void);
+void Observer_1_on_set_after_remove_overridden_term_field_size(void);
+void Observer_2_on_set_after_remove_overridden_terms_field_size(void);
+void Observer_1_on_set_after_remove_overridden_term_field_size_defer(void);
+void Observer_2_on_set_after_remove_overridden_terms_field_size_defer(void);
+void Observer_1_term_field_size_w_tag(void);
+void Observer_2_terms_field_size_w_tag(void);
+void Observer_1_up_term_field_size_w_tag(void);
+void Observer_2_up_terms_field_size_w_tag(void);
+void Observer_1_fixed_src_term_field_size_w_tag(void);
+void Observer_2_fixed_src_terms_field_size_w_tag(void);
+void Observer_1_singleton_term_field_size_w_tag(void);
+void Observer_2_singleton_terms_field_size_w_tag(void);
+void Observer_1_on_set_overridden_term_field_size_w_tag(void);
+void Observer_2_on_set_overridden_terms_field_size_w_tag(void);
+void Observer_create_observer_in_observer(void);
 void Observer_cache_test_1(void);
 void Observer_cache_test_2(void);
 void Observer_cache_test_3(void);
@@ -1952,6 +2028,7 @@ void Prefab_has_on_instantiate_override(void);
 void Prefab_has_on_instantiate_inherit(void);
 void Prefab_has_on_instantiate_dont_inherit(void);
 void Prefab_new_w_count_w_override(void);
+void Prefab_new_w_count_w_override_w_on_set_hook(void);
 void Prefab_override_2_components_different_size(void);
 void Prefab_ignore_prefab_parent_component(void);
 void Prefab_match_table_created_in_progress(void);
@@ -2087,6 +2164,23 @@ void Prefab_prefab_recycled_children_recycled_offset_id_different_generation(voi
 void Prefab_prefab_1_child_offset_id_occupied(void);
 void Prefab_prefab_1_child_offset_id_recycled_occupied(void);
 void Prefab_prefab_child_offset_w_smaller_child_id(void);
+void Prefab_prefab_ordered_children_1_child_offset_id(void);
+void Prefab_prefab_ordered_children_2_children_offset_id(void);
+void Prefab_prefab_ordered_children_3_children_offset_id(void);
+void Prefab_prefab_ordered_children_2_children_2_types_offset_id(void);
+void Prefab_prefab_ordered_children_3_children_3_types_offset_id(void);
+void Prefab_prefab_ordered_children_2_children_2_types_reverse_offset_id(void);
+void Prefab_prefab_ordered_children_3_children_3_types_reverse_offset_id(void);
+void Prefab_prefab_ordered_children_2_lvl_nested_children_offset_id(void);
+void Prefab_prefab_ordered_children_3_lvl_nested_children_offset_id(void);
+void Prefab_prefab_ordered_children_recycled_children_offset_id(void);
+void Prefab_prefab_ordered_children_recycled_instance_offset_id(void);
+void Prefab_prefab_ordered_children_children_recycled_offset_id(void);
+void Prefab_prefab_ordered_children_recycled_children_recycled_offset_id(void);
+void Prefab_prefab_ordered_children_recycled_children_recycled_offset_id_different_generation(void);
+void Prefab_prefab_ordered_children_1_child_offset_id_occupied(void);
+void Prefab_prefab_ordered_children_1_child_offset_id_recycled_occupied(void);
+void Prefab_prefab_ordered_children_child_offset_w_smaller_child_id(void);
 void Prefab_prefab_w_union(void);
 void Prefab_prefab_child_w_union(void);
 void Prefab_prefab_w_union_and_component(void);
@@ -2103,6 +2197,10 @@ void Prefab_instantiate_w_non_fragmenting_component_while_defer_suspended(void);
 void Prefab_instantiate_w_non_fragmenting_tag_while_defer_suspended(void);
 void Prefab_instantiate_w_non_fragmenting_pair_while_defer_suspended(void);
 void Prefab_instantiate_w_non_fragmenting_pair_tag_while_defer_suspended(void);
+void Prefab_create_instances_w_override_and_ctor(void);
+void Prefab_create_instances_w_override_and_copy_ctor(void);
+void Prefab_create_instances_w_override_and_on_add(void);
+void Prefab_create_instances_w_override_and_on_set(void);
 
 // Testsuite 'World'
 void World_setup(void);
@@ -2148,6 +2246,24 @@ void World_register_alias_twice_different_entity(void);
 void World_redefine_component(void);
 void World_delete_empty_tables_after_mini(void);
 void World_delete_empty_tables_after_init(void);
+void World_delete_empty_tables_w_add_hook_clear(void);
+void World_delete_empty_tables_w_add_hook_delete(void);
+void World_delete_empty_tables_w_add_hook_clear_delete(void);
+void World_delete_empty_tables_w_add_hook_clear_before_delete(void);
+void World_delete_empty_tables_w_remove_hook_clear(void);
+void World_delete_empty_tables_w_remove_hook_delete(void);
+void World_delete_empty_tables_w_remove_hook_clear_delete(void);
+void World_delete_empty_tables_w_remove_hook_clear_before_delete(void);
+void World_delete_empty_tables_w_set_hook_clear(void);
+void World_delete_empty_tables_w_set_hook_delete(void);
+void World_delete_empty_tables_w_set_hook_clear_delete(void);
+void World_delete_empty_tables_w_set_hook_clear_before_delete(void);
+void World_delete_empty_tables_w_add_hook_clear_empty_table(void);
+void World_delete_empty_tables_w_remove_hook_clear_empty_table(void);
+void World_delete_empty_tables_w_set_hook_clear_empty_table(void);
+void World_delete_empty_tables_w_add_hook_delete_empty_table(void);
+void World_delete_empty_tables_w_remove_hook_delete_empty_table(void);
+void World_delete_empty_tables_w_set_hook_delete_empty_table(void);
 void World_delete_1000_empty_tables(void);
 void World_use_after_delete_empty(void);
 void World_use_after_clear_empty(void);
@@ -2182,6 +2298,16 @@ void World_init_create_delete_entities_shrink_fini(void);
 void World_init_create_delete_random_1_entities_shrink_fini(void);
 void World_init_create_delete_random_2_entities_shrink_fini(void);
 void World_recreate_tables_after_shrink(void);
+void World_delete_empty_component_record_w_shrink(void);
+void World_delete_empty_hi_component_record_w_shrink(void);
+void World_delete_empty_queried_for_component_record_w_shrink(void);
+void World_delete_empty_sparse_component_record_w_shrink(void);
+void World_delete_empty_dont_fragment_component_record_w_shrink(void);
+void World_dont_delete_non_empty_component_record_w_shrink(void);
+void World_dont_delete_non_empty_queried_for_component_record_w_shrink(void);
+void World_dont_delete_non_empty_sparse_component_record_w_shrink(void);
+void World_dont_delete_non_empty_dont_fragment_component_record_w_shrink(void);
+void World_remove_from_traversable_after_shrink(void);
 void World_mini_all_tables_builtin(void);
 void World_mini_all_tables_builtin_after_add(void);
 void World_user_component_not_builtin(void);
@@ -2202,6 +2328,8 @@ void World_rename_flecs_core(void);
 void World_user_entity_w_flecs_parent(void);
 void World_add_exclusive_after_query(void);
 void World_add_with_after_query(void);
+void World_add_oneof_after_query(void);
+void World_add_oneof_pair_after_query(void);
 void World_add_final_after_query(void);
 void World_add_isa_after_query(void);
 void World_add_isa_after_query_tgt(void);
@@ -2213,6 +2341,21 @@ void World_add_sparse_after_query(void);
 void World_add_dont_fragment_after_query(void);
 void World_add_can_toggle_after_query(void);
 void World_add_traversable_after_query(void);
+void World_add_exclusive_after_pair_query(void);
+void World_add_with_after_pair_query(void);
+void World_add_oneof_after_pair_query(void);
+void World_add_oneof_pair_after_pair_query(void);
+void World_add_final_after_pair_query(void);
+void World_add_isa_after_pair_query(void);
+void World_add_isa_after_pair_query_tgt(void);
+void World_add_inheritable_after_pair_query(void);
+void World_add_isa_after_pair_query_after_inheritable(void);
+void World_add_isa_after_pair_query_after_isa(void);
+void World_add_on_instantiate_inherit_after_pair_query(void);
+void World_add_sparse_after_pair_query(void);
+void World_add_dont_fragment_after_pair_query(void);
+void World_add_can_toggle_after_pair_query(void);
+void World_add_traversable_after_pair_query(void);
 
 // Testsuite 'ExclusiveAccess'
 void ExclusiveAccess_self(void);
@@ -2366,6 +2509,8 @@ void Type_large_type_expr(void);
 void Type_large_type_expr_limit(void);
 
 // Testsuite 'Commands'
+void Commands_is_deferred(void);
+void Commands_is_defer_suspended(void);
 void Commands_defer_new(void);
 void Commands_defer_bulk_new(void);
 void Commands_defer_add(void);
@@ -2669,7 +2814,6 @@ void Internals_activate_deactivate_reactive(void);
 void Internals_activate_deactivate_activate_other(void);
 void Internals_no_double_system_table_after_merge(void);
 void Internals_recreate_deleted_table(void);
-void Internals_create_65k_tables(void);
 void Internals_no_duplicate_root_table_id(void);
 void Internals_override_os_api_w_addon(void);
 void Internals_records_resize_on_override(void);
@@ -2683,6 +2827,8 @@ void Internals_table_create_leak_check(void);
 void Internals_component_record_has_table(void);
 void Internals_component_record_iter_tables(void);
 void Internals_table_get_records(void);
+void Internals_childof_tgt_exists_after_query(void);
+void Internals_create_65k_tables(void);
 
 // Testsuite 'Error'
 void Error_setup(void);
@@ -3072,6 +3218,18 @@ bake_test_case Entity_testcases[] = {
         Entity_is_nonzero_gen_valid
     },
     {
+        "is_get_alive_alive",
+        Entity_is_get_alive_alive
+    },
+    {
+        "get_alive_after_delete",
+        Entity_get_alive_after_delete
+    },
+    {
+        "get_alive_after_delete_twice",
+        Entity_get_alive_after_delete_twice
+    },
+    {
         "init_w_name_deferred",
         Entity_init_w_name_deferred
     },
@@ -3134,6 +3292,14 @@ bake_test_case Entity_testcases[] = {
     {
         "make_alive_nonzero_gen_exists_alive",
         Entity_make_alive_nonzero_gen_exists_alive
+    },
+    {
+        "make_alive_pair_nonzero_tgt",
+        Entity_make_alive_pair_nonzero_tgt
+    },
+    {
+        "make_alive_pair_nonzero_existing_tgt",
+        Entity_make_alive_pair_nonzero_existing_tgt
     },
     {
         "set_scope_w_entity_init_from_stage",
@@ -3330,6 +3496,10 @@ bake_test_case Entity_testcases[] = {
     {
         "set_version_on_not_alive",
         Entity_set_version_on_not_alive
+    },
+    {
+        "get_version_after_reuse",
+        Entity_get_version_after_reuse
     },
     {
         "commit_w_on_add",
@@ -4522,6 +4692,30 @@ bake_test_case Sparse_testcases[] = {
         Sparse_clone_w_value
     },
     {
+        "clone_pair",
+        Sparse_clone_pair
+    },
+    {
+        "clone_pair_w_value",
+        Sparse_clone_pair_w_value
+    },
+    {
+        "clone_tag",
+        Sparse_clone_tag
+    },
+    {
+        "clone_tag_w_value",
+        Sparse_clone_tag_w_value
+    },
+    {
+        "clone_tag_pair",
+        Sparse_clone_tag_pair
+    },
+    {
+        "clone_tag_pair_w_value",
+        Sparse_clone_tag_pair_w_value
+    },
+    {
         "modified_no_on_set",
         Sparse_modified_no_on_set
     },
@@ -5112,6 +5306,114 @@ bake_test_case Sparse_testcases[] = {
     {
         "add_sparse_pair_to_recycled",
         Sparse_add_sparse_pair_to_recycled
+    },
+    {
+        "entity_w_sparse_pair_to_child_delete_child",
+        Sparse_entity_w_sparse_pair_to_child_delete_child
+    },
+    {
+        "entity_w_sparse_pair_to_child_delete_parent",
+        Sparse_entity_w_sparse_pair_to_child_delete_parent
+    },
+    {
+        "entity_w_sparse_pair_to_recycled_child_delete_child",
+        Sparse_entity_w_sparse_pair_to_recycled_child_delete_child
+    },
+    {
+        "entity_w_sparse_pair_to_recycled_child_delete_parent",
+        Sparse_entity_w_sparse_pair_to_recycled_child_delete_parent
+    },
+    {
+        "entity_w_sparse_pair_to_child_delete_child_exclusive",
+        Sparse_entity_w_sparse_pair_to_child_delete_child_exclusive
+    },
+    {
+        "entity_w_sparse_pair_to_child_delete_parent_exclusive",
+        Sparse_entity_w_sparse_pair_to_child_delete_parent_exclusive
+    },
+    {
+        "entity_w_sparse_pair_to_recycled_child_delete_child_exclusive",
+        Sparse_entity_w_sparse_pair_to_recycled_child_delete_child_exclusive
+    },
+    {
+        "entity_w_sparse_pair_to_recycled_child_delete_parent_exclusive",
+        Sparse_entity_w_sparse_pair_to_recycled_child_delete_parent_exclusive
+    },
+    {
+        "fini_w_sparse_tgt_in_module",
+        Sparse_fini_w_sparse_tgt_in_module
+    },
+    {
+        "add_not_alive_target",
+        Sparse_add_not_alive_target
+    },
+    {
+        "deferred_delete_w_symmetric",
+        Sparse_deferred_delete_w_symmetric
+    },
+    {
+        "query_after_delete",
+        Sparse_query_after_delete
+    },
+    {
+        "query_after_delete_symmetric",
+        Sparse_query_after_delete_symmetric
+    },
+    {
+        "instantiate_prefab_w_component_w_with_sparse",
+        Sparse_instantiate_prefab_w_component_w_with_sparse
+    },
+    {
+        "children_for_sparse",
+        Sparse_children_for_sparse
+    },
+    {
+        "children_for_sparse_no_children",
+        Sparse_children_for_sparse_no_children
+    },
+    {
+        "children_for_sparse_after_delete_children",
+        Sparse_children_for_sparse_after_delete_children
+    },
+    {
+        "on_remove_before_hook_before_dtor",
+        Sparse_on_remove_before_hook_before_dtor
+    },
+    {
+        "on_remove_before_hook_before_dtor_pair",
+        Sparse_on_remove_before_hook_before_dtor_pair
+    },
+    {
+        "check_sparse_in_regular_observer",
+        Sparse_check_sparse_in_regular_observer
+    },
+    {
+        "check_sparse_target_in_regular_observer",
+        Sparse_check_sparse_target_in_regular_observer
+    },
+    {
+        "check_sparse_exclusive_target_in_regular_observer",
+        Sparse_check_sparse_exclusive_target_in_regular_observer
+    },
+    {
+        "check_regular_in_sparse_observer",
+        Sparse_check_regular_in_sparse_observer
+    },
+    {
+        "check_regular_target_in_sparse_observer",
+        Sparse_check_regular_target_in_sparse_observer
+    },
+    {
+        "check_regular_exclusive_target_in_sparse_observer",
+        Sparse_check_regular_exclusive_target_in_sparse_observer
+    },
+    {
+        "child_of_component_w_sparse",
+        Sparse_child_of_component_w_sparse
+    },
+    {
+        "child_of_component_w_sparse_exclusive",
+        Sparse_child_of_component_w_sparse_exclusive
     }
 };
 
@@ -5696,8 +5998,40 @@ bake_test_case OrderedChildren_testcases[] = {
         OrderedChildren_get_ordered_children_from_prefab_instance_3_children
     },
     {
+        "get_ordered_children_from_prefab_instance_3_children_different_table",
+        OrderedChildren_get_ordered_children_from_prefab_instance_3_children_different_table
+    },
+    {
         "get_ordered_children_from_prefab_instance_nested_children",
         OrderedChildren_get_ordered_children_from_prefab_instance_nested_children
+    },
+    {
+        "prefab_w_nested_ordered_children",
+        OrderedChildren_prefab_w_nested_ordered_children
+    },
+    {
+        "prefab_w_nested_ordered_children_2",
+        OrderedChildren_prefab_w_nested_ordered_children_2
+    },
+    {
+        "prefab_w_slots",
+        OrderedChildren_prefab_w_slots
+    },
+    {
+        "recreate_named_child",
+        OrderedChildren_recreate_named_child
+    },
+    {
+        "lookup_after_move_to_root",
+        OrderedChildren_lookup_after_move_to_root
+    },
+    {
+        "lookup_after_clear",
+        OrderedChildren_lookup_after_clear
+    },
+    {
+        "bulk_create_ordered_children",
+        OrderedChildren_bulk_create_ordered_children
     }
 };
 
@@ -5950,6 +6284,10 @@ bake_test_case Reference_testcases[] = {
     {
         "ref_after_shrink",
         Reference_ref_after_shrink
+    },
+    {
+        "ref_after_shrink_2",
+        Reference_ref_after_shrink_2
     },
     {
         "ref_after_shrink_w_freed_pages",
@@ -7694,6 +8032,14 @@ bake_test_case ComponentLifecycle_testcases[] = {
     {
         "shrink",
         ComponentLifecycle_shrink
+    },
+    {
+        "dtor_after_add_exclusive_component",
+        ComponentLifecycle_dtor_after_add_exclusive_component
+    },
+    {
+        "dtor_after_add_exclusive_component_last",
+        ComponentLifecycle_dtor_after_add_exclusive_component_last
     }
 };
 
@@ -8197,6 +8543,10 @@ bake_test_case Pairs_testcases[] = {
     {
         "force_target_on_target",
         Pairs_force_target_on_target
+    },
+    {
+        "relationship_with_exclusive",
+        Pairs_relationship_with_exclusive
     }
 };
 
@@ -9697,6 +10047,106 @@ bake_test_case Observer_testcases[] = {
         Observer_2_singleton_terms_on_set
     },
     {
+        "1_term_field_size",
+        Observer_1_term_field_size
+    },
+    {
+        "2_terms_field_size",
+        Observer_2_terms_field_size
+    },
+    {
+        "1_up_term_field_size",
+        Observer_1_up_term_field_size
+    },
+    {
+        "2_up_terms_field_size",
+        Observer_2_up_terms_field_size
+    },
+    {
+        "1_fixed_src_term_field_size",
+        Observer_1_fixed_src_term_field_size
+    },
+    {
+        "2_fixed_src_terms_field_size",
+        Observer_2_fixed_src_terms_field_size
+    },
+    {
+        "1_singleton_term_field_size",
+        Observer_1_singleton_term_field_size
+    },
+    {
+        "2_singleton_terms_field_size",
+        Observer_2_singleton_terms_field_size
+    },
+    {
+        "1_on_set_overridden_term_field_size",
+        Observer_1_on_set_overridden_term_field_size
+    },
+    {
+        "2_on_set_overridden_terms_field_size",
+        Observer_2_on_set_overridden_terms_field_size
+    },
+    {
+        "1_on_set_after_remove_overridden_term_field_size",
+        Observer_1_on_set_after_remove_overridden_term_field_size
+    },
+    {
+        "2_on_set_after_remove_overridden_terms_field_size",
+        Observer_2_on_set_after_remove_overridden_terms_field_size
+    },
+    {
+        "1_on_set_after_remove_overridden_term_field_size_defer",
+        Observer_1_on_set_after_remove_overridden_term_field_size_defer
+    },
+    {
+        "2_on_set_after_remove_overridden_terms_field_size_defer",
+        Observer_2_on_set_after_remove_overridden_terms_field_size_defer
+    },
+    {
+        "1_term_field_size_w_tag",
+        Observer_1_term_field_size_w_tag
+    },
+    {
+        "2_terms_field_size_w_tag",
+        Observer_2_terms_field_size_w_tag
+    },
+    {
+        "1_up_term_field_size_w_tag",
+        Observer_1_up_term_field_size_w_tag
+    },
+    {
+        "2_up_terms_field_size_w_tag",
+        Observer_2_up_terms_field_size_w_tag
+    },
+    {
+        "1_fixed_src_term_field_size_w_tag",
+        Observer_1_fixed_src_term_field_size_w_tag
+    },
+    {
+        "2_fixed_src_terms_field_size_w_tag",
+        Observer_2_fixed_src_terms_field_size_w_tag
+    },
+    {
+        "1_singleton_term_field_size_w_tag",
+        Observer_1_singleton_term_field_size_w_tag
+    },
+    {
+        "2_singleton_terms_field_size_w_tag",
+        Observer_2_singleton_terms_field_size_w_tag
+    },
+    {
+        "1_on_set_overridden_term_field_size_w_tag",
+        Observer_1_on_set_overridden_term_field_size_w_tag
+    },
+    {
+        "2_on_set_overridden_terms_field_size_w_tag",
+        Observer_2_on_set_overridden_terms_field_size_w_tag
+    },
+    {
+        "create_observer_in_observer",
+        Observer_create_observer_in_observer
+    },
+    {
         "cache_test_1",
         Observer_cache_test_1
     },
@@ -10267,6 +10717,10 @@ bake_test_case Prefab_testcases[] = {
         Prefab_new_w_count_w_override
     },
     {
+        "new_w_count_w_override_w_on_set_hook",
+        Prefab_new_w_count_w_override_w_on_set_hook
+    },
+    {
         "override_2_components_different_size",
         Prefab_override_2_components_different_size
     },
@@ -10807,6 +11261,74 @@ bake_test_case Prefab_testcases[] = {
         Prefab_prefab_child_offset_w_smaller_child_id
     },
     {
+        "prefab_ordered_children_1_child_offset_id",
+        Prefab_prefab_ordered_children_1_child_offset_id
+    },
+    {
+        "prefab_ordered_children_2_children_offset_id",
+        Prefab_prefab_ordered_children_2_children_offset_id
+    },
+    {
+        "prefab_ordered_children_3_children_offset_id",
+        Prefab_prefab_ordered_children_3_children_offset_id
+    },
+    {
+        "prefab_ordered_children_2_children_2_types_offset_id",
+        Prefab_prefab_ordered_children_2_children_2_types_offset_id
+    },
+    {
+        "prefab_ordered_children_3_children_3_types_offset_id",
+        Prefab_prefab_ordered_children_3_children_3_types_offset_id
+    },
+    {
+        "prefab_ordered_children_2_children_2_types_reverse_offset_id",
+        Prefab_prefab_ordered_children_2_children_2_types_reverse_offset_id
+    },
+    {
+        "prefab_ordered_children_3_children_3_types_reverse_offset_id",
+        Prefab_prefab_ordered_children_3_children_3_types_reverse_offset_id
+    },
+    {
+        "prefab_ordered_children_2_lvl_nested_children_offset_id",
+        Prefab_prefab_ordered_children_2_lvl_nested_children_offset_id
+    },
+    {
+        "prefab_ordered_children_3_lvl_nested_children_offset_id",
+        Prefab_prefab_ordered_children_3_lvl_nested_children_offset_id
+    },
+    {
+        "prefab_ordered_children_recycled_children_offset_id",
+        Prefab_prefab_ordered_children_recycled_children_offset_id
+    },
+    {
+        "prefab_ordered_children_recycled_instance_offset_id",
+        Prefab_prefab_ordered_children_recycled_instance_offset_id
+    },
+    {
+        "prefab_ordered_children_children_recycled_offset_id",
+        Prefab_prefab_ordered_children_children_recycled_offset_id
+    },
+    {
+        "prefab_ordered_children_recycled_children_recycled_offset_id",
+        Prefab_prefab_ordered_children_recycled_children_recycled_offset_id
+    },
+    {
+        "prefab_ordered_children_recycled_children_recycled_offset_id_different_generation",
+        Prefab_prefab_ordered_children_recycled_children_recycled_offset_id_different_generation
+    },
+    {
+        "prefab_ordered_children_1_child_offset_id_occupied",
+        Prefab_prefab_ordered_children_1_child_offset_id_occupied
+    },
+    {
+        "prefab_ordered_children_1_child_offset_id_recycled_occupied",
+        Prefab_prefab_ordered_children_1_child_offset_id_recycled_occupied
+    },
+    {
+        "prefab_ordered_children_child_offset_w_smaller_child_id",
+        Prefab_prefab_ordered_children_child_offset_w_smaller_child_id
+    },
+    {
         "prefab_w_union",
         Prefab_prefab_w_union
     },
@@ -10869,6 +11391,22 @@ bake_test_case Prefab_testcases[] = {
     {
         "instantiate_w_non_fragmenting_pair_tag_while_defer_suspended",
         Prefab_instantiate_w_non_fragmenting_pair_tag_while_defer_suspended
+    },
+    {
+        "create_instances_w_override_and_ctor",
+        Prefab_create_instances_w_override_and_ctor
+    },
+    {
+        "create_instances_w_override_and_copy_ctor",
+        Prefab_create_instances_w_override_and_copy_ctor
+    },
+    {
+        "create_instances_w_override_and_on_add",
+        Prefab_create_instances_w_override_and_on_add
+    },
+    {
+        "create_instances_w_override_and_on_set",
+        Prefab_create_instances_w_override_and_on_set
     }
 };
 
@@ -11042,6 +11580,78 @@ bake_test_case World_testcases[] = {
         World_delete_empty_tables_after_init
     },
     {
+        "delete_empty_tables_w_add_hook_clear",
+        World_delete_empty_tables_w_add_hook_clear
+    },
+    {
+        "delete_empty_tables_w_add_hook_delete",
+        World_delete_empty_tables_w_add_hook_delete
+    },
+    {
+        "delete_empty_tables_w_add_hook_clear_delete",
+        World_delete_empty_tables_w_add_hook_clear_delete
+    },
+    {
+        "delete_empty_tables_w_add_hook_clear_before_delete",
+        World_delete_empty_tables_w_add_hook_clear_before_delete
+    },
+    {
+        "delete_empty_tables_w_remove_hook_clear",
+        World_delete_empty_tables_w_remove_hook_clear
+    },
+    {
+        "delete_empty_tables_w_remove_hook_delete",
+        World_delete_empty_tables_w_remove_hook_delete
+    },
+    {
+        "delete_empty_tables_w_remove_hook_clear_delete",
+        World_delete_empty_tables_w_remove_hook_clear_delete
+    },
+    {
+        "delete_empty_tables_w_remove_hook_clear_before_delete",
+        World_delete_empty_tables_w_remove_hook_clear_before_delete
+    },
+    {
+        "delete_empty_tables_w_set_hook_clear",
+        World_delete_empty_tables_w_set_hook_clear
+    },
+    {
+        "delete_empty_tables_w_set_hook_delete",
+        World_delete_empty_tables_w_set_hook_delete
+    },
+    {
+        "delete_empty_tables_w_set_hook_clear_delete",
+        World_delete_empty_tables_w_set_hook_clear_delete
+    },
+    {
+        "delete_empty_tables_w_set_hook_clear_before_delete",
+        World_delete_empty_tables_w_set_hook_clear_before_delete
+    },
+    {
+        "delete_empty_tables_w_add_hook_clear_empty_table",
+        World_delete_empty_tables_w_add_hook_clear_empty_table
+    },
+    {
+        "delete_empty_tables_w_remove_hook_clear_empty_table",
+        World_delete_empty_tables_w_remove_hook_clear_empty_table
+    },
+    {
+        "delete_empty_tables_w_set_hook_clear_empty_table",
+        World_delete_empty_tables_w_set_hook_clear_empty_table
+    },
+    {
+        "delete_empty_tables_w_add_hook_delete_empty_table",
+        World_delete_empty_tables_w_add_hook_delete_empty_table
+    },
+    {
+        "delete_empty_tables_w_remove_hook_delete_empty_table",
+        World_delete_empty_tables_w_remove_hook_delete_empty_table
+    },
+    {
+        "delete_empty_tables_w_set_hook_delete_empty_table",
+        World_delete_empty_tables_w_set_hook_delete_empty_table
+    },
+    {
         "delete_1000_empty_tables",
         World_delete_1000_empty_tables
     },
@@ -11178,6 +11788,46 @@ bake_test_case World_testcases[] = {
         World_recreate_tables_after_shrink
     },
     {
+        "delete_empty_component_record_w_shrink",
+        World_delete_empty_component_record_w_shrink
+    },
+    {
+        "delete_empty_hi_component_record_w_shrink",
+        World_delete_empty_hi_component_record_w_shrink
+    },
+    {
+        "delete_empty_queried_for_component_record_w_shrink",
+        World_delete_empty_queried_for_component_record_w_shrink
+    },
+    {
+        "delete_empty_sparse_component_record_w_shrink",
+        World_delete_empty_sparse_component_record_w_shrink
+    },
+    {
+        "delete_empty_dont_fragment_component_record_w_shrink",
+        World_delete_empty_dont_fragment_component_record_w_shrink
+    },
+    {
+        "dont_delete_non_empty_component_record_w_shrink",
+        World_dont_delete_non_empty_component_record_w_shrink
+    },
+    {
+        "dont_delete_non_empty_queried_for_component_record_w_shrink",
+        World_dont_delete_non_empty_queried_for_component_record_w_shrink
+    },
+    {
+        "dont_delete_non_empty_sparse_component_record_w_shrink",
+        World_dont_delete_non_empty_sparse_component_record_w_shrink
+    },
+    {
+        "dont_delete_non_empty_dont_fragment_component_record_w_shrink",
+        World_dont_delete_non_empty_dont_fragment_component_record_w_shrink
+    },
+    {
+        "remove_from_traversable_after_shrink",
+        World_remove_from_traversable_after_shrink
+    },
+    {
         "mini_all_tables_builtin",
         World_mini_all_tables_builtin
     },
@@ -11258,6 +11908,14 @@ bake_test_case World_testcases[] = {
         World_add_with_after_query
     },
     {
+        "add_oneof_after_query",
+        World_add_oneof_after_query
+    },
+    {
+        "add_oneof_pair_after_query",
+        World_add_oneof_pair_after_query
+    },
+    {
         "add_final_after_query",
         World_add_final_after_query
     },
@@ -11300,6 +11958,66 @@ bake_test_case World_testcases[] = {
     {
         "add_traversable_after_query",
         World_add_traversable_after_query
+    },
+    {
+        "add_exclusive_after_pair_query",
+        World_add_exclusive_after_pair_query
+    },
+    {
+        "add_with_after_pair_query",
+        World_add_with_after_pair_query
+    },
+    {
+        "add_oneof_after_pair_query",
+        World_add_oneof_after_pair_query
+    },
+    {
+        "add_oneof_pair_after_pair_query",
+        World_add_oneof_pair_after_pair_query
+    },
+    {
+        "add_final_after_pair_query",
+        World_add_final_after_pair_query
+    },
+    {
+        "add_isa_after_pair_query",
+        World_add_isa_after_pair_query
+    },
+    {
+        "add_isa_after_pair_query_tgt",
+        World_add_isa_after_pair_query_tgt
+    },
+    {
+        "add_inheritable_after_pair_query",
+        World_add_inheritable_after_pair_query
+    },
+    {
+        "add_isa_after_pair_query_after_inheritable",
+        World_add_isa_after_pair_query_after_inheritable
+    },
+    {
+        "add_isa_after_pair_query_after_isa",
+        World_add_isa_after_pair_query_after_isa
+    },
+    {
+        "add_on_instantiate_inherit_after_pair_query",
+        World_add_on_instantiate_inherit_after_pair_query
+    },
+    {
+        "add_sparse_after_pair_query",
+        World_add_sparse_after_pair_query
+    },
+    {
+        "add_dont_fragment_after_pair_query",
+        World_add_dont_fragment_after_pair_query
+    },
+    {
+        "add_can_toggle_after_pair_query",
+        World_add_can_toggle_after_pair_query
+    },
+    {
+        "add_traversable_after_pair_query",
+        World_add_traversable_after_pair_query
     }
 };
 
@@ -11889,6 +12607,14 @@ bake_test_case Type_testcases[] = {
 };
 
 bake_test_case Commands_testcases[] = {
+    {
+        "is_deferred",
+        Commands_is_deferred
+    },
+    {
+        "is_defer_suspended",
+        Commands_is_defer_suspended
+    },
     {
         "defer_new",
         Commands_defer_new
@@ -13065,10 +13791,6 @@ bake_test_case Internals_testcases[] = {
         Internals_recreate_deleted_table
     },
     {
-        "create_65k_tables",
-        Internals_create_65k_tables
-    },
-    {
         "no_duplicate_root_table_id",
         Internals_no_duplicate_root_table_id
     },
@@ -13119,6 +13841,14 @@ bake_test_case Internals_testcases[] = {
     {
         "table_get_records",
         Internals_table_get_records
+    },
+    {
+        "childof_tgt_exists_after_query",
+        Internals_childof_tgt_exists_after_query
+    },
+    {
+        "create_65k_tables",
+        Internals_create_65k_tables
     }
 };
 
@@ -13201,7 +13931,7 @@ static bake_test_suite suites[] = {
         "Entity",
         NULL,
         NULL,
-        144,
+        150,
         Entity_testcases
     },
     {
@@ -13271,7 +14001,7 @@ static bake_test_suite suites[] = {
         "Sparse",
         Sparse_setup,
         NULL,
-        179,
+        212,
         Sparse_testcases,
         1,
         Sparse_params
@@ -13287,7 +14017,7 @@ static bake_test_suite suites[] = {
         "OrderedChildren",
         NULL,
         NULL,
-        37,
+        45,
         OrderedChildren_testcases
     },
     {
@@ -13315,7 +14045,7 @@ static bake_test_suite suites[] = {
         "Reference",
         Reference_setup,
         NULL,
-        24,
+        25,
         Reference_testcases
     },
     {
@@ -13371,14 +14101,14 @@ static bake_test_suite suites[] = {
         "ComponentLifecycle",
         ComponentLifecycle_setup,
         NULL,
-        132,
+        134,
         ComponentLifecycle_testcases
     },
     {
         "Pairs",
         NULL,
         NULL,
-        125,
+        126,
         Pairs_testcases
     },
     {
@@ -13392,7 +14122,7 @@ static bake_test_suite suites[] = {
         "Observer",
         NULL,
         NULL,
-        269,
+        294,
         Observer_testcases
     },
     {
@@ -13434,14 +14164,14 @@ static bake_test_suite suites[] = {
         "Prefab",
         Prefab_setup,
         NULL,
-        171,
+        193,
         Prefab_testcases
     },
     {
         "World",
         World_setup,
         NULL,
-        107,
+        152,
         World_testcases
     },
     {
@@ -13469,7 +14199,7 @@ static bake_test_suite suites[] = {
         "Commands",
         NULL,
         NULL,
-        168,
+        170,
         Commands_testcases
     },
     {
@@ -13504,7 +14234,7 @@ static bake_test_suite suites[] = {
         "Internals",
         Internals_setup,
         NULL,
-        21,
+        22,
         Internals_testcases
     },
     {

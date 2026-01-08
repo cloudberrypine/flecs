@@ -1587,6 +1587,10 @@ void Traversal_singleton_w_this_up_w_table_change_components(void);
 void Traversal_this_up_w_singleton_w_table_change_components(void);
 void Traversal_2_this_up_w_singleton_w_table_change_components(void);
 void Traversal_2_this_up_w_singleton_w_component_w_table_change_components(void);
+void Traversal_this_up_childof_any(void);
+void Traversal_this_self_up_childof_any(void);
+void Traversal_this_written_up_childof_any(void);
+void Traversal_this_written_self_up_childof_any(void);
 
 // Testsuite 'Cascade'
 void Cascade_parent_cascade(void);
@@ -1616,6 +1620,7 @@ void Cascade_cascade_w_cache_kind_default(void);
 void Cascade_cascade_w_optional(void);
 void Cascade_remove_all(void);
 void Cascade_recreate_after_remove_all(void);
+void Cascade_nested_target_deletion(void);
 
 // Testsuite 'Cached'
 void Cached_simple_query_existing_table(void);
@@ -8568,6 +8573,22 @@ bake_test_case Traversal_testcases[] = {
     {
         "2_this_up_w_singleton_w_component_w_table_change_components",
         Traversal_2_this_up_w_singleton_w_component_w_table_change_components
+    },
+    {
+        "this_up_childof_any",
+        Traversal_this_up_childof_any
+    },
+    {
+        "this_self_up_childof_any",
+        Traversal_this_self_up_childof_any
+    },
+    {
+        "this_written_up_childof_any",
+        Traversal_this_written_up_childof_any
+    },
+    {
+        "this_written_self_up_childof_any",
+        Traversal_this_written_self_up_childof_any
     }
 };
 
@@ -8679,6 +8700,10 @@ bake_test_case Cascade_testcases[] = {
     {
         "recreate_after_remove_all",
         Cascade_recreate_after_remove_all
+    },
+    {
+        "nested_target_deletion",
+        Cascade_nested_target_deletion
     }
 };
 
@@ -11740,7 +11765,7 @@ static bake_test_suite suites[] = {
         "Traversal",
         Traversal_setup,
         NULL,
-        163,
+        167,
         Traversal_testcases,
         1,
         Traversal_params
@@ -11749,7 +11774,7 @@ static bake_test_suite suites[] = {
         "Cascade",
         NULL,
         NULL,
-        27,
+        28,
         Cascade_testcases
     },
     {

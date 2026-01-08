@@ -393,7 +393,8 @@ const char* flecs_json_deser_components(
         }
 
         bool skip = false;
-        if (ECS_IS_PAIR(id) && ECS_PAIR_FIRST(id) == ecs_id(EcsIdentifier)) {
+        if (ECS_IS_PAIR(id) && ECS_PAIR_FIRST(id) == ecs_id(EcsIdentifier)
+            && ECS_PAIR_SECOND(id) != EcsAlias) {
             skip = true;
         }
 
@@ -447,6 +448,7 @@ const char* flecs_json_deser_components(
                             ecs_modified_id(world, e, id);
                         }
                     } else {
+                        json = flecs_parse_ws_eol(json);
                         json = flecs_json_skip_object(json + 1, token, desc);
                         if (!json) {
                             goto error;

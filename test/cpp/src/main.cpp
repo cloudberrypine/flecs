@@ -468,6 +468,7 @@ void Enum_get_constant_id(void);
 void Enum_add_enum_constant(void);
 void Enum_add_enum_constant_explicit(void);
 void Enum_add_enum_class_constant(void);
+void Enum_add_singleton_enum_constant(void);
 void Enum_replace_enum_constants(void);
 void Enum_has_enum(void);
 void Enum_has_enum_wildcard(void);
@@ -477,6 +478,7 @@ void Enum_remove_wildcard(void);
 void Enum_enum_as_component(void);
 void Enum_query_enum_wildcard(void);
 void Enum_query_enum_constant(void);
+void Enum_query_singleton_enum_constant(void);
 void Enum_enum_type_from_stage(void);
 void Enum_add_enum_from_stage(void);
 void Enum_enum_w_2_worlds(void);
@@ -950,6 +952,7 @@ void QueryBuilder_create_w_no_template_args(void);
 void QueryBuilder_any_wildcard(void);
 void QueryBuilder_cascade(void);
 void QueryBuilder_cascade_w_relationship(void);
+void QueryBuilder_cascade_w_set_var(void);
 void QueryBuilder_up_w_type(void);
 void QueryBuilder_cascade_w_type(void);
 void QueryBuilder_cascade_desc(void);
@@ -1066,6 +1069,7 @@ void Observer_trigger_on_set_in_on_add_implicit_registration(void);
 void Observer_trigger_on_set_in_on_add_implicit_registration_namespaced(void);
 void Observer_fixed_src_w_each(void);
 void Observer_fixed_src_w_run(void);
+void Observer_untyped_field(void);
 
 // Testsuite 'ComponentLifecycle'
 void ComponentLifecycle_ctor_on_add(void);
@@ -1230,6 +1234,7 @@ void Module_reimport_after_delete(void);
 void Module_component_name_w_module_name(void);
 void Module_delete_module_w_implicit_component_and_system(void);
 void Module_delete_module_w_explicit_component_and_system(void);
+void Module_module_has_singleton(void);
 
 // Testsuite 'ImplicitComponents'
 void ImplicitComponents_add(void);
@@ -1574,6 +1579,9 @@ void Meta_ser_deser_std_string(void);
 void Meta_ser_deser_std_vector_int(void);
 void Meta_ser_deser_std_vector_std_string(void);
 void Meta_ser_deser_type_w_std_string_std_vector_std_string(void);
+void Meta_ser_deser_std_optional_int(void);
+void Meta_ser_deser_std_optional_std_vector_int(void);
+void Meta_ser_deser_std_optional_std_string(void);
 void Meta_std_vector_random_access(void);
 void Meta_struct_random_access(void);
 void Meta_ser_deser_flecs_entity(void);
@@ -1597,6 +1605,7 @@ void Meta_entity_to_json_w_default_desc(void);
 void Meta_query_to_json_w_default_desc(void);
 void Meta_script_to_std_vector_int(void);
 void Meta_script_to_std_vector_std_string(void);
+void Meta_ser_deser_alias(void);
 
 // Testsuite 'Table'
 void Table_each(void);
@@ -3466,6 +3475,10 @@ bake_test_case Enum_testcases[] = {
         Enum_add_enum_class_constant
     },
     {
+        "add_singleton_enum_constant",
+        Enum_add_singleton_enum_constant
+    },
+    {
         "replace_enum_constants",
         Enum_replace_enum_constants
     },
@@ -3500,6 +3513,10 @@ bake_test_case Enum_testcases[] = {
     {
         "query_enum_constant",
         Enum_query_enum_constant
+    },
+    {
+        "query_singleton_enum_constant",
+        Enum_query_singleton_enum_constant
     },
     {
         "enum_type_from_stage",
@@ -5355,6 +5372,10 @@ bake_test_case QueryBuilder_testcases[] = {
         QueryBuilder_cascade_w_relationship
     },
     {
+        "cascade_w_set_var",
+        QueryBuilder_cascade_w_set_var
+    },
+    {
         "up_w_type",
         QueryBuilder_up_w_type
     },
@@ -5807,6 +5828,10 @@ bake_test_case Observer_testcases[] = {
     {
         "fixed_src_w_run",
         Observer_fixed_src_w_run
+    },
+    {
+        "untyped_field",
+        Observer_untyped_field
     }
 };
 
@@ -6448,6 +6473,10 @@ bake_test_case Module_testcases[] = {
     {
         "delete_module_w_explicit_component_and_system",
         Module_delete_module_w_explicit_component_and_system
+    },
+    {
+        "module_has_singleton",
+        Module_module_has_singleton
     }
 };
 
@@ -7792,6 +7821,18 @@ bake_test_case Meta_testcases[] = {
         Meta_ser_deser_type_w_std_string_std_vector_std_string
     },
     {
+        "ser_deser_std_optional_int",
+        Meta_ser_deser_std_optional_int
+    },
+    {
+        "ser_deser_std_optional_std_vector_int",
+        Meta_ser_deser_std_optional_std_vector_int
+    },
+    {
+        "ser_deser_std_optional_std_string",
+        Meta_ser_deser_std_optional_std_string
+    },
+    {
         "std_vector_random_access",
         Meta_std_vector_random_access
     },
@@ -7882,6 +7923,10 @@ bake_test_case Meta_testcases[] = {
     {
         "script_to_std_vector_std_string",
         Meta_script_to_std_vector_std_string
+    },
+    {
+        "ser_deser_alias",
+        Meta_ser_deser_alias
     }
 };
 
@@ -8113,7 +8158,7 @@ static bake_test_suite suites[] = {
         "Enum",
         NULL,
         NULL,
-        51,
+        53,
         Enum_testcases
     },
     {
@@ -8162,7 +8207,7 @@ static bake_test_suite suites[] = {
         "QueryBuilder",
         QueryBuilder_setup,
         NULL,
-        179,
+        180,
         QueryBuilder_testcases,
         1,
         QueryBuilder_params
@@ -8178,7 +8223,7 @@ static bake_test_suite suites[] = {
         "Observer",
         NULL,
         NULL,
-        63,
+        64,
         Observer_testcases
     },
     {
@@ -8199,7 +8244,7 @@ static bake_test_suite suites[] = {
         "Module",
         NULL,
         NULL,
-        26,
+        27,
         Module_testcases
     },
     {
@@ -8241,7 +8286,7 @@ static bake_test_suite suites[] = {
         "Meta",
         NULL,
         NULL,
-        65,
+        69,
         Meta_testcases
     },
     {

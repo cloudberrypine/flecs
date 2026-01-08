@@ -1646,7 +1646,11 @@
                 "singleton_w_this_up_w_table_change_components",
                 "this_up_w_singleton_w_table_change_components",
                 "2_this_up_w_singleton_w_table_change_components",
-                "2_this_up_w_singleton_w_component_w_table_change_components"
+                "2_this_up_w_singleton_w_component_w_table_change_components",
+                "this_up_childof_any",
+                "this_self_up_childof_any",
+                "this_written_up_childof_any",
+                "this_written_self_up_childof_any"
             ]
         }, {
             "id": "Cascade",
@@ -1677,7 +1681,8 @@
                 "cascade_w_cache_kind_default",
                 "cascade_w_optional",
                 "remove_all",
-                "recreate_after_remove_all"
+                "recreate_after_remove_all",
+                "nested_target_deletion"
             ]
         }, {
             "id": "Cached",
