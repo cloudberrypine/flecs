@@ -69,6 +69,10 @@ endmacro()
 
 if(FLECS_SHARED)
     add_flecs_target(flecs SHARED)
+    # Export all symbols including internal functions
+    set_target_properties(flecs PROPERTIES
+        C_VISIBILITY_PRESET default
+        VISIBILITY_INLINES_HIDDEN OFF)
 endif()
 
 if(FLECS_STATIC)
