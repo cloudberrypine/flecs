@@ -2865,8 +2865,11 @@ ecs_entity_t ecs_get_parent(
         ecs_assert(column > 0, ECS_INTERNAL_ERROR, NULL);
         EcsParent *p = ecs_table_get_column(
             table, column - 1, ECS_RECORD_TO_ROW(r->row));
-        ecs_assert(ecs_is_valid(world, p->value), ECS_INTERNAL_ERROR, 
-            "Parent component points to invalid parent");
+        /* During cascade deletion the parent may already be invalid. Return 0
+         * instead of asserting so callers can handle the missing parent. */
+        if (!ecs_is_valid(world, p->value)) {
+            return 0;
+        }
         return p->value;
     }
 

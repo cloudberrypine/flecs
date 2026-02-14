@@ -335,11 +335,14 @@ void flecs_emit_propagate_id(
             int32_t i, count = ecs_vec_count(&cur->pair->ordered_children);
             ecs_entity_t *children = ecs_vec_first(&cur->pair->ordered_children);
             for (i = 0; i < count; i ++) {
-                ecs_record_t *r = flecs_entities_get(world, children[i]);
-                ecs_assert(r != NULL, ECS_INTERNAL_ERROR, NULL);
+                /* During cascade deletion children may already be dead */
+                ecs_record_t *r = flecs_entities_try(world, children[i]);
+                if (!r) {
+                    continue;
+                }
 
                 flecs_emit_propagate_id_for_range(
-                    world, it, cr, trav, iders, ider_count, 
+                    world, it, cr, trav, iders, ider_count,
                         &(ecs_table_range_t){
                             .table = r->table,
                             .offset = ECS_RECORD_TO_ROW(r->row),
@@ -722,10 +725,17 @@ void flecs_emit_forward_cached_ids(
 
         ecs_assert(rc_cr->id == rc_elem->id, ECS_INTERNAL_ERROR, NULL);
         ecs_assert(rc_record != NULL, ECS_INTERNAL_ERROR, NULL);
-        ecs_assert(flecs_entities_get(world, rc_elem->src) == 
-            rc_record, ECS_INTERNAL_ERROR, NULL);
-        ecs_dbg_assert(rc_record->table == rc_elem->table, 
-            ECS_INTERNAL_ERROR, NULL);
+
+        /* Validate cached record is still current. During cascade deletion
+         * of non-fragmenting children with IsA relationships, cache entries
+         * can become stale when siblings are deleted within the same batch. */
+        ecs_record_t *actual_record = flecs_entities_try(world, rc_elem->src);
+        if (!actual_record || actual_record != rc_record
+            || rc_record->table != rc_elem->table)
+        {
+            rc->generation ++;  /* Force cache rebuild on next access */
+            continue;
+        }
 
         if (flecs_emit_stack_has(stack, rc_cr)) {
             continue;
@@ -836,8 +846,17 @@ void flecs_emit_forward_table_up(
             if (id == ecs_id(EcsParent)) {
                 const EcsParent *parent = ecs_get(world, tgt, EcsParent);
                 ecs_assert(parent != NULL, ECS_INTERNAL_ERROR, NULL);
+                /* During cascade deletion the parent entity may already be
+                 * invalid, or its children tracking cleaned up. */
+                if (!ecs_is_valid(world, parent->value)) {
+                    ecs_vec_remove_last(stack);
+                    continue;
+                }
                 cr = flecs_components_get(world, ecs_childof(parent->value));
-                ecs_assert(cr != NULL, ECS_INTERNAL_ERROR, NULL);
+                if (!cr) {
+                    ecs_vec_remove_last(stack);
+                    continue;
+                }
             }
 
             ecs_assert(cr->pair != NULL, ECS_INTERNAL_ERROR, NULL);
@@ -1035,9 +1054,14 @@ void flecs_emit_forward(
 
             ecs_assert(rc_cr->id == elem->id, ECS_INTERNAL_ERROR, NULL);
             ecs_assert(r != NULL, ECS_INTERNAL_ERROR, NULL);
-            ecs_assert(flecs_entities_get(world, elem->src) == r,
-                ECS_INTERNAL_ERROR, NULL);
-            ecs_dbg_assert(r->table == elem->table, ECS_INTERNAL_ERROR, NULL);
+
+            /* Validate cached record is still current (see comment in
+             * flecs_emit_forward_cached_ids for details). */
+            ecs_record_t *actual_r = flecs_entities_try(world, elem->src);
+            if (!actual_r || actual_r != r || r->table != elem->table) {
+                rc->generation ++;
+                continue;
+            }
 
             flecs_emit_forward_id(world, er, er_onset, emit_ids, it, table,
                 rc_cr, elem->src, r->table, tr->index, trav);
@@ -1050,8 +1074,8 @@ void flecs_emit_forward(
         const ecs_entity_t *entities = ecs_table_entities(table);
         entities = ECS_ELEM_T(entities, ecs_entity_t, it->offset);
         for (i = 0; i < it->count; i ++) {
-            ecs_record_t *r = flecs_entities_get(world, entities[i]);
-            if ((r->row & EcsEntityIsTraversable)) {
+            ecs_record_t *r = flecs_entities_try(world, entities[i]);
+            if (r && (r->row & EcsEntityIsTraversable)) {
                 break;
             }
         }
@@ -1069,9 +1093,13 @@ void flecs_emit_forward(
 
                 ecs_assert(rc_cr->id == elem->id, ECS_INTERNAL_ERROR, NULL);
                 ecs_assert(r != NULL, ECS_INTERNAL_ERROR, NULL);
-                ecs_assert(flecs_entities_get(world, elem->src) == r,
-                    ECS_INTERNAL_ERROR, NULL);
-                ecs_dbg_assert(r->table == elem->table, ECS_INTERNAL_ERROR, NULL);
+
+                /* Validate cached record (see flecs_emit_forward_cached_ids). */
+                ecs_record_t *actual_r = flecs_entities_try(world, elem->src);
+                if (!actual_r || actual_r != r || r->table != elem->table) {
+                    rc->generation ++;
+                    continue;
+                }
                 (void)r;
 
                 /* If entities already have the component, don't propagate */
@@ -1179,8 +1207,11 @@ void flecs_emit_on_set_for_override_on_remove(
     /* We're removing, so emit an OnSet for the base component. */
     ecs_entity_t base = o->entity;
     ecs_assert(base != 0, ECS_INTERNAL_ERROR,  NULL);
-    ecs_record_t *base_r = flecs_entities_get(world, base);
-    const ecs_table_record_t *base_tr = 
+    ecs_record_t *base_r = flecs_entities_try(world, base);
+    if (!base_r) {
+        return;
+    }
+    const ecs_table_record_t *base_tr =
         flecs_component_get_table(cr, base_r->table);
 
     it->ids[0] = id;
@@ -1572,7 +1603,10 @@ void ecs_emit(
         ecs_assert(desc->table == NULL, ECS_INVALID_PARAMETER, NULL);
         ecs_assert(desc->offset == 0, ECS_INVALID_PARAMETER, NULL);
         ecs_assert(desc->count == 0, ECS_INVALID_PARAMETER, NULL);
-        ecs_record_t *r = flecs_entities_get(world, desc->entity);
+        ecs_record_t *r = flecs_entities_try(world, desc->entity);
+        if (!r) {
+            goto error;
+        }
         desc->table = r->table;
         desc->offset = ECS_RECORD_TO_ROW(r->row);
         desc->count = 1;

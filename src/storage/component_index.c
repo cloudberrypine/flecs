@@ -1121,11 +1121,15 @@ void flecs_entities_update_childof_depth(
         int32_t i, count = ecs_vec_count(&cr->pair->ordered_children);
         for (i = 0; i < count; i ++) {
             ecs_entity_t tgt = entities[i];
-            ecs_record_t *r = flecs_entities_get(world, tgt);
+            /* During cascade deletion children may already be dead */
+            ecs_record_t *r = flecs_entities_try(world, tgt);
+            if (!r) {
+                continue;
+            }
             ecs_table_t *table = r->table;
 
             if (table->flags & EcsTableHasParent) {
-                ecs_add_id(world, tgt, 
+                ecs_add_id(world, tgt,
                     ecs_value_pair(EcsParentDepth, cr->pair->depth));
             }
 
@@ -1163,7 +1167,10 @@ void flecs_entities_update_childof_depth(
                 return;
             }
 
-            ecs_record_t *r = flecs_entities_get(world, tgt);
+            ecs_record_t *r = flecs_entities_try(world, tgt);
+            if (!r) {
+                continue;
+            }
             flecs_component_update_childof_depth(world, tgt_cr, tgt, r);
         }
     }
@@ -1218,15 +1225,20 @@ void flecs_component_update_childof_depth(
 
             EcsParent *data = tgt_table->data.columns[column - 1].data;
             ecs_entity_t parent = data[ECS_RECORD_TO_ROW(tgt_r->row)].value;
-            ecs_assert(parent != 0, ECS_CYCLE_DETECTED, 
-                "possible cycle detected in Parent hierarchy");
 
-            ecs_component_record_t *cr_parent = flecs_components_get(world,
-                ecs_childof(parent));
-            ecs_assert(cr_parent != NULL, ECS_INTERNAL_ERROR, NULL);
-            ecs_assert(cr_parent->pair != NULL, ECS_INTERNAL_ERROR, NULL);
-
-            new_depth = cr_parent->pair->depth + 1;
+            /* During cascade deletion the parent may already be deleted,
+             * leaving a stale value in the Parent component. Treat as root. */
+            if (!parent || !ecs_is_valid(world, parent)) {
+                new_depth = 1;
+            } else {
+                ecs_component_record_t *cr_parent = flecs_components_get(world,
+                    ecs_childof(parent));
+                if (!cr_parent || !cr_parent->pair) {
+                    new_depth = 1;
+                } else {
+                    new_depth = cr_parent->pair->depth + 1;
+                }
+            }
         } else {
             new_depth = 1;
         }
