@@ -5711,3 +5711,97 @@ void NonFragmentingChildOf_defer_reparent_to_deleted_parent(void) {
 
     ecs_fini(world);
 }
+
+void NonFragmentingChildOf_defer_set_remove_set_parent_cycle(void) {
+    install_test_abort();
+
+    ecs_world_t *world = ecs_mini();
+
+    ecs_entity_t parent = ecs_new(world);
+    ecs_entity_t child = ecs_new(world);
+
+    ecs_set(world, child, EcsParent, {parent});
+
+    ecs_defer_begin(world);
+    ecs_set(world, parent, EcsParent, {child});
+    ecs_remove(world, parent, EcsParent);
+    ecs_set(world, parent, EcsParent, {child});
+
+    test_expect_abort();
+    ecs_defer_end(world);
+}
+
+void NonFragmentingChildOf_delete_mixed_tree_1(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ecs_entity_t parent = ecs_new(world);
+    ecs_entity_t child_a = ecs_new_w_parent(world, parent, NULL);
+    ecs_entity_t child_b = ecs_new_w_parent(world, parent, NULL);
+    ecs_entity_t gchild_a = ecs_new_w_pair(world, EcsChildOf, child_a);
+    ecs_entity_t gchild_b = ecs_new_w_pair(world, EcsChildOf, child_b);
+
+    ecs_delete(world, parent);
+
+    test_assert(!ecs_is_alive(world, parent));
+    test_assert(!ecs_is_alive(world, child_a));
+    test_assert(!ecs_is_alive(world, child_b));
+    test_assert(!ecs_is_alive(world, gchild_a));
+    test_assert(!ecs_is_alive(world, gchild_b));
+
+    ecs_fini(world);
+}
+
+void NonFragmentingChildOf_delete_mixed_tree_2(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ecs_entity_t parent = ecs_new(world);
+    ecs_entity_t child_a = ecs_new_w_pair(world, EcsChildOf, parent);
+    ecs_entity_t child_b = ecs_new_w_pair(world, EcsChildOf, parent);
+    ecs_entity_t gchild_a = ecs_new_w_parent(world, child_a, NULL);
+    ecs_entity_t gchild_b = ecs_new_w_parent(world, child_b, NULL);
+
+    ecs_delete(world, parent);
+
+    test_assert(!ecs_is_alive(world, parent));
+    test_assert(!ecs_is_alive(world, child_a));
+    test_assert(!ecs_is_alive(world, child_b));
+    test_assert(!ecs_is_alive(world, gchild_a));
+    test_assert(!ecs_is_alive(world, gchild_b));
+
+    ecs_fini(world);
+}
+
+void NonFragmentingChildOf_delete_mixed_tree_3(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_TAG(world, Foo);
+
+    ecs_observer(world, {
+        .query.terms = {{ Foo, .src.id = EcsUp }},
+        .events = { EcsOnRemove },
+        .callback = DummyObserver
+    });
+
+    ecs_entity_t root = ecs_new(world);
+    ecs_add(world, root, Foo);
+    ecs_entity_t prefab = ecs_new_w_id(world, EcsPrefab);
+
+    ecs_entity_t parent = ecs_new(world);
+    ecs_set(world, parent, EcsParent, {root});
+    ecs_add_pair(world, parent, EcsIsA, prefab);
+
+    ecs_entity_t child_a = ecs_new(world);
+    ecs_add_pair(world, child_a, EcsChildOf, parent);
+    
+    ecs_entity_t child_b = ecs_new(world);
+    ecs_set(world, child_b, EcsParent, {parent});
+
+    ecs_delete(world, root);
+
+    test_assert(!ecs_is_alive(world, root));
+    test_assert(!ecs_is_alive(world, parent));
+    test_assert(!ecs_is_alive(world, child_a));
+    test_assert(!ecs_is_alive(world, child_b));
+
+    ecs_fini(world);
+}

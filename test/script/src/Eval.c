@@ -13651,3 +13651,201 @@ void Eval_tree_parent_nested_w_with_scope(void) {
 
     ecs_fini(world);
 }
+
+void Eval_update_after_add_remove_tree_parent(void) {
+    ecs_world_t *world = ecs_init();
+
+    ecs_struct(world, {
+        .entity = ecs_entity(world, { .name = "Position" }),
+        .members = {
+            {"x", ecs_id(ecs_f32_t)},
+            {"y", ecs_id(ecs_f32_t)}
+        }
+    });
+
+    const char *expr_1 = 
+        "@tree Parent\n"
+        "template Tree {  \n"
+        "  {\n"
+        "    Position: {}\n"
+        "  }\n"
+        "}\n"
+        "\n"
+        "@tree Parent\n"
+        "template Pavement {\n"
+        "  Tree t1() {}\n"
+        "  Tree t2() {}\n"
+        "}\n"
+        "\n"
+        "Pavement p()\n";
+
+    const char *expr_2 = 
+        "template Tree {  \n"
+        "  {\n"
+        "    Position: {}\n"
+        "  }\n"
+        "}\n"
+        "\n"
+        "@tree Parent\n"
+        "template Pavement {\n"
+        "  Tree t1() {}\n"
+        "  Tree t2() {}\n"
+        "}\n"
+        "\n"
+        "Pavement p()\n";
+
+    ecs_entity_t s = ecs_script(world, {
+        .code = expr_1
+    });
+
+    test_assert(s != 0);
+
+    ecs_script_update(world, s, 0, expr_2);
+    ecs_script_update(world, s, 0, expr_1);
+
+    ecs_script_update(world, s, 0, expr_1);
+    ecs_script_update(world, s, 0, expr_1);
+
+    ecs_query_t *q = ecs_query(world, {
+        .terms = {{ ecs_id(EcsParent) }}
+    });
+
+    test_assert(q != NULL);
+    
+    int32_t found = 0;
+
+    ecs_iter_t it = ecs_query_iter(world, q);
+    while (ecs_query_next(&it)) {
+        EcsParent *p = ecs_field(&it, EcsParent, 0);
+        for (int i = 0; i < it.count; i ++) {
+            test_assert(p[i].value != 0);
+            test_assert(ecs_is_alive(world, p[i].value));
+            found ++;
+        }
+    }
+
+    test_int(found, 4);
+
+    ecs_query_fini(q);
+    
+    {
+        ecs_entities_t entities = ecs_get_entities(world);
+        for (int i = 0; i < entities.count; i ++) {
+            ecs_entity_t p = entities.ids[i];
+            if (p != EcsWildcard && p != EcsAny && p != EcsVariable) {
+                ecs_iter_t it = ecs_children(world, p);
+                while (ecs_children_next(&it)) {
+                    for (int c = 0; c < it.count; c ++) {
+                        test_assert(ecs_is_alive(world, it.entities[c]));
+                    }
+                }
+            }
+        }
+    }
+
+    ecs_fini(world);
+}
+
+void Eval_assign_eq_enum_to_component(void) {
+    ecs_world_t *world = ecs_init();
+
+    typedef struct {
+        bool value;
+    } SomeType;
+
+    ecs_entity_t ecs_id(SomeType) = ecs_struct(world, {
+        .entity = ecs_entity(world, { .name = "SomeType" }),
+        .members = {{ "value", ecs_id(ecs_bool_t) }}
+    });
+
+    const char *expr =
+    HEAD "enum Color {"
+    LINE "  Red, Green, Blue"
+    LINE "}"
+    LINE ""
+    LINE "const c = Color: Red"
+    LINE ""
+    LINE "e1 {"
+    LINE "  SomeType: {value: c == Red}"
+    LINE "}"
+    LINE "e2 {"
+    LINE "  SomeType: {value: c == Green}"
+    LINE "}";
+
+    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
+    
+    {
+        ecs_entity_t e = ecs_lookup(world, "e1");
+        test_assert(e != 0);
+        test_assert(ecs_has(world, e, SomeType));
+
+        const SomeType *ptr = ecs_get(world, e, SomeType);
+        test_assert(ptr != NULL);
+        test_int(ptr->value, true);
+    }
+
+    {
+        ecs_entity_t e = ecs_lookup(world, "e2");
+        test_assert(e != 0);
+        test_assert(ecs_has(world, e, SomeType));
+
+        const SomeType *ptr = ecs_get(world, e, SomeType);
+        test_assert(ptr != NULL);
+        test_int(ptr->value, false);
+    }
+
+    ecs_fini(world);
+}
+
+void Eval_assign_eq_enum_to_const(void) {
+    ecs_world_t *world = ecs_init();
+
+    typedef struct {
+        bool value;
+    } SomeType;
+
+    ecs_entity_t ecs_id(SomeType) = ecs_struct(world, {
+        .entity = ecs_entity(world, { .name = "SomeType" }),
+        .members = {{ "value", ecs_id(ecs_bool_t) }}
+    });
+
+    const char *expr =
+    HEAD "enum Color {"
+    LINE "  Red, Green, Blue"
+    LINE "}"
+    LINE ""
+    LINE "const c = Color: Red"
+    LINE "const r1: c == Red"
+    LINE "const r2: c == Green"
+    LINE ""
+    LINE "e1 {"
+    LINE "  SomeType: {value: r1}"
+    LINE "}"
+    LINE "e2 {"
+    LINE "  SomeType: {value: r2}"
+    LINE "}";
+
+    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
+    
+    {
+        ecs_entity_t e = ecs_lookup(world, "e1");
+        test_assert(e != 0);
+        test_assert(ecs_has(world, e, SomeType));
+
+        const SomeType *ptr = ecs_get(world, e, SomeType);
+        test_assert(ptr != NULL);
+        test_int(ptr->value, true);
+    }
+
+    {
+        ecs_entity_t e = ecs_lookup(world, "e2");
+        test_assert(e != 0);
+        test_assert(ecs_has(world, e, SomeType));
+
+        const SomeType *ptr = ecs_get(world, e, SomeType);
+        test_assert(ptr != NULL);
+        test_int(ptr->value, false);
+    }
+
+    ecs_fini(world);
+}
