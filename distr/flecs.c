@@ -15696,6 +15696,7 @@ void flecs_emit_forward_table_up(
                 const EcsParent *parent = ecs_get(world, tgt, EcsParent);
                 ecs_assert(parent != NULL, ECS_INTERNAL_ERROR, NULL);
                 ecs_assert(parent->value != 0, ECS_INTERNAL_ERROR, NULL);
+
                 cr = flecs_components_get(world, ecs_childof(parent->value));
                 ecs_assert(cr != NULL, ECS_INTERNAL_ERROR, NULL);
             }
@@ -16242,8 +16243,7 @@ repeat_event:
 
             for (p = 0; p < parent_count; p ++) {
                 ecs_entity_t parent = parents[p].value;
-                ecs_assert(parent != 0, ECS_INTERNAL_ERROR, NULL);
-                if (flecs_entities_is_alive(world, parent)) {
+                if (parent && flecs_entities_is_alive(world, parent)) {
                     ecs_id_t pair = ecs_childof(parent);
                     ecs_type_t type = { .count = 1, .array = &pair };
                     pdesc.ids = &type;
@@ -20669,6 +20669,8 @@ ecs_type_t flecs_prefab_spawner_build_type(
     ecs_type_t dst = {0};
     ecs_type_t *src = &table->type;
 
+    flecs_type_add(world, &dst, ecs_id(EcsParent));
+
     int32_t i, count = src->count;
     for (i = 0; i < count; i ++) {
         ecs_id_t id = src->array[i];
@@ -20909,6 +20911,7 @@ void flecs_spawner_instantiate(
         ecs_assert(cr != NULL, ECS_INTERNAL_ERROR, NULL);
 
         int32_t parent_column = table->component_map[ecs_id(EcsParent)];
+        ecs_assert(parent_column != 0, ECS_INTERNAL_ERROR, NULL);
         EcsParent *parent_ptr = table->data.columns[parent_column - 1].data;
         parent_ptr = &parent_ptr[row];
         parent_ptr->value = parent;
@@ -41161,6 +41164,8 @@ void flecs_bootstrap_parent_component(
         .ctor = flecs_default_ctor,
         .on_replace = flecs_on_replace_parent
     });
+
+    ecs_add_pair(world, ecs_id(EcsParent), EcsOnInstantiate, EcsDontInherit);
 }
 
 
@@ -60797,12 +60802,47 @@ void ecs_set_os_api_impl(void) {
 #ifdef FLECS_PARSER
 
 
+static
+bool flecs_is_comment(
+    const char *pos)
+{
+    return pos[0] == '/' && (pos[1] == '/' || pos[1] == '*');
+}
+
+static
+bool flecs_keyword_boundary(
+    const char *pos)
+{
+    if (!pos[0]) {
+        return true;
+    }
+
+    if (isspace(pos[0])) {
+        return true;
+    }
+
+    if (flecs_is_comment(pos)) {
+        return true;
+    }
+
+    return false;
+}
+
+static
+bool flecs_keyword_match(
+    const char *pos,
+    const char *keyword)
+{
+    ecs_size_t len = ecs_os_strlen(keyword);
+    if (ecs_os_strncmp(pos, keyword, len)) {
+        return false;
+    }
+
+    return flecs_keyword_boundary(pos + len);
+}
+
 #define Keyword(keyword, _kind)\
-    } else if (!ecs_os_strncmp(pos, keyword " ", ecs_os_strlen(keyword) + 1)) {\
-        out->value = keyword;\
-        out->kind = _kind;\
-        return pos + ecs_os_strlen(keyword);\
-    } else if (!ecs_os_strncmp(pos, keyword "\n", ecs_os_strlen(keyword) + 1)) {\
+    } else if (flecs_keyword_match(pos, keyword)) {\
         out->value = keyword;\
         out->kind = _kind;\
         return pos + ecs_os_strlen(keyword);
@@ -60980,6 +61020,101 @@ const char* flecs_scan_whitespace(
 }
 
 static
+const char* flecs_scan_line_comment(
+    const char *pos)
+{
+    ecs_assert(pos[0] == '/' && pos[1] == '/', ECS_INTERNAL_ERROR, NULL);
+
+    for (pos = pos + 2; pos[0] && pos[0] != '\n'; pos ++) { }
+    return pos;
+}
+
+static
+bool flecs_newline_followed_by_comment(
+    ecs_parser_t *parser,
+    const char *newline)
+{
+    ecs_assert(newline[0] == '\n', ECS_INTERNAL_ERROR, NULL);
+    const char *next = flecs_scan_whitespace(parser, newline + 1);
+    return flecs_is_comment(next);
+}
+
+static
+const char* flecs_scan_multiline_comment(
+    ecs_parser_t *parser,
+    const char *pos)
+{
+    ecs_assert(pos[0] == '/' && pos[1] == '*', ECS_INTERNAL_ERROR, NULL);
+
+    for (pos = &pos[2]; pos[0] != 0; pos ++) {
+        if (pos[0] == '*' && pos[1] == '/') {
+            return pos + 2;
+        }
+    }
+
+    ecs_parser_error(parser->name, parser->code,
+        pos - parser->code, "missing */ for multiline comment");
+    return NULL;
+}
+
+static
+const char* flecs_scan_significant_line_comment_newline_run(
+    ecs_parser_t *parser,
+    const char *comment_newline)
+{
+    ecs_assert(comment_newline[0] == '\n', ECS_INTERNAL_ERROR, NULL);
+
+    const char *next = comment_newline + 1;
+    const char *last_newline = comment_newline;
+    bool collapse = false;
+
+    while (next[0]) {
+        next = flecs_scan_whitespace(parser, next);
+
+        if (next[0] == '\n') {
+            collapse = true;
+            last_newline = next;
+            next ++;
+            continue;
+        }
+
+        if (next[0] == '/' && next[1] == '/') {
+            collapse = true;
+            next = flecs_scan_line_comment(next);
+            if (next[0] == '\n') {
+                last_newline = next;
+                next ++;
+            }
+            continue;
+        }
+
+        if (next[0] == '/' && next[1] == '*') {
+            collapse = true;
+            const char *ml_end = &next[2];
+            while (ml_end[0]) {
+                if (ml_end[0] == '*' && ml_end[1] == '/') {
+                    next = ml_end + 2;
+                    break;
+                }
+                ml_end ++;
+            }
+
+            if (!ml_end[0]) {
+                /* Unterminated multiline comments are reported by the regular
+                 * tokenizer path. Keep this pass non-fatal as it is only used
+                 * to decide whether newlines can be collapsed. */
+                break;
+            }
+            continue;
+        }
+
+        break;
+    }
+
+    return collapse ? last_newline : comment_newline;
+}
+
+static
 const char* flecs_scan_whitespace_and_comment(
     ecs_parser_t *parser,
     const char *pos) 
@@ -60988,22 +61123,37 @@ repeat_skip_whitespace_comment:
     pos = flecs_scan_whitespace(parser, pos);
     if (pos[0] == '/') {
         if (pos[1] == '/') {
-            for (pos = pos + 2; pos[0] && pos[0] != '\n'; pos ++) { }
+            pos = flecs_scan_line_comment(pos);
             if (pos[0] == '\n') {
+                if (parser->significant_newline) {
+                    pos = flecs_scan_significant_line_comment_newline_run(
+                        parser, pos);
+                    if (!pos) {
+                        return NULL;
+                    }
+                    return pos;
+                }
                 pos ++;
                 goto repeat_skip_whitespace_comment;
             }
         } else if (pos[1] == '*') {
-            for (pos = &pos[2]; pos[0] != 0; pos ++) {
-                if (pos[0] == '*' && pos[1] == '/') {
-                    pos += 2;
-                    goto repeat_skip_whitespace_comment;
-                }
+            pos = flecs_scan_multiline_comment(parser, pos);
+            if (!pos) {
+                return NULL;
             }
 
-            ecs_parser_error(parser->name, parser->code, 
-                pos - parser->code, "missing */ for multiline comment");
-            return NULL;
+            if (parser->significant_newline && pos[0] == '\n' &&
+                flecs_newline_followed_by_comment(parser, pos))
+            {
+                pos = flecs_scan_significant_line_comment_newline_run(
+                    parser, pos);
+                if (!pos) {
+                    return NULL;
+                }
+                return pos;
+            }
+
+            goto repeat_skip_whitespace_comment;
         }
     }
 
@@ -61157,6 +61307,7 @@ const char* flecs_script_number(
     
     bool dot_parsed = false;
     bool e_parsed = false;
+    bool digit_parsed = false;
     int base = 10;
 
     ecs_assert(flecs_script_is_number(pos), ECS_INTERNAL_ERROR, NULL);
@@ -61185,6 +61336,7 @@ const char* flecs_script_number(
     do {
         char c = pos[0];
         bool valid_number = false;
+        bool handled_char = false;
 
         if (c == '.') {
             if (!dot_parsed && !e_parsed) {
@@ -61193,30 +61345,50 @@ const char* flecs_script_number(
                     valid_number = true;
                 }
             }
-        } else if (c == 'e') {
-            if (!e_parsed) {
+        } else if ((c == 'e' || c == 'E') && base == 10) {
+            if (!e_parsed && digit_parsed) {
                 if (isdigit(pos[1])) {
                     e_parsed = true;
                     valid_number = true;
+                } else if ((pos[1] == '+' || pos[1] == '-') && isdigit(pos[2])) {
+                    e_parsed = true;
+                    valid_number = true;
+                    handled_char = true;
+
+                    outpos[0] = c;
+                    outpos[1] = pos[1];
+                    outpos += 2;
+                    pos += 2;
                 }
             }
         } else if ((base == 10) && isdigit(c)) {
+            digit_parsed = true;
             valid_number = true;
         } else if ((base == 16) && isxdigit(c)) {
+            digit_parsed = true;
             valid_number = true;
         }  else if ((base == 2) && (c == '0' || c == '1')) {
+            digit_parsed = true;
             valid_number = true;
         }
 
         if (!valid_number) {
+            if (!digit_parsed && base != 10) {
+                ecs_parser_error(parser->name, parser->code,
+                    pos - parser->code, "missing digits in number literal");
+                return NULL;
+            }
+
             *outpos = '\0';
             parser->token_cur = outpos + 1;
             break;
         }
 
-        outpos[0] = pos[0];
-        outpos ++;
-        pos ++;
+        if (!handled_char) {
+            outpos[0] = pos[0];
+            outpos ++;
+            pos ++;
+        }
     } while (true);
 
     return pos;
@@ -61263,7 +61435,7 @@ const char* flecs_script_char(
         ecs_parser_error(parser->name, parser->code,
             pos - parser->code, "Empty char");
         return NULL;
-    } else if((len > 2) || (len == 2 && parser->token_cur[0] == '\\')) {
+    } else if ((len > 1) && !((len == 2) && (pos[1] == '\\'))) {
         ecs_parser_error(parser->name, parser->code,
             pos - parser->code, "only one char allowed");
         return NULL;
@@ -61318,6 +61490,8 @@ const char* flecs_script_multiline_string(
     }
 
     if (ch != '`') {
+        ecs_parser_error(parser->name, parser->code,
+            end - parser->code, "unterminated string");
         return NULL;
     }
 
@@ -61404,12 +61578,13 @@ const char* flecs_token(
         return pos;
     } else if (pos[0] == '\n') {
         out->kind = EcsTokNewline;
-        
+
         // Parse multiple newlines/whitespaces as a single token
         pos = flecs_scan_whitespace_and_comment(parser, pos + 1);
         if (pos[0] == '\n') {
             pos ++;
         }
+
         return pos;
 
     } else if (flecs_script_is_number(pos)) {
@@ -63147,6 +63322,16 @@ bool ecs_using_task_threads(
             parser->token_cur = parser->token_keep;\
         }\
     } else {\
+        if (flecs_token(parser, pos, &lookahead_token, false)) {\
+            if (lookahead_token.value) {\
+                Error("unexpected %s'%s'", \
+                    flecs_token_kind_str(lookahead_token.kind), \
+                    lookahead_token.value);\
+            } else {\
+                Error("unexpected %s", \
+                    flecs_token_kind_str(lookahead_token.kind));\
+            }\
+        }\
         goto error;\
     }
 
@@ -66106,10 +66291,18 @@ const char* flecs_script_if_stmt(
 
                     // if expr { } else\n if
                     case EcsTokNewline: {
-                        Parse_1(EcsTokKeywordIf,
-                            Scope(stmt->if_false, 
-                                return flecs_script_if_stmt(parser, pos);
-                            )
+                        Parse(
+                            case EcsTokKeywordIf: {
+                                Scope(stmt->if_false, 
+                                    return flecs_script_if_stmt(parser, pos);
+                                )
+                            }
+
+                            // if expr { } else\n {
+                            case '{': {
+                                return flecs_script_scope(
+                                    parser, stmt->if_false, pos);
+                            }
                         )
                     }
 
@@ -69545,6 +69738,26 @@ int flecs_script_check(
 
 #ifdef FLECS_SCRIPT
 
+static
+bool flecs_script_valid_lookup_path(
+    const char *path)
+{
+    int32_t template_nesting = 0;
+    char ch;
+    for (; (ch = path[0]); path ++) {
+        if (ch == '<') {
+            template_nesting ++;
+        } else if (ch == '>') {
+            template_nesting --;
+            if (template_nesting < 0) {
+                return false;
+            }
+        }
+    }
+
+    return template_nesting == 0;
+}
+
 void flecs_script_eval_error_(
     ecs_script_eval_visitor_t *v,
     ecs_script_node_t *node,
@@ -69756,17 +69969,19 @@ int flecs_script_find_entity(
     ecs_entity_t result = 0;
 
     if (path[0] != '$') {
+        bool valid_path = flecs_script_valid_lookup_path(path);
+
         if (name_expr && *name_expr) {
             result = flecs_script_eval_name_expr(v, NULL, name_expr, true);
             if (!result) {
                 return -1;
             }
-        } else if (from) {
+        } else if (from && valid_path) {
             result = ecs_lookup_path_w_sep(
                 v->world, from, path, NULL, NULL, false);
         } else {
             int32_t i, using_count = ecs_vec_count(&v->r->using);
-            if (using_count) {
+            if (using_count && valid_path) {
                 ecs_entity_t *using = ecs_vec_first(&v->r->using);
                 for (i = using_count - 1; i >= 0; i --) {
                     ecs_entity_t e = ecs_lookup_path_w_sep(
@@ -69777,7 +69992,7 @@ int flecs_script_find_entity(
                 }
             }
 
-            if (!result) {
+            if (!result && valid_path) {
                 result = ecs_lookup_path_w_sep(
                     v->world, v->parent, path, NULL, NULL, true);
             }
@@ -70537,6 +70752,8 @@ int flecs_script_eval_var_component(
         if (flecs_script_find_entity(
             v, 0, node->name, NULL, NULL, &var_entity, NULL)) 
         {
+            flecs_script_eval_error(v, node, 
+                "unresolved variable '%s'", node->name);
             return -1;
         }
 
@@ -91373,19 +91590,38 @@ const char* flecs_script_parse_lhs(
     Parse(
         case EcsTokNumber: {
             const char *expr = Token(0);
-            if (strchr(expr, '.') || strchr(expr, 'e')) {
+            int base = 10;
+            bool is_negative = false;
+            const char *base_expr = expr;
+            if (base_expr[0] == '-') {
+                is_negative = true;
+                base_expr ++;
+            }
+
+            if (base_expr[0] == '0' && (base_expr[1] == 'x' || base_expr[1] == 'X')) {
+                base = 16;
+            } else if (base_expr[0] == '0' && (base_expr[1] == 'b' || base_expr[1] == 'B')) {
+                base = 2;
+            }
+
+            if (base == 10 &&
+                (strchr(expr, '.') || strchr(expr, 'e') || strchr(expr, 'E')))
+            {
                 *out = (ecs_expr_node_t*)flecs_expr_float(parser, atof(expr));
                 break;
             }
-            int base = 10;
-            if (expr[0] == '0' && (expr[1] == 'x' || expr[1] == 'X')) {
-                base = 16;
-                expr += 2;
-            } else if (expr[0] == '0' && (expr[1] == 'b' || expr[1] == 'B')) {
-                base = 2;
-                expr += 2;
-            }
-            if (expr[0] == '-') {
+
+            if (base == 2) {
+                const char *bin_expr = base_expr + 2;
+                char *end;
+                uint64_t v = strtoull(bin_expr, &end, base);
+
+                if (is_negative) {
+                    *out = (ecs_expr_node_t*)flecs_expr_int(parser, -(int64_t)v);
+                } else {
+                    *out = (ecs_expr_node_t*)flecs_expr_uint(parser, v);
+                }
+            } else if (is_negative) {
                 char *end;
                 *out = (ecs_expr_node_t*)flecs_expr_int(parser, 
                     strtoll(expr, &end, base));
