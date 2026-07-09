@@ -5,12 +5,184 @@
 
 #include "private_api.h"
 
+#ifdef FLECS_DEBUG
+static
+void flecs_type_info_mark_in_use(
+    const ecs_type_info_t *ti)
+{
+    ecs_type_info_t *ti_mut = ECS_CONST_CAST(ecs_type_info_t*, ti);
+    ti_mut->hooks.flags |= ECS_TYPE_HOOK_IN_USE;
+}
+#else
+#define flecs_type_info_mark_in_use(ti) ((void)ti)
+#endif
+
 void flecs_default_ctor(
     void *ptr, 
     int32_t count, 
     const ecs_type_info_t *ti)
 {
     ecs_os_memset(ptr, 0, ti->size * count);
+}
+
+bool flecs_type_info_ctor(
+    void *ptr,
+    int32_t count,
+    const ecs_type_info_t *ti)
+{
+    ecs_assert(!(ti->hooks.flags & ECS_TYPE_HOOK_CTOR_ILLEGAL),
+        ECS_INVALID_OPERATION, "%s", ti->name);
+    flecs_type_info_mark_in_use(ti);
+    ecs_xtor_t ctor = ti->hooks.ctor;
+    if (ctor) {
+        ctor(ptr, count, ti);
+        return true;
+    }
+    return false;
+}
+
+bool flecs_type_info_dtor(
+    void *ptr,
+    int32_t count,
+    const ecs_type_info_t *ti)
+{
+    ecs_assert(!(ti->hooks.flags & ECS_TYPE_HOOK_DTOR_ILLEGAL),
+        ECS_INVALID_OPERATION, "%s", ti->name);
+    flecs_type_info_mark_in_use(ti);
+    ecs_xtor_t dtor = ti->hooks.dtor;
+    if (dtor) {
+        dtor(ptr, count, ti);
+        return true;
+    }
+    return false;
+}
+
+void flecs_type_info_copy(
+    void *dst_ptr,
+    const void *src_ptr,
+    int32_t count,
+    const ecs_type_info_t *ti)
+{
+    ecs_assert(!(ti->hooks.flags & ECS_TYPE_HOOK_COPY_ILLEGAL),
+        ECS_INVALID_OPERATION, "%s", ti->name);
+    flecs_type_info_mark_in_use(ti);
+    ecs_copy_t copy = ti->hooks.copy;
+    if (copy) {
+        copy(dst_ptr, src_ptr, count, ti);
+    } else {
+        ecs_os_memcpy(dst_ptr, src_ptr, flecs_uto(ecs_size_t, ti->size) * count);
+    }
+}
+
+void flecs_type_info_move(
+    void *dst_ptr,
+    void *src_ptr,
+    int32_t count,
+    const ecs_type_info_t *ti)
+{
+    ecs_assert(!(ti->hooks.flags & ECS_TYPE_HOOK_MOVE_ILLEGAL),
+        ECS_INVALID_OPERATION, "%s", ti->name);
+    flecs_type_info_mark_in_use(ti);
+    ecs_move_t move = ti->hooks.move;
+    if (move) {
+        move(dst_ptr, src_ptr, count, ti);
+    } else {
+        ecs_os_memcpy(dst_ptr, src_ptr, flecs_uto(ecs_size_t, ti->size) * count);
+    }
+}
+
+void flecs_type_info_copy_ctor(
+    void *dst_ptr,
+    const void *src_ptr,
+    int32_t count,
+    const ecs_type_info_t *ti)
+{
+    ecs_assert(!(ti->hooks.flags & ECS_TYPE_HOOK_COPY_CTOR_ILLEGAL),
+        ECS_INVALID_OPERATION, "%s", ti->name);
+    flecs_type_info_mark_in_use(ti);
+    ecs_copy_t copy = ti->hooks.copy_ctor;
+    if (copy) {
+        copy(dst_ptr, src_ptr, count, ti);
+    } else {
+        ecs_os_memcpy(dst_ptr, src_ptr, flecs_uto(ecs_size_t, ti->size) * count);
+    }
+}
+
+void flecs_type_info_move_ctor(
+    void *dst_ptr,
+    void *src_ptr,
+    int32_t count,
+    const ecs_type_info_t *ti)
+{
+    ecs_assert(!(ti->hooks.flags & ECS_TYPE_HOOK_MOVE_CTOR_ILLEGAL),
+        ECS_INVALID_OPERATION, "%s", ti->name);
+    flecs_type_info_mark_in_use(ti);
+    ecs_move_t move = ti->hooks.move_ctor;
+    if (move) {
+        move(dst_ptr, src_ptr, count, ti);
+    } else {
+        ecs_os_memcpy(dst_ptr, src_ptr, flecs_uto(ecs_size_t, ti->size) * count);
+    }
+}
+
+void flecs_type_info_ctor_move_dtor(
+    void *dst_ptr,
+    void *src_ptr,
+    int32_t count,
+    const ecs_type_info_t *ti)
+{
+    ecs_assert(!(ti->hooks.flags & ECS_TYPE_HOOK_CTOR_MOVE_DTOR_ILLEGAL),
+        ECS_INVALID_OPERATION, "%s", ti->name);
+    flecs_type_info_mark_in_use(ti);
+    ecs_move_t move = ti->hooks.ctor_move_dtor;
+    if (move) {
+        move(dst_ptr, src_ptr, count, ti);
+    } else {
+        ecs_os_memcpy(dst_ptr, src_ptr, flecs_uto(ecs_size_t, ti->size) * count);
+    }
+}
+
+void flecs_type_info_move_dtor(
+    void *dst_ptr,
+    void *src_ptr,
+    int32_t count,
+    const ecs_type_info_t *ti)
+{
+    ecs_assert(!(ti->hooks.flags & ECS_TYPE_HOOK_MOVE_DTOR_ILLEGAL),
+        ECS_INVALID_OPERATION, "%s", ti->name);
+    flecs_type_info_mark_in_use(ti);
+    ecs_move_t move = ti->hooks.move_dtor;
+    if (move) {
+        move(dst_ptr, src_ptr, count, ti);
+    } else {
+        ecs_os_memcpy(dst_ptr, src_ptr, flecs_uto(ecs_size_t, ti->size) * count);
+    }
+}
+
+int flecs_type_info_cmp(
+    const void *a_ptr,
+    const void *b_ptr,
+    const ecs_type_info_t *ti)
+{
+    ecs_assert(!(ti->hooks.flags & ECS_TYPE_HOOK_CMP_ILLEGAL),
+        ECS_INVALID_OPERATION, "%s", ti->name);
+    flecs_type_info_mark_in_use(ti);
+    ecs_cmp_t cmp = ti->hooks.cmp;
+    ecs_assert(cmp != NULL, ECS_INTERNAL_ERROR, NULL);
+    return cmp(a_ptr, b_ptr, ti);
+}
+
+bool flecs_type_info_equals(
+    const void *a_ptr,
+    const void *b_ptr,
+    const ecs_type_info_t *ti)
+{
+    ecs_assert(!(ti->hooks.flags & ECS_TYPE_HOOK_EQUALS_ILLEGAL),
+        ECS_INVALID_OPERATION, "%s", ti->name);
+    flecs_type_info_mark_in_use(ti);
+    ecs_equals_t equals = ti->hooks.equals;
+    ecs_assert(equals != NULL, ECS_INTERNAL_ERROR, NULL);
+    return equals(a_ptr, b_ptr, ti);
 }
 
 static
@@ -180,6 +352,30 @@ bool flecs_equals_illegal(
     ecs_abort(ECS_INVALID_OPERATION, "invalid equals hook for %s", ti->name);
 }
 
+static
+bool flecs_type_hooks_storage_equal(
+    const ecs_type_hooks_t *a,
+    const ecs_type_hooks_t *b)
+{
+    ecs_flags32_t flags = ECS_TYPE_HOOKS|ECS_TYPE_HOOKS_ILLEGAL;
+    if ((a->flags & flags) != (b->flags & flags)) {
+        return false;
+    }
+    if ((a->on_add != NULL) != (b->on_add != NULL)) {
+        return false;
+    }
+    if ((a->on_set != NULL) != (b->on_set != NULL)) {
+        return false;
+    }
+    if ((a->on_remove != NULL) != (b->on_remove != NULL)) {
+        return false;
+    }
+    if ((a->on_replace != NULL) != (b->on_replace != NULL)) {
+        return false;
+    }
+    return true;
+}
+
 void ecs_set_hooks_id(
     ecs_world_t *world,
     ecs_entity_t component,
@@ -265,17 +461,16 @@ void ecs_set_hooks_id(
 
     flecs_stage_from_world(&world);
 
-    /* Ensure that no tables have yet been created for the component */
-    ecs_check( ecs_id_in_use(world, component) == false,
-        ECS_ALREADY_IN_USE, ecs_get_name(world, component));
-    ecs_check( ecs_id_in_use(world, ecs_pair(component, EcsWildcard)) == false,
-        ECS_ALREADY_IN_USE, ecs_get_name(world, component));
+    bool in_use = ecs_id_in_use(world, component) ||
+        ecs_id_in_use(world, ecs_pair(component, EcsWildcard));
 
     ecs_type_info_t *ti = flecs_type_info_ensure(world, component);
     ecs_assert(ti != NULL, ECS_INTERNAL_ERROR, NULL);
 
     ecs_check(!ti->component || ti->component == component,
         ECS_INCONSISTENT_COMPONENT_ACTION, NULL);
+
+    ecs_type_hooks_t prev_hooks = ti->hooks;
 
     if (!ti->size) {
         const EcsComponent *component_ptr = ecs_get(
@@ -286,8 +481,8 @@ void ecs_set_hooks_id(
             "illegal call to set_hooks() for '%s': component cannot be a tag/zero sized",
                 flecs_errstr(ecs_get_path(world, component)));
         ecs_check(component_ptr->size != 0, ECS_INVALID_PARAMETER,
-            "illegal call to set_hooks() for '%s': cannot register "
-            " component cannot be a tag/zero sized",
+            "illegal call to set_hooks() for '%s': "
+            "component cannot be a tag/zero sized",
                 flecs_errstr(ecs_get_path(world, component)));
 
         ti->size = component_ptr->size;
@@ -425,6 +620,8 @@ void ecs_set_hooks_id(
     if (ti->hooks.cmp) ti->hooks.flags |= ECS_TYPE_HOOK_CMP;
     if (ti->hooks.equals) ti->hooks.flags |= ECS_TYPE_HOOK_EQUALS;
 
+    ti->hooks.flags |= prev_hooks.flags & ECS_TYPE_HOOK_IN_USE;
+
     if(flags & ECS_TYPE_HOOK_CTOR_ILLEGAL) ti->hooks.ctor = flecs_ctor_illegal;
     if(flags & ECS_TYPE_HOOK_DTOR_ILLEGAL) ti->hooks.dtor = flecs_dtor_illegal;
     if(flags & ECS_TYPE_HOOK_COPY_ILLEGAL) ti->hooks.copy = flecs_copy_illegal;
@@ -446,6 +643,13 @@ void ecs_set_hooks_id(
 
     if(ti->hooks.flags & ECS_TYPE_HOOK_MOVE_DTOR_ILLEGAL) {
         ti->hooks.move_dtor = flecs_move_ctor_illegal;
+    }
+
+    if (in_use && !flecs_type_hooks_storage_equal(&ti->hooks, &prev_hooks)) {
+        ti->hooks = prev_hooks;
+        ecs_throw(ECS_ALREADY_IN_USE, "illegal call to set_hooks() for "
+            "component '%s': cannot change which hooks are set while the "
+            "component is in use", flecs_errstr(ecs_get_path(world, component)));
     }
 
     if (component < FLECS_HI_COMPONENT_ID) {
@@ -493,6 +697,7 @@ void flecs_fini_type_info(
     ecs_map_fini(&world->type_info);
 }
 
+static
 const ecs_type_info_t* flecs_type_info_get(
     const ecs_world_t *world,
     ecs_entity_t component)
@@ -591,7 +796,7 @@ bool flecs_type_info_init_id(
         } 
     }
 
-    /* All non-tag id records with component as object inherit type info,
+    /* All non-tag id records with component as target inherit type info,
      * if relationship doesn't have type info */
     cr = flecs_components_get(world, ecs_pair(EcsWildcard, component));
     if (cr) {

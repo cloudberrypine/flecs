@@ -112,3 +112,23 @@ void Error_set_log_level_return(void) {
     int prev = ecs_log_set_level(-1);
     test_int(prev, 1);
 }
+
+void Error_print_backtrace(void) {
+    flecs_dump_backtrace(stderr);
+    test_assert(true);
+}
+
+void Error_log_capture_nested_recursion(void) {
+    ecs_log_start_capture(true);
+    ecs_log_start_capture(true);
+
+    ecs_log_(-3, __FILE__, __LINE__, "captured error");
+
+    char *inner = ecs_log_stop_capture();
+    char *outer = ecs_log_stop_capture();
+
+    test_assert(inner == NULL);
+    test_assert(outer != NULL);
+    test_str(outer, "captured error");
+    ecs_os_free(outer);
+}

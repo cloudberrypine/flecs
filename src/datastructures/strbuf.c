@@ -2,17 +2,12 @@
  * @file datastructures/strbuf.c
  * @brief Utility for constructing strings.
  *
- * A buffer builds up a list of elements which individually can be up to N bytes
- * large. While appending, data is added to these elements. More elements are
- * added on the fly when needed. When an application calls ecs_strbuf_get, all
- * elements are combined in one string and the element administration is freed.
+ * A buffer builds up a string by appending to a contiguous buffer. For small
+ * strings, a stack-allocated buffer is used. When the string outgrows the small
+ * buffer, a heap-allocated buffer is used instead, which is grown by doubling
+ * its size as needed. When an application calls ecs_strbuf_get, the final
+ * string is returned and the buffer is reset.
  *
- * This approach prevents reallocs of large blocks of memory, and therefore
- * copying large blocks of memory when appending to a large buffer. A buffer
- * preallocates some memory for the element overhead so that for small strings
- * there is hardly any overhead, while for large strings the overhead is offset
- * by the reduced time spent on copying memory.
- * 
  * The functionality provided by strbuf is similar to std::stringstream.
  */
 
@@ -54,23 +49,26 @@ char* flecs_strbuf_itoa(
     char *ptr = buf;
     char * p1;
 	char c;
+    uint64_t uv;
 
-	if (!v) {
+    if (v < 0) {
+        ptr[0] = '-';
+        ptr ++;
+        uv = (uint64_t)0 - (uint64_t)v;
+    } else {
+        uv = (uint64_t)v;
+    }
+
+	if (!uv) {
 		*ptr++ = '0';
     } else {
-        if (v < 0) {
-            ptr[0] = '-';
-            ptr ++;
-            v *= -1;
-        }
-
 		char *p = ptr;
-		while (v) {
-            int64_t vdiv = v / 10;
-            int64_t vmod = v - (vdiv * 10);
-			p[0] = (char)('0' + vmod);
+		while (uv) {
+            uint64_t vdiv = uv / 10;
+            uint64_t vmod = uv - (vdiv * 10);
+			p[0] = (char)('0' + (char)vmod);
             p ++;
-			v = vdiv;
+			uv = vdiv;
 		}
 
 		p1 = p;
@@ -145,7 +143,7 @@ void flecs_strbuf_ftoa(
     }
 
     /* Make sure that number can be represented as 64bit int, increase exp */
-    while (f > INT64_MAX_F) {
+    while (f >= INT64_MAX_F) {
         f /= 1000 * 1000 * 1000;
         exp += 9;
     }
@@ -176,8 +174,8 @@ void flecs_strbuf_ftoa(
         ptr --;
     }
 
-    /* If 0s before . exceed threshold, convert to exponent to save space 
-     * without losing precision. */
+    /* If trailing zeros exceed the threshold, convert to exponent notation to
+     * save space without losing precision. */
     char *cur = ptr;
     while ((&cur[-1] != buf) && (cur[-1] == '0')) {
         cur --;
@@ -197,7 +195,7 @@ void flecs_strbuf_ftoa(
             p1 ++;
         }
 
-        /* Make sure that exp starts after first character */
+        /* Place decimal point after the first digit */
         c = p1[0];
 
         if (c) {
@@ -232,7 +230,7 @@ void flecs_strbuf_ftoa(
     ecs_strbuf_appendstrn(out, buf, (int32_t)(ptr - buf));
 }
 
-/* Add an extra element to the buffer */
+/* Grow the buffer */
 static
 void flecs_strbuf_grow(
     ecs_strbuf_t *b)
@@ -272,9 +270,9 @@ void flecs_strbuf_vappend(
         return;
     }
 
-    /* Compute the memory required to add the string to the buffer. If user
-     * provided buffer, use space left in buffer, otherwise use space left in
-     * current element. */
+    /* Compute the memory required to add the string to the buffer. If the
+     * buffer has already been allocated, use space left in buffer, otherwise
+     * use zero. */
     int32_t mem_left = b->size - b->length;
     int32_t mem_required;
 
@@ -420,8 +418,8 @@ void ecs_strbuf_mergebuff(
     ecs_strbuf_t *b,
     ecs_strbuf_t *src)
 {
-    if (src->content) {
-        ecs_strbuf_appendstr(b, src->content);
+    if (src->content && src->length) {
+        flecs_strbuf_appendstr(b, src->content, src->length);
     }
     ecs_strbuf_reset(src);
 }

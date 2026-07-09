@@ -37,6 +37,9 @@ void Pipeline_merge_after_staged_out(void);
 void Pipeline_merge_after_not_out(void);
 void Pipeline_no_merge_after_main_out(void);
 void Pipeline_merge_after_staged_in_out(void);
+void Pipeline_merge_after_singleton_out(void);
+void Pipeline_merge_after_singleton_out_set(void);
+void Pipeline_no_merge_after_singleton_out_no_read(void);
 void Pipeline_merge_after_staged_inout_main_implicit_inout(void);
 void Pipeline_merge_after_staged_inout_main_inout(void);
 void Pipeline_merge_after_staged_out_before_owned(void);
@@ -110,6 +113,10 @@ void Pipeline_run_w_empty_query(void);
 void Pipeline_run_w_0_src_query(void);
 void Pipeline_inout_none_after_write(void);
 void Pipeline_empty_pipeline_after_disable_phase(void);
+void Pipeline_set_time_scale_w_stage(void);
+void Pipeline_set_time_scale_w_readonly(void);
+void Pipeline_init_failure_preserves_user_entity(void);
+void Pipeline_update_pipeline_replaces_existing(void);
 
 // Testsuite 'SystemMisc'
 void SystemMisc_invalid_not_without_id(void);
@@ -129,6 +136,7 @@ void SystemMisc_invalid_null_string(void);
 void SystemMisc_invalid_empty_string(void);
 void SystemMisc_invalid_empty_string_w_space(void);
 void SystemMisc_redefine_row_system(void);
+void SystemMisc_update_row_system(void);
 void SystemMisc_system_w_or_prefab(void);
 void SystemMisc_system_w_or_disabled(void);
 void SystemMisc_system_w_or_disabled_and_prefab(void);
@@ -147,6 +155,11 @@ void SystemMisc_redefine_0_signature(void);
 void SystemMisc_redeclare_system_explicit_id(void);
 void SystemMisc_redeclare_system_explicit_id_null_expr(void);
 void SystemMisc_redeclare_system_explicit_id_no_name(void);
+void SystemMisc_update_null_signature(void);
+void SystemMisc_update_0_signature(void);
+void SystemMisc_update_system_explicit_id(void);
+void SystemMisc_update_system_explicit_id_null_expr(void);
+void SystemMisc_update_system_explicit_id_no_name(void);
 void SystemMisc_declare_different_id_same_name(void);
 void SystemMisc_declare_different_id_same_name_w_scope(void);
 void SystemMisc_rw_in_implicit_any(void);
@@ -166,6 +179,7 @@ void SystemMisc_delete_system(void);
 void SystemMisc_delete_pipeline_system(void);
 void SystemMisc_delete_system_w_ctx(void);
 void SystemMisc_update_ctx(void);
+void SystemMisc_partial_update_preserves_ctx(void);
 void SystemMisc_run_custom_run_action(void);
 void SystemMisc_pipeline_custom_run_action(void);
 void SystemMisc_change_custom_run_action(void);
@@ -181,6 +195,7 @@ void SystemMisc_register_callback_after_run(void);
 void SystemMisc_register_run_after_callback(void);
 void SystemMisc_register_callback_after_run_ctx(void);
 void SystemMisc_register_run_after_callback_ctx(void);
+void SystemMisc_set_group(void);
 void SystemMisc_run_w_query_next(void);
 void SystemMisc_missing_callback(void);
 
@@ -441,6 +456,7 @@ void Modules_import_monitor_after_mini(void);
 void Modules_import_2_worlds(void);
 void Modules_component_parent_becomes_module(void);
 void Modules_module_has_singleton(void);
+void Modules_import_w_uppercase_name(void);
 
 // Testsuite 'App'
 void App_app_w_frame_action(void);
@@ -466,6 +482,10 @@ void Rest_query(void);
 void Rest_named_query(void);
 void Rest_tables(void);
 void Rest_components(void);
+void Rest_type_info_non_existing_entity(void);
+void Rest_type_info_not_component(void);
+void Rest_type_info_component_without_reflection(void);
+void Rest_type_info_component_with_reflection(void);
 void Rest_request_commands(void);
 void Rest_request_commands_2_syncs(void);
 void Rest_request_commands_no_frames(void);
@@ -484,6 +504,11 @@ void Rest_request_ending_in_2_pct(void);
 void Rest_request_ending_in_pct_single_digit(void);
 void Rest_request_ending_in_pct_invalid_code(void);
 void Rest_world_has_build_info(void);
+void Rest_world_default(void);
+void Rest_world_builtin(void);
+void Rest_world_modules(void);
+void Rest_world_builtin_and_modules(void);
+void Rest_world_explicit_false(void);
 
 // Testsuite 'Metrics'
 void Metrics_member_gauge_1_entity(void);
@@ -669,6 +694,18 @@ bake_test_case Pipeline_testcases[] = {
     {
         "merge_after_staged_in_out",
         Pipeline_merge_after_staged_in_out
+    },
+    {
+        "merge_after_singleton_out",
+        Pipeline_merge_after_singleton_out
+    },
+    {
+        "merge_after_singleton_out_set",
+        Pipeline_merge_after_singleton_out_set
+    },
+    {
+        "no_merge_after_singleton_out_no_read",
+        Pipeline_no_merge_after_singleton_out_no_read
     },
     {
         "merge_after_staged_inout_main_implicit_inout",
@@ -961,6 +998,22 @@ bake_test_case Pipeline_testcases[] = {
     {
         "empty_pipeline_after_disable_phase",
         Pipeline_empty_pipeline_after_disable_phase
+    },
+    {
+        "set_time_scale_w_stage",
+        Pipeline_set_time_scale_w_stage
+    },
+    {
+        "set_time_scale_w_readonly",
+        Pipeline_set_time_scale_w_readonly
+    },
+    {
+        "init_failure_preserves_user_entity",
+        Pipeline_init_failure_preserves_user_entity
+    },
+    {
+        "update_pipeline_replaces_existing",
+        Pipeline_update_pipeline_replaces_existing
     }
 };
 
@@ -1034,6 +1087,10 @@ bake_test_case SystemMisc_testcases[] = {
         SystemMisc_redefine_row_system
     },
     {
+        "update_row_system",
+        SystemMisc_update_row_system
+    },
+    {
         "system_w_or_prefab",
         SystemMisc_system_w_or_prefab
     },
@@ -1104,6 +1161,26 @@ bake_test_case SystemMisc_testcases[] = {
     {
         "redeclare_system_explicit_id_no_name",
         SystemMisc_redeclare_system_explicit_id_no_name
+    },
+    {
+        "update_null_signature",
+        SystemMisc_update_null_signature
+    },
+    {
+        "update_0_signature",
+        SystemMisc_update_0_signature
+    },
+    {
+        "update_system_explicit_id",
+        SystemMisc_update_system_explicit_id
+    },
+    {
+        "update_system_explicit_id_null_expr",
+        SystemMisc_update_system_explicit_id_null_expr
+    },
+    {
+        "update_system_explicit_id_no_name",
+        SystemMisc_update_system_explicit_id_no_name
     },
     {
         "declare_different_id_same_name",
@@ -1182,6 +1259,10 @@ bake_test_case SystemMisc_testcases[] = {
         SystemMisc_update_ctx
     },
     {
+        "partial_update_preserves_ctx",
+        SystemMisc_partial_update_preserves_ctx
+    },
+    {
         "run_custom_run_action",
         SystemMisc_run_custom_run_action
     },
@@ -1240,6 +1321,10 @@ bake_test_case SystemMisc_testcases[] = {
     {
         "register_run_after_callback_ctx",
         SystemMisc_register_run_after_callback_ctx
+    },
+    {
+        "set_group",
+        SystemMisc_set_group
     },
     {
         "run_w_query_next",
@@ -2181,6 +2266,10 @@ bake_test_case Modules_testcases[] = {
     {
         "module_has_singleton",
         Modules_module_has_singleton
+    },
+    {
+        "import_w_uppercase_name",
+        Modules_import_w_uppercase_name
     }
 };
 
@@ -2268,6 +2357,22 @@ bake_test_case Rest_testcases[] = {
         Rest_components
     },
     {
+        "type_info_non_existing_entity",
+        Rest_type_info_non_existing_entity
+    },
+    {
+        "type_info_not_component",
+        Rest_type_info_not_component
+    },
+    {
+        "type_info_component_without_reflection",
+        Rest_type_info_component_without_reflection
+    },
+    {
+        "type_info_component_with_reflection",
+        Rest_type_info_component_with_reflection
+    },
+    {
         "request_commands",
         Rest_request_commands
     },
@@ -2338,6 +2443,26 @@ bake_test_case Rest_testcases[] = {
     {
         "world_has_build_info",
         Rest_world_has_build_info
+    },
+    {
+        "world_default",
+        Rest_world_default
+    },
+    {
+        "world_builtin",
+        Rest_world_builtin
+    },
+    {
+        "world_modules",
+        Rest_world_modules
+    },
+    {
+        "world_builtin_and_modules",
+        Rest_world_builtin_and_modules
+    },
+    {
+        "world_explicit_false",
+        Rest_world_explicit_false
     }
 };
 
@@ -2643,6 +2768,7 @@ const char* MultiThread_worker_kind_param[] = {"thread", "task"};
 bake_test_param MultiThread_params[] = {
     {"worker_kind", (char**)MultiThread_worker_kind_param, 2}
 };
+
 const char* MultiThreadStaging_worker_kind_param[] = {"thread", "task"};
 bake_test_param MultiThreadStaging_params[] = {
     {"worker_kind", (char**)MultiThreadStaging_worker_kind_param, 2}
@@ -2660,14 +2786,14 @@ static bake_test_suite suites[] = {
         "Pipeline",
         NULL,
         NULL,
-        87,
+        94,
         Pipeline_testcases
     },
     {
         "SystemMisc",
         NULL,
         NULL,
-        71,
+        79,
         SystemMisc_testcases
     },
     {
@@ -2776,7 +2902,7 @@ static bake_test_suite suites[] = {
         "Modules",
         Modules_setup,
         NULL,
-        25,
+        26,
         Modules_testcases
     },
     {
@@ -2797,7 +2923,7 @@ static bake_test_suite suites[] = {
         "Rest",
         NULL,
         NULL,
-        27,
+        36,
         Rest_testcases
     },
     {

@@ -36,7 +36,7 @@ typedef struct ecs_pair_record_t {
     ecs_vec_t ordered_children;
 
     /* Tables with non-fragmenting children */
-    ecs_map_t children_tables; /* map<table_id, ecs_parent_record_t */
+    ecs_map_t children_tables; /* map<table_id, ecs_parent_record_t> */
 
     /* Track how many of the tables in children_tables are disabled. Used by
      * queries to determine whether logic is needed to skip Disabled entities
@@ -97,6 +97,13 @@ struct ecs_component_record_t {
     int32_t refcount;
 };
 
+/* Iterator over all component records in the world */
+typedef struct ecs_components_iter_t {
+    int32_t lo;
+    bool hi;
+    ecs_map_iter_t map_it;
+} ecs_components_iter_t;
+
 /* Bootstrap cached id records */
 void flecs_components_init(
     ecs_world_t *world);
@@ -104,11 +111,6 @@ void flecs_components_init(
 /* Cleanup all id records in world */
 void flecs_components_fini(
     ecs_world_t *world);
-
-/* Like flecs_components_ensure, but creates only if world is not in threaded mode */
-ecs_component_record_t* flecs_components_try_ensure(
-    ecs_world_t *world,
-    ecs_id_t id);
 
 /* Increase refcount of component record */
 void flecs_component_claim(
@@ -142,6 +144,11 @@ ecs_component_record_t* flecs_component_second_next(
 /* Return next traversable (*, T) record */
 ecs_component_record_t* flecs_component_trav_next(
     ecs_component_record_t *cr);
+
+/* Return next component record, or NULL when iteration is done. */
+ecs_component_record_t* flecs_components_next(
+    const ecs_world_t *world,
+    ecs_components_iter_t *it);
 
 /* Ensure name index for component record */
 ecs_hashmap_t* flecs_component_name_index_ensure(

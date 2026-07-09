@@ -15,7 +15,8 @@ void flecs_instantiate(
     ecs_world_t *world,
     ecs_entity_t base,
     ecs_entity_t instance,
-    const ecs_instantiate_ctx_t *ctx);
+    const ecs_instantiate_ctx_t *ctx,
+    int32_t depth);
 
 void flecs_instantiate_dont_fragment(
     ecs_world_t *world,
@@ -28,6 +29,13 @@ void flecs_instantiate_sparse(
     const ecs_entity_t *base_children,
     ecs_table_t *instance_table,
     const ecs_entity_t *instance_children,
-    int32_t row_offset);
+    int32_t row_offset,
+    bool emit_non_sparse);
+
+ecs_entity_t flecs_instantiate_alloc_child_id(
+    ecs_world_t *world,
+    ecs_entity_t prefab_child,
+    ecs_entity_t root_prefab,
+    ecs_entity_t root_instance);
 
 #endif

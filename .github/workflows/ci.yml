@@ -1,6 +1,15 @@
 name: CI
 
-on: [ push, pull_request ]
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -437,6 +446,33 @@ jobs:
           bake rebuild test/custom_builds --strict
           bake runall test/custom_builds
 
+  build-custom-windows:
+    needs: build-windows
+    runs-on: windows-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: install bake
+        run: |
+          git clone https://github.com/SanderMertens/bake
+          cd bake\build-Windows
+          nmake
+          cd ..
+          ./bake setup --local
+
+      - name: Build flecs
+        run: |
+          bake/bake rebuild --strict
+
+      - name: custom_build tests
+        run: |
+          bake/bake rebuild test/custom_builds --strict
+          bake/bake runall test/custom_builds
+
   build-amalgamated:
     needs: build-linux
     runs-on: ubuntu-latest
@@ -524,8 +560,8 @@ jobs:
           #define PTRACE_ATTACH 1
           #define PTRACE_DETACH 2
           __attribute__((weak)) long ptrace(int request, pid_t pid, void *addr, void *data) { return 0; }" > test/build/include/sys/ptrace.h && \
-          export CFLAGS="-isystem $(pwd)/test/build/include -D__linux__ -D__x86_64__ -pthread" && \
-          export CXXFLAGS="-isystem $(pwd)/test/build/include -D__linux__ -D__x86_64__ -pthread" && \
+          export CFLAGS="-fPIC -isystem $(pwd)/test/build/include -D__linux__ -D__x86_64__ -pthread" && \
+          export CXXFLAGS="-fPIC -isystem $(pwd)/test/build/include -D__linux__ -D__x86_64__ -pthread" && \
           emcmake cmake -B test/build \
             -DCMAKE_BUILD_TYPE=Debug \
             -DFLECS_STATIC=ON \
@@ -836,6 +872,59 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ilammy/msvc-dev-cmd@v1
+      - name: install bake
+        run: |
+          git clone https://github.com/SanderMertens/bake
+          cd bake\build-Windows
+          nmake
+          cd ..
+          ./bake setup --local
+
+      - name: build flecs
+        run: bake/bake
+
+      - name: test core
+        run: bake/bake run test\core -- -j 8
+
+      - name: test addons
+        run: bake/bake run test\addons -- -j 8
+
+      - name: test meta
+        run: bake/bake run test\meta -- -j 8
+
+      - name: test script
+        run: bake/bake run test\script -- -j 8
+
+      - name: test collections
+        run: bake/bake run test\collections -- -j 8
+
+      - name: test c++
+        run: bake/bake run test\cpp -- -j 8
+
+  test-windows-msvc-x86:
+    runs-on: windows-2022
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64_x86
+          toolset: 14.44
+      - name: verify MSVC target and version
+        shell: pwsh
+        run: |
+          @'
+          #if !defined(_M_IX86)
+          #error Expected an x86 MSVC target
+          #endif
+          #if _MSC_VER > 1944
+          #error Expected MSVC 19.44 or lower
+          #endif
+          int main(void) { return 0; }
+          '@ | Set-Content -Encoding ascii verify_msvc_x86_1944_or_lower.c
+          cl /nologo /Bv verify_msvc_x86_1944_or_lower.c
+          .\verify_msvc_x86_1944_or_lower.exe
       - name: install bake
         run: |
           git clone https://github.com/SanderMertens/bake

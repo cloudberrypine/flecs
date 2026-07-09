@@ -1,3 +1,8 @@
+/**
+ * @file storage/non_fragmenting_childof.c
+ * @brief Non-fragmenting ChildOf storage.
+ */
+
 #include "../private_api.h"
 
 static
@@ -12,9 +17,9 @@ void flecs_add_non_fragmenting_child_to_table(
         ecs_map_ensure(&cr->pair->children_tables, table->id);
     ecs_assert(elem != NULL, ECS_INTERNAL_ERROR, NULL);
 
-    /* Encode id of first entity in table + the total number of entities in the
-     * table for this parent in a single uint64 so everything fits in a map
-     * element without having to allocate. */
+    /* Store id of first entity in table + the total number of entities in the
+     * table for this parent so everything fits in a map element without having
+     * to allocate. */
     if (!elem->count) {
         elem->entity = (uint32_t)entity;
 
@@ -85,6 +90,8 @@ int flecs_add_non_fragmenting_child_w_records(
 
     flecs_add_non_fragmenting_child_to_table(world, cr, entity, r->table);
 
+    flecs_tree_spawner_assert_not_instantiated(world, parent);
+
     ecs_record_t *r_parent = flecs_entities_get(world, parent);
     if (r_parent->table->flags & EcsTableIsPrefab) {
         ecs_add_id(world, entity, EcsPrefab);
@@ -113,19 +120,19 @@ ecs_component_record_t* flecs_add_non_fragmenting_child(
 }
 
 static
-void flecs_remove_non_fragmenting_child(
+ecs_component_record_t* flecs_remove_non_fragmenting_child(
     ecs_world_t *world,
     ecs_entity_t parent,
     ecs_entity_t entity)
 {
     if (!parent) {
-        return;
+        return NULL;
     }
 
-    ecs_component_record_t *cr = flecs_components_get(world, 
+    ecs_component_record_t *cr = flecs_components_get(world,
         ecs_pair(EcsChildOf, parent));
     if (!cr || (cr->flags & EcsIdMarkedForDelete)) {
-        return;
+        return NULL;
     }
 
     flecs_ordered_entities_remove(world, cr, entity);
@@ -136,6 +143,10 @@ void flecs_remove_non_fragmenting_child(
     ecs_assert(table != NULL, ECS_INTERNAL_ERROR, NULL);
 
     flecs_remove_non_fragmenting_child_from_table(cr, table);
+
+    flecs_tree_spawner_assert_not_instantiated(world, parent);
+
+    return cr;
 }
 
 static
@@ -196,19 +207,29 @@ void flecs_on_replace_parent(ecs_iter_t *it) {
         /* This can happen when a child is parented to a parent that is deleted
          * in the same command queue. */
         if (!flecs_entities_is_alive(world, new_parent)) {
-            /* So cleanup code can see this is child of deleted parent */
+            /* So cleanup code can see this is a child of a deleted parent */
             old[i].value = new_parent;
             ecs_delete(world, e);
             continue;
         }
 
+    #ifdef FLECS_DEBUG
+        ecs_entity_t cur = new_parent;
+        while (cur) {
+            ecs_assert(cur != e, ECS_CYCLE_DETECTED,
+                "cycle detected in Parent hierarchy");
+            cur = ecs_get_parent(world, cur);
+        }
+    #endif
+
         flecs_journal_begin(world, EcsJournalSetParent, e, &(ecs_type_t){
             .count = 1, .array = &new_parent
         }, NULL);
         
-        flecs_remove_non_fragmenting_child(world, old_parent, e);
+        ecs_component_record_t *cr_old =
+            flecs_remove_non_fragmenting_child(world, old_parent, e);
 
-        ecs_component_record_t *cr_parent = 
+        ecs_component_record_t *cr_parent =
             flecs_add_non_fragmenting_child(world, new_parent, e);
         if (!cr_parent) {
             continue;
@@ -219,16 +240,28 @@ void flecs_on_replace_parent(ecs_iter_t *it) {
                 world, e, &names[i], old_parent, cr_parent);
         }
 
-        int32_t depth = cr_parent->pair->depth;
-        ecs_add_id(world, e, ecs_value_pair(EcsParentDepth, depth));
-
-        ecs_component_record_t *cr = flecs_components_get(world, ecs_childof(e));
-        if (cr) {
-            flecs_component_update_childof_w_depth(world, cr, depth + 1);
-        }
+        /* Write new parent value to component storage before ecs_add_id, as
+         * it can trigger a table move that reads the parent value. */
+        old[i].value = new_parent;
 
         ecs_record_t *r = flecs_entities_get(world, e);
         ecs_assert(r != NULL, ECS_INTERNAL_ERROR, NULL);
+
+        int32_t depth = cr_parent->pair->depth;
+
+        /* If the entity had a parent before, it has a ParentDepth pair that
+         * matches the depth of the old parent. If the depth of the new parent
+         * is the same, the pair doesn't have to be updated and neither do the
+         * cached depths for the entity's children. */
+        if (!cr_old || cr_old->pair->depth != depth) {
+            ecs_add_id(world, e, ecs_value_pair(EcsParentDepth, depth));
+
+            ecs_component_record_t *cr = flecs_components_get(
+                world, ecs_childof(e));
+            if (cr) {
+                flecs_component_update_childof_w_depth(world, cr, depth + 1);
+            }
+        }
 
         if (r->row & EcsEntityIsTraversable) {
             ecs_id_t added = ecs_childof(new_parent);
@@ -306,6 +339,8 @@ void flecs_on_non_fragmenting_child_move_remove(
         } else {
             flecs_ordered_entities_remove(world, cr, e);
 
+            flecs_tree_spawner_assert_not_instantiated(world, p);
+
             if (names) {
                 flecs_on_reparent_update_name(world, e, &names[i], p, NULL);
             }
@@ -356,7 +391,7 @@ void flecs_non_fragmenting_childof_reparent(
 
     const ecs_entity_t *entities = ecs_table_entities(dst);
     int32_t i = row, end = i + count;
-    for (i = 0; i < end; i ++) {
+    for (; i < end; i ++) {
         ecs_entity_t e = entities[i];
         ecs_component_record_t *cr = flecs_components_get(
             world, ecs_childof(e));
@@ -401,7 +436,7 @@ void flecs_non_fragmenting_childof_unparent(
 
     const ecs_entity_t *entities = ecs_table_entities(src);
     int32_t i = row, end = i + count;
-    for (i = 0; i < end; i ++) {
+    for (; i < end; i ++) {
         ecs_entity_t e = entities[i];
         ecs_component_record_t *cr = flecs_components_get(
             world, ecs_childof(e));

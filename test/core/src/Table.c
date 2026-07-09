@@ -618,6 +618,31 @@ void Table_has_any_pair(void) {
     ecs_fini(world);
 }
 
+void Table_get_target_out_of_range(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_TAG(world, Rel0);
+    ECS_TAG(world, Rel);
+    ECS_TAG(world, Rel2);
+    ECS_TAG(world, Tgt0);
+    ECS_TAG(world, Tgt1);
+    ECS_TAG(world, Tgt2);
+
+    ecs_entity_t e = ecs_new(world);
+    ecs_add_pair(world, e, Rel0, Tgt0);
+    ecs_add_pair(world, e, Rel, Tgt1);
+    ecs_add_pair(world, e, Rel2, Tgt2);
+
+    ecs_table_t *table = ecs_get_table(world, e);
+    test_assert(table != NULL);
+
+    test_uint(ecs_table_get_target(world, table, Rel, 0), Tgt1);
+    test_uint(ecs_table_get_target(world, table, Rel, -1), 0);
+    test_uint(ecs_table_get_target(world, table, Rel, 1), 0);
+
+    ecs_fini(world);
+}
+
 void Table_clear_table_kills_entities(void) {
     ecs_world_t *world = ecs_mini();
 
@@ -794,6 +819,21 @@ void Table_clear_table_on_remove_observer(void) {
     ecs_fini(world);
 }
 
+void Table_find_w_dont_fragment(void) {
+    install_test_abort();
+
+    ecs_world_t *world = ecs_mini();
+
+    ECS_COMPONENT(world, Position);
+
+    ecs_add_id(world, ecs_id(Position), EcsDontFragment);
+
+    ecs_id_t ids[1] = { ecs_id(Position) };
+
+    test_expect_abort();
+    ecs_table_find(world, ids, 1);
+}
+
 void Table_65_records_w_tgt(void) {
     ecs_world_t *world = ecs_mini();
 
@@ -825,6 +865,33 @@ void Table_65_records_w_tgt(void) {
     }
 
     ecs_os_free(ids);
+
+    ecs_fini(world);
+}
+
+void Table_clear_table_toggle_reset(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_COMPONENT(world, Position);
+    ecs_add_id(world, ecs_id(Position), EcsCanToggle);
+
+    ecs_entity_t e1 = ecs_new(world);
+    ecs_add(world, e1, Position);
+    ecs_add_id(world, e1, ECS_TOGGLE | ecs_id(Position));
+    ecs_enable_id(world, e1, ecs_id(Position), true);
+    test_bool(ecs_is_enabled_id(world, e1, ecs_id(Position)), true);
+
+    ecs_table_t *table = ecs_get_table(world, e1);
+    test_assert(table != NULL);
+    ecs_table_clear_entities(world, table);
+
+    test_assert(!ecs_is_alive(world, e1));
+    test_int(0, ecs_table_count(table));
+
+    ecs_entity_t e2 = ecs_new(world);
+    ecs_add(world, e2, Position);
+    ecs_add_id(world, e2, ECS_TOGGLE | ecs_id(Position));
+    test_bool(ecs_is_enabled_id(world, e2, ecs_id(Position)), false);
 
     ecs_fini(world);
 }

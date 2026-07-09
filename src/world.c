@@ -191,7 +191,7 @@ const ecs_entity_t ecs_id(EcsRest) =                FLECS_HI_COMPONENT_ID + 121;
 static ecs_entity_t ecs_default_lookup_path[2] = { 0, 0 };
 
 /* Declarations for addons. Located in world.c to avoid issues during linking of
- * static library */
+ * a static library */
 
 #ifdef FLECS_ALERTS
 ECS_COMPONENT_DECLARE(EcsAlert);
@@ -376,7 +376,7 @@ ecs_stage_t* flecs_stage_from_world(
     return ECS_CONST_CAST(ecs_stage_t*, world);
 }
 
-/* Evaluate component monitor. If a monitored entity changed it will have set a
+/* Evaluate component monitor. If a monitored entity changed, it will have set a
  * flag in one of the world's component monitors. Queries can register
  * themselves with component monitors to determine whether they need to rematch
  * with tables. */
@@ -568,7 +568,7 @@ void flecs_clean_tables(
     }
 
     /* Free table types separately so that if application destructors rely on
-     * a type it's still valid. */
+     * a type, it's still valid. */
     for (i = 1; i < count; i ++) {
         ecs_table_t *t = flecs_sparse_get_dense_t(&world->store.tables,
             ecs_table_t, i);
@@ -604,7 +604,7 @@ void flecs_fini_root_tables(
             ecs_table_t *table = tr->hdr.table;
 
             if (table->flags & (EcsTableHasBuiltins|EcsTableHasModule)) {
-                continue; /* Query out modules */
+                continue; /* Skip modules */
             }
 
             int32_t i, count = ecs_table_count(table);
@@ -657,6 +657,38 @@ void flecs_fini_root_tables(
 }
 
 static
+void flecs_fini_non_this_on_remove_observers(
+    ecs_world_t *world)
+{
+    ecs_defer_begin(world);
+
+    ecs_iter_t it = ecs_each_id(world, EcsObserver);
+    while (ecs_each_next(&it)) {
+        int32_t i;
+        for (i = 0; i < it.count; i ++) {
+            ecs_entity_t e = it.entities[i];
+            const ecs_observer_t *o = ecs_observer_get(world, e);
+            if (!o) {
+                continue;
+            }
+
+            const ecs_query_t *q = o->query;
+            if (!q) {
+                continue;
+            }
+
+            if (q->flags & EcsQueryMatchOnlyThis) {
+                continue;
+            }
+
+            ecs_delete(world, it.entities[i]);
+        }
+    }
+
+    ecs_defer_end(world);
+}
+
+static
 void flecs_fini_roots(
     ecs_world_t *world)
 {
@@ -664,7 +696,7 @@ void flecs_fini_roots(
 
     /* Delete root entities that are not modules. This prioritizes deleting
      * regular entities first, which reduces the chance of components getting
-     * destructed in random order because it got deleted before entities,
+     * destructed in random order because they got deleted before entities,
      * thereby bypassing the OnDeleteTarget policy. */
     flecs_defer_begin(world, world->stages[0]);
     flecs_fini_root_tables(world, cr, true);
@@ -937,7 +969,7 @@ void flecs_log_build_info(void) {
 
     const char **addon = bi->addons;
     do {
-        ecs_trace(addon[0]);
+        ecs_trace("%s", addon[0]);
     } while ((++ addon)[0]);
     ecs_log_pop();
 
@@ -1272,6 +1304,18 @@ int ecs_fini(
 
     world->flags |= EcsWorldQuit;
 
+    /* Tree spawners can keep tables alive, which can conflict with entity
+     * cleanup. Cleanup treespawners first before cleaning up other entities.
+     * This means that prefab spawning does not work during world cleanup. */
+    flecs_fini_tree_spawners(world);
+
+    /* yield_existing, OnRemove observers will fire for all matching results
+     * when the observer is deleted, but there is no guarantee that components
+     * and/or sources used by the observer aren't already deleted by the time
+     * the observer entity will be deleted. Therefore delete those observers
+     * before regular entity removal. */
+    flecs_fini_non_this_on_remove_observers(world);
+
     /* Delete root entities first using regular APIs. This ensures that cleanup
      * policies get a chance to execute. */
     ecs_dbg_1("#[bold]cleanup root entities");
@@ -1281,7 +1325,7 @@ int ecs_fini(
 
     world->flags |= EcsWorldFini;
 
-    /* Run fini actions (simple callbacks ran when world is deleted) before
+    /* Run fini actions (simple callbacks run when world is deleted) before
      * destroying the storage */
     ecs_dbg_1("#[bold]run fini actions");
     ecs_log_push_1();
@@ -1459,37 +1503,127 @@ void ecs_set_binding_ctx(
     world->binding_ctx_free = ctx_free;
 }
 
-void ecs_set_entity_range(
+const ecs_entity_range_t* ecs_entity_range_new(
     ecs_world_t *world,
-    ecs_entity_t id_start,
-    ecs_entity_t id_end)
+    uint32_t min,
+    uint32_t max)
 {
     flecs_poly_assert(world, ecs_world_t);
-    ecs_check(!id_end || id_end > id_start, ECS_INVALID_PARAMETER, NULL);
+    ecs_check(min > 0, ECS_INVALID_PARAMETER, "min must be > 0");
+    ecs_check(!max || max >= min, ECS_INVALID_PARAMETER,
+        "max must be >= min or 0");
 
-    if (id_start == 0) {
-      id_start = flecs_entities_max_id(world) + 1;
+    /* Validate no overlap with existing ranges */
+    ecs_entity_index_t *index = ecs_eis(world);
+    ecs_check(flecs_entity_index_not_alive_count(index) == 0,
+        ECS_INVALID_OPERATION,
+        "cannot create entity range after entities have been deleted");
+
+    bool first_range = ecs_vec_count(&index->ranges) == 0;
+
+    /* If this is the first range and it covers the default [1, ...] id space,
+     * it must be large enough to contain all currently alive entities. */
+    if (first_range && min == 1) {
+        ecs_check(!max || max >= index->max_id, ECS_INVALID_OPERATION,
+            "range [%u, %u] cannot be below last alive entity id %u",
+                min, max, (uint32_t)index->max_id);
     }
 
-    uint32_t start = (uint32_t)id_start;
-    uint32_t end = (uint32_t)id_end;
+    /* If this is the first range to be created and it does not start at 1,
+     * create a default range for the [1, min) id space and activate it, so
+     * that the default id allocation behavior is preserved. */
+    if (first_range && min > 1) {
+        ecs_entity_range_t *default_range = ECS_CONST_CAST(ecs_entity_range_t*,
+            ecs_entity_range_new(world, 1, min - 1));
+        default_range->cur = index->max_id;
+        flecs_entity_index_set_range(index, default_range);
+    }
 
-    flecs_entities_max_id(world) = start - 1;
+    ecs_allocator_t *a = &world->allocator;
 
-    world->info.min_id = start;
-    world->info.max_id = end;
+    int32_t count = ecs_vec_count(&index->ranges);
+    if (count > 0) {
+        ecs_entity_range_t **ranges = ecs_vec_first_t(&index->ranges,
+            ecs_entity_range_t*);
+        int32_t i;
+        for (i = 0; i < count; i ++) {
+            ecs_entity_range_t *existing = ranges[i];
+            /* Two ranges overlap if one starts before the other ends */
+            bool overlap;
+            if (!existing->max && !max) {
+                overlap = true;
+            } else if (!existing->max) {
+                overlap = max >= existing->min;
+            } else if (!max) {
+                overlap = min <= existing->max;
+            } else {
+                overlap = min <= existing->max && max >= existing->min;
+            }
+            ecs_check(!overlap, ECS_INVALID_PARAMETER,
+                "range [%u, %u] overlaps with existing range [%u, %u]",
+                    min, max, existing->min, existing->max);
+            (void)overlap;
+        }
+    }
+
+    ecs_entity_range_t *range = flecs_walloc_t(world, ecs_entity_range_t);
+    range->min = min;
+    range->max = max;
+    range->cur = min - 1;
+    ecs_vec_init_t(a, &range->recycled, uint64_t, 0);
+
+    /* Insert into sorted ranges vec (sorted by min) */
+    ecs_vec_append_t(a, &index->ranges, ecs_entity_range_t*)[0] = range;
+
+    if (count > 0) {
+        ecs_entity_range_t **ranges = ecs_vec_first_t(&index->ranges,
+            ecs_entity_range_t*);
+
+        /* Find insertion point and shift elements */
+        int32_t i;
+        for (i = count; i > 0; i --) {
+            if (ranges[i - 1]->min <= min) {
+                break;
+            }
+            ranges[i] = ranges[i - 1];
+        }
+        ranges[i] = range;
+    }
+
+    /* If this is the first range and it covers the default [1, ...] id space,
+     * activate it so the default id allocation behavior is preserved. */
+    if (first_range && min == 1) {
+        range->cur = index->max_id;
+        flecs_entity_index_set_range(index, range);
+    }
+
+    return range;
+error:
+    return NULL;
+}
+
+void ecs_entity_range_set(
+    ecs_world_t *world,
+    const ecs_entity_range_t *range)
+{
+    flecs_poly_assert(world, ecs_world_t);
+    ecs_check(range != NULL, ECS_INVALID_PARAMETER, NULL);
+
+    flecs_entity_index_set_range(ecs_eis(world),
+        ECS_CONST_CAST(ecs_entity_range_t*, range));
+
 error:
     return;
 }
 
-bool ecs_enable_range_check(
-    ecs_world_t *world,
-    bool enable)
+const ecs_entity_range_t* ecs_entity_range_get(
+    const ecs_world_t *world)
 {
-    flecs_poly_assert(world, ecs_world_t);    
-    bool old_value = world->range_check_enabled;
-    world->range_check_enabled = enable;
-    return old_value;
+    ecs_check(world != NULL, ECS_INVALID_PARAMETER, NULL);
+    world = ecs_get_world(world);
+    return ecs_eis(world)->active_range;
+error:
+    return NULL;
 }
 
 ecs_entity_t ecs_get_max_id(
@@ -1519,29 +1653,6 @@ uint32_t flecs_get_table_version_fast(
 {
     flecs_poly_assert(world, ecs_world_t);
     return world->table_version[table_id & ECS_TABLE_VERSION_ARRAY_BITMASK];
-}
-
-void flecs_increment_table_column_version(
-    ecs_world_t *world,
-    ecs_table_t *table)
-{
-    flecs_poly_assert(world, ecs_world_t);
-    ecs_assert(table != NULL, ECS_INVALID_PARAMETER, NULL);
-
-    int32_t index = table->id & ECS_TABLE_VERSION_ARRAY_BITMASK;
-    world->table_column_version[index] ++;
-    if (world->table_column_version[index] == UINT32_MAX) {
-        /* Skip sentinel value */
-        world->table_column_version[index] = 0;
-    }
-}
-
-uint32_t flecs_get_table_column_version(
-    const ecs_world_t *world,
-    const uint64_t table_id)
-{
-    flecs_poly_assert(world, ecs_world_t);
-    return world->table_column_version[table_id & ECS_TABLE_VERSION_ARRAY_BITMASK];
 }
 
 static int32_t flecs_component_ids_last_index = 0;
@@ -1605,7 +1716,7 @@ void flecs_component_ids_set(
     ecs_vec_get_t(&world->component_ids, ecs_entity_t, index)[0] = component;
 }
 
-#ifdef FLECS_DEBUG
+#ifdef FLECS_EXCLUSIVE_ACCESS
 
 void flecs_check_exclusive_world_access_write(
     const ecs_world_t *world)
@@ -1620,26 +1731,24 @@ void flecs_check_exclusive_world_access_write(
     (void)thr_self;
 
     if (world->exclusive_access == UINT64_MAX) {
-        ecs_throw(ECS_ACCESS_VIOLATION,
+        ecs_abort(ECS_ACCESS_VIOLATION,
             "invalid access: world is locked for write operations "
             "(call exclusive_access_begin() first)");
-    } else 
+    } else
     if (world->exclusive_thread_name) {
-        ecs_assert(world->exclusive_access == ecs_os_thread_self(), 
+        ecs_always_assert(world->exclusive_access == ecs_os_thread_self(),
             ECS_ACCESS_VIOLATION,
             "invalid access to world by thread %" PRIu64 ": "
                 "thread %" PRIu64 " (%s) has exclusive access",
                     thr_self, world->exclusive_access,
                     world->exclusive_thread_name);
     } else {
-        ecs_assert(world->exclusive_access == ecs_os_thread_self(), 
+        ecs_always_assert(world->exclusive_access == ecs_os_thread_self(),
             ECS_ACCESS_VIOLATION,
             "invalid access to world by thread %" PRIu64 ": "
                 "thread %" PRIu64 " has exclusive access",
                     thr_self, world->exclusive_access);
     }
-error:
-    return;
 }
 
 void flecs_check_exclusive_world_access_read(
@@ -1659,14 +1768,14 @@ void flecs_check_exclusive_world_access_read(
     (void)thr_self;
 
     if (world->exclusive_thread_name) {
-        ecs_assert(world->exclusive_access == ecs_os_thread_self(), 
+        ecs_always_assert(world->exclusive_access == ecs_os_thread_self(),
             ECS_ACCESS_VIOLATION,
             "invalid access to world by thread %" PRIu64 ": "
                 "(thread %" PRIu64 " (%s) has exclusive access)",
                     thr_self, world->exclusive_access,
                     world->exclusive_thread_name);
     } else {
-        ecs_assert(world->exclusive_access == ecs_os_thread_self(), 
+        ecs_always_assert(world->exclusive_access == ecs_os_thread_self(),
             ECS_ACCESS_VIOLATION,
             "invalid access to world by thread %" PRIu64 ": "
                 "thread %" PRIu64 " has exclusive access",
@@ -1719,13 +1828,14 @@ int32_t ecs_delete_empty_tables(
     ecs_os_perf_trace_push("flecs.delete_empty_tables");
 
     ecs_time_t start = {0}, cur = {0};
-    int32_t delete_count = 0;
     bool time_budget = false;
     int32_t measure_budget_after = 100;
+    int32_t result = 0;
 
     uint16_t clear_generation = desc->clear_generation;
     uint16_t delete_generation = desc->delete_generation;
     double time_budget_seconds = desc->time_budget_seconds;
+    int32_t offset = desc->offset;
 
     if (ECS_NEQZERO(time_budget_seconds) || (ecs_should_log_1() && ecs_os_has_time())) {
         ecs_time_measure(&start);
@@ -1735,13 +1845,34 @@ int32_t ecs_delete_empty_tables(
         time_budget = true;
     }
 
-    int32_t i, count = flecs_sparse_count(&world->store.tables);
+    int32_t count = flecs_sparse_count(&world->store.tables);
+    if (!count) {
+        goto done;
+    }
 
-    for (i = count - 1; i >= 0; i --) {
+    if (offset >= count || offset < 0) {
+        offset = 0;
+    }
+
+    int32_t remaining = count;
+    int32_t i = offset;
+
+    while (remaining > 0) {
+        count = flecs_sparse_count(&world->store.tables);
+        if (!count) {
+            break;
+        }
+
+        if (i >= count) {
+            i = 0;
+        }
+
         ecs_table_t *table = flecs_sparse_get_dense_t(&world->store.tables,
             ecs_table_t, i);
 
         if (table->keep) {
+            i ++;
+            remaining --;
             continue;
         }
 
@@ -1750,6 +1881,11 @@ int32_t ecs_delete_empty_tables(
         if (time_budget && !measure_budget_after) {
             cur = start;
             if (ecs_time_measure(&cur) > time_budget_seconds) {
+                count = flecs_sparse_count(&world->store.tables);
+                result = i + 1;
+                if (result >= count) {
+                    result = 0;
+                }
                 goto done;
             }
 
@@ -1757,24 +1893,30 @@ int32_t ecs_delete_empty_tables(
         }
 
         if (!table->id || ecs_table_count(table) != 0) {
+            i ++;
+            remaining --;
             continue;
         }
 
         uint16_t gen = ++ table->_->generation;
         if (delete_generation && (gen > delete_generation)) {
             flecs_table_fini(world, table);
-            delete_count ++;
             measure_budget_after = 1;
+            remaining --;
+            continue;
         } else if (clear_generation && (gen > clear_generation)) {
             flecs_table_shrink(world, table);
             measure_budget_after = 1;
         }
+
+        i ++;
+        remaining --;
     }
 
 done:
     ecs_os_perf_trace_pop("flecs.delete_empty_tables");
 
-    return delete_count;
+    return result;
 }
 
 ecs_entities_t ecs_get_entities(

@@ -217,7 +217,7 @@ int ecs_script_update(
         ecs_script_free(s->script);
     }
 
-    ecs_script_eval_result_t eval_result = {NULL};
+    ecs_script_eval_result_t eval_result = {0};
 
     s->script = ecs_script_parse(world, name, code, NULL, &eval_result);
     if (s->script == NULL) {
@@ -247,9 +247,12 @@ int ecs_script_update(
 
     ecs_entity_t prev = ecs_set_with(world, flecs_script_tag(e, instance));
 
-    if (ecs_script_eval(s->script, NULL, &eval_result)) {
+    ecs_script_t *parsed = s->script;
+    if (ecs_script_eval(parsed, NULL, &eval_result)) {
+        s = ecs_ensure(world, e, EcsScript);
         s->error = eval_result.error;
-        ecs_script_free(s->script);
+        ecs_log_(-3, NULL, 0, "%s: %s", name ? name : "script", s->error);
+        ecs_script_free(parsed);
         s->script = NULL;
         ecs_delete_with(world, ecs_pair_t(EcsScript, e));
         result = -1;
@@ -348,6 +351,7 @@ void ecs_script_runtime_clear(
     ecs_vec_clear(&r->with);
     ecs_vec_clear(&r->with_type_info);
     ecs_vec_clear(&r->using);
+    r->error = false;
 }
 
 ecs_script_runtime_t* flecs_script_runtime_get(

@@ -985,3 +985,124 @@ void StructTypes_struct_w_use_offset(void) {
 
     ecs_fini(world);
 }
+
+void StructTypes_direct_cycle(void) {
+    install_test_abort();
+
+    ecs_world_t *world = ecs_init();
+
+    ecs_entity_t a = ecs_component(world, {
+        .entity = ecs_entity(world, {.name = "A"}),
+        .type.size = ECS_SIZEOF(ecs_i32_t),
+        .type.alignment = ECS_ALIGNOF(ecs_i32_t)
+    });
+
+    test_expect_abort();
+
+    ecs_struct_init(world, &(ecs_struct_desc_t){
+        .entity = a,
+        .members = {
+            {"value", a}
+        }
+    });
+}
+
+void StructTypes_indirect_cycle(void) {
+    install_test_abort();
+
+    ecs_world_t *world = ecs_init();
+
+    ecs_entity_t a = ecs_component(world, {
+        .entity = ecs_entity(world, {.name = "A"}),
+        .type.size = ECS_SIZEOF(ecs_i32_t),
+        .type.alignment = ECS_ALIGNOF(ecs_i32_t)
+    });
+
+    ecs_entity_t b = ecs_component(world, {
+        .entity = ecs_entity(world, {.name = "B"}),
+        .type.size = ECS_SIZEOF(ecs_i32_t),
+        .type.alignment = ECS_ALIGNOF(ecs_i32_t)
+    });
+
+    ecs_struct_init(world, &(ecs_struct_desc_t){
+        .entity = a,
+        .members = {
+            {"value", b}
+        }
+    });
+
+    test_expect_abort();
+
+    ecs_struct_init(world, &(ecs_struct_desc_t){
+        .entity = b,
+        .members = {
+            {"value", a}
+        }
+    });
+}
+
+void StructTypes_use_before_registering_reflection(void) {
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT(world, Position);
+
+    ecs_entity_t e = ecs_new(world);
+    ecs_set(world, e, Position, {10, 20});
+
+    ecs_entity_t s = ecs_struct(world, {
+        .entity = ecs_id(Position),
+        .members = {
+            { "x", .type = ecs_id(ecs_i32_t) },
+            { "y", .type = ecs_id(ecs_i32_t) }
+        }
+    });
+
+    test_assert(s != 0);
+
+    test_assert(ecs_has(world, e, Position));
+
+    {
+        const Position *p = ecs_get(world, e, Position);
+        test_assert(p != NULL);
+        test_int(p->x, 10);
+        test_int(p->y, 20);
+    }
+
+    ecs_fini(world);
+}
+
+
+void StructTypes_use_before_registering_reflection_w_hooks(void) {
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT(world, Position);
+
+    ecs_set_hooks(world, Position, {
+        .ctor = flecs_default_ctor
+    });
+
+    ecs_entity_t e = ecs_new(world);
+    ecs_set(world, e, Position, {10, 20});
+
+    ecs_entity_t s = ecs_struct(world, {
+        .entity = ecs_id(Position),
+        .members = {
+            { "x", .type = ecs_id(ecs_i32_t) },
+            { "y", .type = ecs_id(ecs_i32_t) }
+        }
+    });
+
+    test_assert(s != 0);
+
+    test_assert(ecs_has(world, e, Position));
+
+    {
+        const Position *p = ecs_get(world, e, Position);
+        test_assert(p != NULL);
+        test_int(p->x, 10);
+        test_int(p->y, 20);
+    }
+
+    ecs_fini(world);
+}
+

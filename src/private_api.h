@@ -170,17 +170,16 @@ bool flecs_name_is_id(
 ecs_entity_t flecs_name_to_id(
     const char *name);
 
-/* Convert floating point to string */
-char * ecs_ftoa(
-    double f, 
-    char * buf, 
-    int precision);
-
 /* Replace #[color] tokens with terminal color symbols. */
 void flecs_colorize_buf(
     char *msg,
     bool enable_colors,
     ecs_strbuf_t *buf);
+
+/* Get line/column of first error logged during last log capture. */
+void flecs_log_get_captured_error_pos(
+    int32_t *line,
+    int32_t *column);
 
 /* Check whether id can be inherited. */
 bool flecs_type_can_inherit_id(

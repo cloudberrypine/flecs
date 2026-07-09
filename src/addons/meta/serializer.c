@@ -12,37 +12,7 @@ int flecs_meta_serialize_type(
     ecs_world_t *world,
     ecs_entity_t type,
     ecs_size_t offset,
-    ecs_vec_t *ops,
-    ecs_vec_t *stack);
-
-static
-int flecs_meta_serialize_push_type(
-    ecs_world_t *world,
-    ecs_entity_t type,
-    ecs_vec_t *stack)
-{
-    ecs_entity_t *types = ecs_vec_first(stack);
-    int32_t i, count = ecs_vec_count(stack);
-    for (i = 0; i < count; i ++) {
-        if (types[i] == type) {
-            char *path = ecs_get_path(world, type);
-            ecs_err("recursive type definition for '%s'", path);
-            ecs_os_free(path);
-            return -1;
-        }
-    }
-
-    ecs_vec_append_t(NULL, stack, ecs_entity_t)[0] = type;
-    return 0;
-}
-
-static
-void flecs_meta_serialize_pop_type(
-    ecs_vec_t *stack)
-{
-    ecs_assert(ecs_vec_count(stack) > 0, ECS_INTERNAL_ERROR, NULL);
-    ecs_vec_remove_last(stack);
-}
+    ecs_vec_t *ops);
 
 /* Serialize a primitive value */
 int flecs_expr_ser_primitive(
@@ -110,7 +80,8 @@ int flecs_expr_ser_primitive(
         ecs_strbuf_appendint(str, flecs_ito(int64_t, *(const intptr_t*)base));
         break;
     case EcsUPtr:
-        ecs_strbuf_append(str, "%u", *(const uintptr_t*)base);
+        ecs_strbuf_append(str, "%llu",
+            (unsigned long long)*(const uintptr_t*)base);
         break;
     case EcsString: {
         const char *value = *ECS_CONST_CAST(const char**, base);
@@ -338,8 +309,7 @@ int flecs_meta_serialize_array_inline(
     ecs_entity_t elem_type,
     int32_t count,
     ecs_size_t offset,
-    ecs_vec_t *ops,
-    ecs_vec_t *stack)
+    ecs_vec_t *ops)
 {
     int32_t first = ecs_vec_count(ops);
 
@@ -351,7 +321,7 @@ int flecs_meta_serialize_array_inline(
         op->offset = offset;
     }
 
-    if (flecs_meta_serialize_type(world, elem_type, 0, ops, stack) != 0) {
+    if (flecs_meta_serialize_type(world, elem_type, 0, ops) != 0) {
         return -1;
     }
 
@@ -373,8 +343,7 @@ static
 int flecs_meta_serialize_array_type(
     ecs_world_t *world,
     ecs_entity_t type,
-    ecs_vec_t *ops,
-    ecs_vec_t *stack)
+    ecs_vec_t *ops)
 {
     const EcsArray *ptr = ecs_get(world, type, EcsArray);
     if (!ptr) {
@@ -382,15 +351,14 @@ int flecs_meta_serialize_array_type(
     }
 
     return flecs_meta_serialize_array_inline(
-        world, ptr->type, ptr->count, 0, ops, stack);
+        world, ptr->type, ptr->count, 0, ops);
 }
 
 static
 int flecs_meta_serialize_vector_type(
     ecs_world_t *world,
     ecs_entity_t type,
-    ecs_vec_t *ops,
-    ecs_vec_t *stack)
+    ecs_vec_t *ops)
 {
     const EcsVector *ptr = ecs_get(world, type, EcsVector);
     if (!ptr) {
@@ -408,7 +376,7 @@ int flecs_meta_serialize_vector_type(
         op->elem_size = flecs_type_size(world, ptr->type);
     }
 
-    if (flecs_meta_serialize_type(world, ptr->type, 0, ops, stack) != 0) {
+    if (flecs_meta_serialize_type(world, ptr->type, 0, ops) != 0) {
         return -1;
     }
 
@@ -479,8 +447,7 @@ int flecs_meta_serialize_struct(
     ecs_world_t *world,
     ecs_entity_t type,
     ecs_size_t offset,
-    ecs_vec_t *ops,
-    ecs_vec_t *stack)
+    ecs_vec_t *ops)
 {
     const EcsStruct *ptr = ecs_get(world, type, EcsStruct);
     ecs_assert(ptr != NULL, ECS_INTERNAL_ERROR, NULL);
@@ -507,7 +474,7 @@ int flecs_meta_serialize_struct(
 
         if (member->count >= 1) {
             if (flecs_meta_serialize_array_inline(
-                world, member->type, member->count, member->offset, ops, stack))
+                world, member->type, member->count, member->offset, ops))
             {
                 continue;
             }
@@ -515,7 +482,7 @@ int flecs_meta_serialize_struct(
             op = flecs_meta_ops_get(ops, cur);
         } else {
             if (flecs_meta_serialize_type(
-                world, member->type, member->offset, ops, stack)) 
+                world, member->type, member->offset, ops))
             {
                 continue;
             }
@@ -550,18 +517,13 @@ int flecs_meta_serialize_type(
     ecs_world_t *world,
     ecs_entity_t type,
     ecs_size_t offset,
-    ecs_vec_t *ops,
-    ecs_vec_t *stack)
+    ecs_vec_t *ops)
 {
     const EcsType *ptr = ecs_get(world, type, EcsType);
     if (!ptr) {
         char *path = ecs_get_path(world, type);
         ecs_err("missing reflection data for type '%s'", path);
         ecs_os_free(path);
-        return -1;
-    }
-
-    if (flecs_meta_serialize_push_type(world, type, stack)) {
         return -1;
     }
 
@@ -577,7 +539,7 @@ int flecs_meta_serialize_type(
         ret = flecs_meta_serialize_bitmask(world, type, offset, ops);
         break;
     case EcsStructType:
-        ret = flecs_meta_serialize_struct(world, type, offset, ops, stack);
+        ret = flecs_meta_serialize_struct(world, type, offset, ops);
         break;
     case EcsArrayType:
         ret = flecs_meta_serialize_forward(world, type, offset, ops);
@@ -589,8 +551,6 @@ int flecs_meta_serialize_type(
         ret = flecs_meta_serialize_opaque_type(world, type, offset, ops);
         break;
     }
-
-    flecs_meta_serialize_pop_type(stack);
 
     return ret;
 }
@@ -605,30 +565,26 @@ void flecs_meta_type_serializer_init(
         ecs_entity_t type = it->entities[i];
         ecs_vec_t ops;
         ecs_vec_init_t(NULL, &ops, ecs_meta_op_t, 0);
-        ecs_vec_t stack;
-        ecs_vec_init_t(NULL, &stack, ecs_entity_t, 0);
 
         const EcsType *type_ptr = ecs_get(world, type, EcsType);
         if (!type_ptr) {
             char *path = ecs_get_path(world, type);
             ecs_err("missing reflection data for type '%s'", path);
             ecs_os_free(path);
-            ecs_vec_fini_t(NULL, &stack, ecs_entity_t);
             continue;
         }
 
         int ret;
         if (type_ptr->kind == EcsArrayType) {
-            ret = flecs_meta_serialize_array_type(world, type, &ops, &stack);
+            ret = flecs_meta_serialize_array_type(world, type, &ops);
         } else if (type_ptr->kind == EcsVectorType) {
-            ret = flecs_meta_serialize_vector_type(world, type, &ops, &stack);
+            ret = flecs_meta_serialize_vector_type(world, type, &ops);
         } else {
-            ret = flecs_meta_serialize_type(world, type, 0, &ops, &stack);
+            ret = flecs_meta_serialize_type(world, type, 0, &ops);
         }
 
         if (ret != 0) {
             ecs_vec_fini_t(NULL, &ops, ecs_meta_op_t);
-            ecs_vec_fini_t(NULL, &stack, ecs_entity_t);
             continue;
         }
 
@@ -639,7 +595,6 @@ void flecs_meta_type_serializer_init(
 
         ptr->kind = type_ptr->kind;
         ptr->ops = ops;
-        ecs_vec_fini_t(NULL, &stack, ecs_entity_t);
     }
 }
 

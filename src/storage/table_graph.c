@@ -10,6 +10,10 @@
 
 #include "../private_api.h"
 
+ecs_type_t flecs_type_copy(
+    ecs_world_t *world,
+    const ecs_type_t *src);
+
 /* Id sequence (type) utilities */
 
 static
@@ -92,6 +96,23 @@ int flecs_type_find(
         }
         if (!ECS_IS_PAIR(id) && (cur > id)) {
             return -1;
+        }
+    }
+
+    return -1;
+}
+
+static
+int flecs_type_find_ignoring_generation(
+    const ecs_type_t *type,
+    ecs_id_t id)
+{
+    ecs_id_t *array = type->array;
+    int32_t i, count = type->count;
+
+    for (i = 0; i < count; i ++) {
+        if ((uint32_t)array[i] == (uint32_t)id) {
+            return i;
         }
     }
 
@@ -249,6 +270,51 @@ int flecs_type_new_without(
     return 0;
 }
 
+/* Create type from source type without entity id, ignoring generation */
+static
+int flecs_type_new_without_ignoring_generation(
+    ecs_world_t *world,
+    ecs_type_t *dst,
+    const ecs_type_t *src,
+    ecs_id_t without)
+{
+    ecs_assert(!ecs_id_is_wildcard(without), ECS_INVALID_PARAMETER, NULL);
+    ecs_assert(!ECS_IS_PAIR(without), ECS_INVALID_PARAMETER, NULL);
+
+    ecs_id_t *src_array = src->array;
+    int32_t at = flecs_type_find_ignoring_generation(src, without);
+    if (at == -1) {
+        return -1;
+    }
+
+    int32_t src_count = src->count;
+    if (src_count == 1) {
+        dst->array = NULL;
+        dst->count = 0;
+        return 0;
+    }
+
+    int32_t dst_count = src_count - 1;
+    ecs_id_t *dst_array = flecs_walloc_n(world, ecs_id_t, dst_count);
+    dst->array = dst_array;
+    dst->count = dst_count;
+
+    ecs_assert(dst_array != NULL, ECS_INTERNAL_ERROR, NULL);
+    ecs_assert(src_array != NULL, ECS_INTERNAL_ERROR, NULL);
+
+    if (at) {
+        ecs_os_memcpy_n(dst_array, src_array, ecs_id_t, at);
+    }
+
+    int32_t remain = dst_count - at;
+    if (remain) {
+        ecs_os_memcpy_n(
+            &dst_array[at], &src_array[at + 1], ecs_id_t, remain);
+    }
+
+    return 0;
+}
+
 /* Copy type */
 ecs_type_t flecs_type_copy(
     ecs_world_t *world,
@@ -294,6 +360,7 @@ void flecs_type_add(
 }
 
 /* Remove from type */
+static
 void flecs_type_remove(
     ecs_world_t *world,
     ecs_type_t *type,
@@ -301,6 +368,22 @@ void flecs_type_remove(
 {
     ecs_type_t new_type;
     int res = flecs_type_new_without(world, &new_type, type, remove);
+    if (res != -1) {
+        flecs_type_free(world, type);
+        type->array = new_type.array;
+        type->count = new_type.count;
+    }
+}
+
+/* Remove from type while ignoring entity id generation */
+void flecs_type_remove_ignoring_generation(
+    ecs_world_t *world,
+    ecs_type_t *type,
+    ecs_id_t remove)
+{
+    ecs_type_t new_type;
+    int res = flecs_type_new_without_ignoring_generation(
+        world, &new_type, type, remove);
     if (res != -1) {
         flecs_type_free(world, type);
         type->array = new_type.array;
@@ -354,6 +437,7 @@ void flecs_table_diff_build_type(
     }
 }
 
+static
 void flecs_table_diff_build(
     ecs_world_t *world,
     ecs_table_diff_builder_t *builder,
@@ -797,7 +881,7 @@ void flecs_compute_table_diff(
         !ecs_id_is_wildcard(id) && !(added_flags|removed_flags);
 
     if (trivial_edge) {
-        /* If edge is trivial there's no need to create a diff element for it */
+        /* If edge is trivial, there's no need to create a diff element for it */
         return;
     }
 
@@ -836,8 +920,7 @@ void flecs_compute_table_diff(
     if (ECS_IS_PAIR(id) && ECS_PAIR_FIRST(id) == EcsChildOf) {
         if (added_count) {
             diff->added_flags |= EcsTableEdgeReparent;
-        } else {
-            ecs_assert(removed_count != 0, ECS_INTERNAL_ERROR, NULL);
+        } else if (removed_count) {
             diff->removed_flags |= EcsTableEdgeReparent;
         }
     }
@@ -875,7 +958,7 @@ void flecs_add_overrides_for_base(
                     to_add = 0;
 
                     /* Add flag to base table. Cheaper to do here vs adding an
-                     * observer for OnAdd AUTO_OVERRIDE|* / during table 
+                     * observer for (OnAdd, AUTO_OVERRIDE|*) during table
                      * creation. */
                     base_table->flags |= EcsTableOverrideDontFragment;
                 }
@@ -901,8 +984,6 @@ void flecs_add_overrides_for_base(
                     int32_t column = flecs_type_find(dst_type, wc);
                     if (column == -1) {
                         flecs_type_add(world, dst_type, to_add);
-                    } else {
-                        dst_type->array[column] = to_add;
                     }
                 }
             }
@@ -950,7 +1031,13 @@ void flecs_add_with_property(
                 a = ecs_pair(ra, o);
             }
 
-            flecs_type_add(world, dst_type, a);
+            ecs_id_t check_id = ECS_IS_PAIR(a)
+                ? ecs_pair(ECS_PAIR_FIRST(a), EcsWildcard)
+                : a;
+            ecs_component_record_t *a_cr = flecs_components_ensure(world, check_id);
+            if (!(a_cr->flags & EcsIdDontFragment)) {
+                flecs_type_add(world, dst_type, a);
+            }
             flecs_add_with_property(world, cr_with_wildcard, dst_type, ra, o);
         }
     }
@@ -966,6 +1053,8 @@ ecs_table_t* flecs_find_table_with(
 
     ecs_component_record_t *cr = NULL;
     ecs_entity_t r = 0, o = 0;
+    ecs_type_t dst_type;
+    bool replaced = false;
 
     if (ECS_IS_PAIR(with)) {
         r = ECS_PAIR_FIRST(with);
@@ -977,10 +1066,10 @@ ecs_table_t* flecs_find_table_with(
             if (tr) {
                 /* Table already has an instance of the relationship, create
                  * a new id sequence with the existing id replaced */
-                ecs_type_t dst_type = flecs_type_copy(world, &node->type);
+                dst_type = flecs_type_copy(world, &node->type);
                 ecs_assert(dst_type.array != NULL, ECS_INTERNAL_ERROR, NULL);
                 dst_type.array[tr->index] = with;
-                return flecs_table_ensure(world, &dst_type, true, node);
+                replaced = true;
             }
         }
     } else {
@@ -988,17 +1077,18 @@ ecs_table_t* flecs_find_table_with(
         r = with;
     }
 
-    if (cr->flags & EcsIdDontFragment) {
-        /* Component doesn't fragment tables */
-        node->flags |= EcsTableHasDontFragment;
-        return node;
-    }
+    if (!replaced) {
+        if (cr->flags & EcsIdDontFragment) {
+            /* Component doesn't fragment tables */
+            node->flags |= EcsTableHasDontFragment;
+            return node;
+        }
 
-    /* Create sequence with new id */
-    ecs_type_t dst_type;
-    int res = flecs_type_new_with(world, &dst_type, &node->type, with);
-    if (res == -1) {
-        return node; /* Current table already has id */
+        /* Create sequence with new id */
+        int res = flecs_type_new_with(world, &dst_type, &node->type, with);
+        if (res == -1) {
+            return node; /* Current table already has id */
+        }
     }
 
     if (r == EcsIsA) {

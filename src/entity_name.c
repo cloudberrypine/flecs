@@ -129,10 +129,16 @@ ecs_entity_t flecs_name_to_id(
 {
     ecs_assert(name != NULL, ECS_INVALID_PARAMETER, NULL);
     ecs_assert(name[0] == '#', ECS_INVALID_PARAMETER, NULL);
-    ecs_entity_t res = flecs_ito(uint64_t, atoll(name + 1));
+    int64_t value = atoll(name + 1);
+    if (value < 0) {
+        return 0; /* Invalid id */
+    }
+
+    ecs_entity_t res = flecs_ito(uint64_t, value);
     if (res >= UINT32_MAX) {
         return 0; /* Invalid id */
     }
+
     return res;
 }
 
@@ -187,26 +193,28 @@ const char* flecs_path_elem(
     ecs_size_t size = size_out ? *size_out : 0;
 
     for (ptr = path; (ch = *ptr); ptr ++) {
+        bool escaped = false;
         if (ch == '<') {
             template_nesting ++;
         } else if (ch == '>') {
-            template_nesting --;
+            if (template_nesting > 0) {
+                template_nesting --;
+            }
         } else if (ch == '\\') {
             ptr ++;
-            if (buffer) {
-                buffer[pos] = ptr[0];
+            ch = ptr[0];
+            if (!ch) {
+                break;
             }
-            pos ++;
-            continue;
+            escaped = true;
         }
 
-        ecs_check(template_nesting >= 0, ECS_INVALID_PARAMETER, path);
-
-        if (!template_nesting && flecs_is_sep(&ptr, sep)) {
+        if (!escaped && !template_nesting && flecs_is_sep(&ptr, sep)) {
             break;
         }
 
         if (buffer) {
+            ecs_assert(size > 0, ECS_INTERNAL_ERROR, NULL);
             if (pos >= (size - 1)) {
                 if (size == ECS_NAME_BUFFER_LENGTH) { /* stack buffer */
                     char *new_buffer = ecs_os_malloc(size * 2 + 1);
@@ -235,8 +243,6 @@ const char* flecs_path_elem(
     } else {
         return NULL;
     }
-error:
-    return NULL;
 }
 
 static
@@ -427,14 +433,27 @@ void ecs_on_set(EcsIdentifier)(
                     flecs_name_index_remove(index, e, index_hash);
                 }
                 if (hash) {
+                    if (kind == EcsSymbol || kind == EcsAlias) {
+                        uint64_t existing = flecs_name_index_find(
+                            index, name, len, hash);
+                        if (existing && existing != e) {
+                            ecs_abort(ECS_ALREADY_DEFINED,
+                                "conflicting %s '%s' "
+                                "(existing = %u, new = %u)",
+                                kind == EcsSymbol ? "symbol" : "alias",
+                                name, (uint32_t)existing, (uint32_t)e);
+                        }
+                    }
                     flecs_name_index_ensure(index, e, name, len, hash);
                     cur->index_hash = hash;
                     cur->index = index;
                 }
-            } else {
-                /* Name didn't change, but the string could have been 
-                 * reallocated. Make sure name index points to correct string */
-                flecs_name_index_update_name(index, e, hash, name);
+            } else if (!flecs_name_index_update_name(index, e, hash, name) &&
+                kind == EcsName)
+            {
+                flecs_name_index_ensure(index, e, name, len, hash);
+                cur->index_hash = hash;
+                cur->index = index;
             }
         }
     }
@@ -848,9 +867,6 @@ void flecs_add_path(
         ecs_add_pair(world, entity, EcsChildOf, parent);
     }
 
-    ecs_assert(name[0] != '#', ECS_INVALID_PARAMETER, 
-        "path should not contain identifier with #");
-
     ecs_set_name(world, entity, name);
 
     if (defer_suspend) {
@@ -884,7 +900,7 @@ ecs_entity_t ecs_add_path_w_sep(
         }
 
         if (parent) {
-            ecs_add_pair(world, entity, EcsChildOf, entity);
+            ecs_add_pair(world, entity, EcsChildOf, parent);
         }
 
         return entity;
@@ -912,18 +928,19 @@ ecs_entity_t ecs_add_path_w_sep(
         !(real_world->flags & EcsWorldMultiThreaded);
         
     ecs_entity_t cur = parent;
+    ecs_entity_t cur_parent = parent;
     char *name = NULL;
 
     if (sep[0]) {
         while ((ptr = flecs_path_elem(ptr, sep, &elem, &size))) {
             ecs_entity_t e = ecs_lookup_child(world, cur, elem);
+
+            if (name) {
+                ecs_os_free(name);
+            }
+            name = ecs_os_strdup(elem);
+
             if (!e) {
-                if (name) {
-                    ecs_os_free(name);
-                }
-
-                name = ecs_os_strdup(elem);
-
                 /* If this is the last entity in the path, use the provided id */
                 bool last_elem = false;
                 if (!flecs_path_elem(ptr, sep, NULL, NULL)) {
@@ -948,13 +965,13 @@ ecs_entity_t ecs_add_path_w_sep(
                 flecs_add_path(world, suspend_defer, cur, e, name);
             }
 
+            cur_parent = cur;
             cur = e;
         }
 
         if (entity && (cur != entity)) {
-            ecs_throw(ECS_ALREADY_DEFINED, "cannot assign name '%s' to "
-                "entity %u, name already used by entity '%s'", path, 
-                    (uint32_t)cur, flecs_errstr(ecs_get_path(world, entity)));
+            flecs_add_path(world, suspend_defer, cur_parent, entity, name);
+            cur = entity;
         }
 
         if (name) {

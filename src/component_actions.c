@@ -8,7 +8,7 @@
  * - Invoking hooks
  * - Notifying observers
  * - Updating sparse storage
- * - Update name lookup index
+ * - Updating name lookup index
  */
 
 #include "private_api.h"
@@ -45,11 +45,13 @@ void flecs_invoke_hook(
     }
 
     ecs_entity_t dummy_src = 0;
+    int16_t column = tr->column;
 
     it.world = world;
     it.real_world = world;
     it.table = table;
     it.trs = &tr;
+    it.columns = &column;
     it.row_fields = !!(tr->hdr.cr->flags & EcsIdSparse);
     it.ref_fields = it.row_fields;
     it.sizes = ECS_CONST_CAST(ecs_size_t*, &ti->size);
@@ -133,13 +135,20 @@ void flecs_on_unparent(
     ecs_table_t *table,
     ecs_table_t *other_table,
     int32_t row,
-    int32_t count)
+    int32_t count,
+    ecs_flags32_t diff_flags)
 {
-    if (other_table) {
-        flecs_unparent_name_index(world, table, other_table, row, count);
+    if (diff_flags & EcsTableEdgeReparent) {
+        if (other_table) {
+            flecs_unparent_name_index(world, table, other_table, row, count);
+        }
+        flecs_non_fragmenting_childof_unparent(
+            world, other_table, table, row, count);
     }
-    flecs_ordered_children_unparent(world, table, row, count);
-    flecs_non_fragmenting_childof_unparent(world, other_table, table, row, count);
+
+    if (diff_flags & EcsTableHasOrderedChildren) {
+        flecs_ordered_children_unparent(world, table, row, count);
+    }
 }
 
 bool flecs_sparse_on_add_cr(
@@ -187,18 +196,20 @@ bool flecs_sparse_on_add(
     int32_t row,
     int32_t count,
     const ecs_type_t *added,
-    bool construct)
+    ecs_id_t emplace_id)
 {
     bool is_new = false;
+    bool construct_any = (emplace_id != EcsWildcard);
 
     int32_t i, j;
     for (i = 0; i < added->count; i ++) {
         ecs_id_t id = added->array[i];
         ecs_component_record_t *cr = flecs_components_get(world, id);
+        bool id_construct = construct_any && (id != emplace_id);
 
         for (j = 0; j < count; j ++) {
             is_new |= flecs_sparse_on_add_cr(
-                world, table, row + j, cr, construct, NULL);
+                world, table, row + j, cr, id_construct, NULL);
         }
     }
 
@@ -301,8 +312,8 @@ void flecs_actions_on_add_intern(
     int32_t count,
     const ecs_table_diff_t *diff,
     ecs_flags32_t flags,
-    bool construct,
-    bool sparse)
+    bool sparse,
+    ecs_id_t emplace_id)
 {
     ecs_flags32_t diff_flags = diff->added_flags;
     if (!diff_flags) {
@@ -316,7 +327,9 @@ void flecs_actions_on_add_intern(
     }
 
     if (sparse && (diff_flags & EcsTableHasSparse)) {
-        if (flecs_sparse_on_add(world, table, row, count, added, construct)) {
+        if (flecs_sparse_on_add(
+            world, table, row, count, added, emplace_id))
+        {
             diff_flags |= EcsTableHasOnAdd;
         }
     }
@@ -395,8 +408,11 @@ void flecs_actions_on_remove_intern_w_reparent(
     }
 
     if (diff_flags & (EcsTableEdgeReparent|EcsTableHasOrderedChildren)) {
-        if (!other_table || !(other_table->flags & EcsTableHasChildOf)) {
-            flecs_on_unparent(world, table, other_table, row, count);
+        if (table != other_table &&
+            (!other_table || !(other_table->flags & EcsTableHasChildOf)))
+        {
+            flecs_on_unparent(
+                world, table, other_table, row, count, diff_flags);
         }
     }
 
@@ -414,24 +430,11 @@ void flecs_actions_new(
     int32_t count,
     const ecs_table_diff_t *diff,
     ecs_flags32_t flags,
-    bool construct,
-    bool sparse)
+    bool sparse,
+    ecs_id_t emplace_id)
 {
-    flecs_actions_on_add_intern(
-        world, table, NULL, row, count, diff, flags, construct, sparse);
-}
-
-void flecs_actions_delete(
-    ecs_world_t *world,
-    ecs_table_t *table,
-    int32_t row,
-    int32_t count,
-    const ecs_table_diff_t *diff)
-{
-    if (diff->removed.count) {
-        flecs_actions_on_remove_intern_w_reparent(
-            world, table, NULL, row, count, diff);
-    }
+    flecs_actions_on_add_intern(world, table, NULL, row, count, diff, flags,
+        sparse, emplace_id);
 }
 
 void flecs_actions_delete_tree(
@@ -447,6 +450,10 @@ void flecs_actions_delete_tree(
             return;
         }
 
+        if (table->flags & EcsTableHasTraversable) {
+            flecs_emit_propagate_invalidate(world, table, row, count);
+        }
+
         flecs_actions_on_remove_intern(
             world, table, NULL, row, count, diff, diff_flags);
     }
@@ -460,8 +467,9 @@ void flecs_actions_move_add(
     int32_t count,
     const ecs_table_diff_t *diff,
     ecs_flags32_t flags,
-    bool construct,
-    bool sparse)
+    bool sparse,
+    ecs_id_t emplace_id,
+    bool update_parent_records)
 {
     ecs_assert(diff != NULL, ECS_INTERNAL_ERROR, NULL);
     const ecs_type_t *added = &diff->added;
@@ -473,13 +481,13 @@ void flecs_actions_move_add(
             flecs_emit_propagate_invalidate(world, table, row, count);
         }
 
-        if (table_flags & EcsTableHasParent) {
+        if (update_parent_records && (table_flags & EcsTableHasParent)) {
             flecs_on_non_fragmenting_child_move_add(
                 world, table, other_table, row, count);
         }
 
-        flecs_actions_on_add_intern(world, table, other_table, row, count, diff, 
-            flags, construct, sparse);
+        flecs_actions_on_add_intern(world, table, other_table, row, count, diff,
+            flags, sparse, emplace_id);
     }
 }
 
@@ -502,7 +510,9 @@ void flecs_actions_move_remove(
 
         if (table_flags & EcsTableHasParent) {
             bool update_parent_records = true;
-            if (diff->added.count && (table->flags & EcsTableHasParent)) {
+            if (diff->added.count && other_table &&
+                (other_table->flags & EcsTableHasParent))
+            {
                 update_parent_records = false;
             }
 

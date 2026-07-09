@@ -383,6 +383,21 @@ void Id_invalid_pair(void) {
     ecs_fini(world);
 }
 
+void Id_pair_from_str_too_many_args(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_TAG(world, Rel);
+    ECS_TAG(world, Tgt);
+    ECS_TAG(world, Obj);
+
+    ecs_log_set_level(-4);
+
+    ecs_id_t id = ecs_id_from_str(world, "(Rel, Tgt, Obj)");
+    test_assert(id == 0);
+
+    ecs_fini(world);
+}
+
 void Id_value_pair_is_wildcard(void) {
     ecs_world_t *world = ecs_mini();
     ecs_entity_t r = ecs_new(world);
@@ -619,6 +634,19 @@ void Id_wildcard_pair_match_value_pair(void) {
     ECS_TAG(world, Tgt);
 
     test_assert(ecs_id_match(ecs_value_pair(Rel, Tgt), ecs_pair(Rel, EcsWildcard)));
+
+    ecs_fini(world);
+}
+
+void Id_long_entity_from_str(void) {
+    ecs_world_t *world = ecs_init();
+
+    char buf[400];
+    memset(buf, 'A', sizeof(buf) - 1);
+    buf[sizeof(buf) - 1] = '\0';
+
+    ecs_id_t id = ecs_id_from_str(world, buf);
+    test_assert(id == 0);
 
     ecs_fini(world);
 }

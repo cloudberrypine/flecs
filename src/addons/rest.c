@@ -277,13 +277,23 @@ bool flecs_rest_put_entity(
 }
 
 static
+void flecs_rest_parse_json_ser_world_params(
+    ecs_world_to_json_desc_t *desc,
+    const ecs_http_request_t *req)
+{
+    flecs_rest_bool_param(req, "builtin", &desc->serialize_builtin);
+    flecs_rest_bool_param(req, "modules", &desc->serialize_modules);
+}
+
+static
 bool flecs_rest_get_world(
     ecs_world_t *world,
     const ecs_http_request_t* req,
     ecs_http_reply_t *reply)
 {
-    (void)req;
-    if (ecs_world_to_json_buf(world, &reply->body, NULL) != 0) {
+    ecs_world_to_json_desc_t desc = {0};
+    flecs_rest_parse_json_ser_world_params(&desc, req);
+    if (ecs_world_to_json_buf(world, &reply->body, &desc) != 0) {
         ecs_strbuf_reset(&reply->body);
         reply->code = 500;
         reply->status = "Internal server error";
@@ -305,6 +315,32 @@ ecs_entity_t flecs_rest_entity_from_path(
         reply->code = 404;
     }
     return e;
+}
+
+static
+bool flecs_rest_get_type_info(
+    ecs_world_t *world,
+    ecs_http_reply_t *reply,
+    const char *path)
+{
+    ecs_dbg_2("rest: request type info '%s'", path);
+
+    ecs_entity_t e;
+    if (!(e = flecs_rest_entity_from_path(world, reply, path))) {
+        return true;
+    }
+
+    char *json = ecs_type_info_to_json(world, e);
+    if (!json) {
+        flecs_reply_error(reply, "failed to serialize type info for '%s'", path);
+        reply->code = 500;
+        return true;
+    }
+
+    ecs_strbuf_appendstr(&reply->body, json);
+    ecs_os_free(json);
+
+    return true;
 }
 
 static
@@ -545,10 +581,9 @@ bool flecs_rest_script(
     const EcsScript *s = ecs_get(world, script, EcsScript);
 
     if (s && s->filename && save_file) {
-        FILE *f;
-        ecs_os_fopen(&f, s->filename, "w");
+        FILE *f = ecs_os_fopen(s->filename, "w");
         fwrite(code, strlen(code), 1, f);
-        fclose(f);
+        ecs_os_fclose(f);
     }
 
     if (s && check_file) {
@@ -901,7 +936,7 @@ void flecs_world_stats_to_json(
     ECS_COUNTER_APPEND(reply, stats, commands.delete_count, "Delete commands executed");
     ECS_COUNTER_APPEND(reply, stats, commands.clear_count, "Clear commands executed");
     ECS_COUNTER_APPEND(reply, stats, commands.set_count, "Set commands executed");
-    ECS_COUNTER_APPEND(reply, stats, commands.ensure_count, "Get_mut commands executed");
+    ECS_COUNTER_APPEND(reply, stats, commands.ensure_count, "Ensure commands executed");
     ECS_COUNTER_APPEND(reply, stats, commands.modified_count, "Modified commands executed");
     ECS_COUNTER_APPEND(reply, stats, commands.other_count, "Misc commands executed");
     ECS_COUNTER_APPEND(reply, stats, commands.discard_count, "Commands for already deleted entities");
@@ -1692,8 +1727,10 @@ const char* flecs_rest_cmd_kind_to_str(
     case EcsCmdBulkNew: return "BulkNew";
     case EcsCmdAdd: return "Add";
     case EcsCmdRemove: return "Remove";
+    case EcsCmdSetDontFragment:
     case EcsCmdSet: return "Set";
     case EcsCmdEmplace: return "Emplace";
+    case EcsCmdEnsureDontFragment:
     case EcsCmdEnsure: return "Ensure";
     case EcsCmdModified: return "Modified";
     case EcsCmdModifiedNoHook: return "ModifiedNoHook";
@@ -1725,8 +1762,10 @@ bool flecs_rest_cmd_has_id(
     case EcsCmdAdd:
     case EcsCmdRemove:
     case EcsCmdSet:
+    case EcsCmdSetDontFragment:
     case EcsCmdEmplace:
     case EcsCmdEnsure:
+    case EcsCmdEnsureDontFragment:
     case EcsCmdModified:
     case EcsCmdModifiedNoHook:
     case EcsCmdAddModified:
@@ -1996,6 +2035,10 @@ bool flecs_rest_reply(
         } else if (!ecs_os_strncmp(req->path, "component/", 10)) {
             return flecs_rest_get_component(world, req, reply, &req->path[10]);
 
+        /* Type info endpoint */
+        } else if (!ecs_os_strncmp(req->path, "type_info/", 10)) {
+            return flecs_rest_get_type_info(world, reply, &req->path[10]);
+
         /* Query endpoint */
         } else if (!ecs_os_strcmp(req->path, "query")) {
             return flecs_rest_get_query(world, req, reply);
@@ -2012,7 +2055,7 @@ bool flecs_rest_reply(
         } else if (!ecs_os_strncmp(req->path, "components", 10)) {
             return flecs_rest_get_components(world, req, reply);
 
-        /* Tables endpoint */
+        /* Queries endpoint */
         } else if (!ecs_os_strncmp(req->path, "queries", 7)) {
             return flecs_rest_get_queries(world, req, reply);
 
@@ -2030,7 +2073,7 @@ bool flecs_rest_reply(
         }
 
     } else if (req->method == EcsHttpPut) {
-        /* Component PUT endpoint */
+        /* Entity PUT endpoint */
         if (!ecs_os_strncmp(req->path, "entity/", 7)) {
             return flecs_rest_put_entity(world, reply, &req->path[7]);
 

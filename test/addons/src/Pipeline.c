@@ -421,7 +421,7 @@ static void SysInMain(ecs_iter_t *it) {
 
     test_assert(sys_out_invoked != 0);
     sys_in_invoked ++;
-    
+
     int i;
     for (i = 0; i < it->count; i ++) {
         ecs_entity_t e = it->entities[i];
@@ -430,6 +430,21 @@ static void SysInMain(ecs_iter_t *it) {
         test_int(v[i].x, 10);
         test_int(v[i].y, 20);
     }
+}
+
+static void SingletonOut(ecs_iter_t *it) {
+    sys_out_invoked ++;
+    ecs_singleton_set(it->world, Velocity, {10, 20});
+}
+
+static void SingletonIn(ecs_iter_t *it) {
+    const Velocity *v = ecs_field(it, Velocity, 0);
+
+    test_assert(sys_out_invoked != 0);
+    sys_in_invoked ++;
+
+    test_int(v->x, 10);
+    test_int(v->y, 20);
 }
 
 void Pipeline_merge_after_staged_out(void) {
@@ -542,6 +557,80 @@ void Pipeline_merge_after_staged_in_out(void) {
 
     ecs_progress(world, 1);
     test_int(stats->pipeline_build_count_total, 1);
+
+    ecs_fini(world);
+}
+
+void Pipeline_merge_after_singleton_out(void) {
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT_DEFINE(world, Position);
+    ECS_COMPONENT_DEFINE(world, Velocity);
+
+    ecs_add_id(world, ecs_id(Velocity), EcsSingleton);
+
+    ECS_ENTITY(world, E, Position);
+
+    ECS_SYSTEM(world, SingletonOut, EcsOnUpdate, Position, [out] Velocity());
+    ECS_SYSTEM(world, SingletonIn, EcsOnUpdate, Velocity);
+
+    const ecs_world_info_t *stats = ecs_get_world_info(world);
+
+    ecs_progress(world, 1);
+
+    test_int(sys_out_invoked, 1);
+    test_int(sys_in_invoked, 1);
+    test_int(stats->merge_count_total, 2);
+
+    ecs_fini(world);
+}
+
+void Pipeline_merge_after_singleton_out_set(void) {
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT_DEFINE(world, Position);
+    ECS_COMPONENT_DEFINE(world, Velocity);
+
+    ecs_add_id(world, ecs_id(Velocity), EcsSingleton);
+    ecs_singleton_set(world, Velocity, {10, 20});
+
+    ECS_ENTITY(world, E, Position);
+
+    ECS_SYSTEM(world, SingletonOut, EcsOnUpdate, Position, [out] Velocity());
+    ECS_SYSTEM(world, SingletonIn, EcsOnUpdate, Velocity);
+
+    const ecs_world_info_t *stats = ecs_get_world_info(world);
+
+    ecs_progress(world, 1);
+
+    test_int(sys_out_invoked, 1);
+    test_int(sys_in_invoked, 1);
+    test_int(stats->merge_count_total, 2);
+
+    ecs_fini(world);
+}
+
+void Pipeline_no_merge_after_singleton_out_no_read(void) {
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT_DEFINE(world, Position);
+    ECS_COMPONENT_DEFINE(world, Velocity);
+
+    ecs_add_id(world, ecs_id(Velocity), EcsSingleton);
+    ecs_singleton_set(world, Velocity, {10, 20});
+
+    ECS_ENTITY(world, E, Position);
+
+    ECS_SYSTEM(world, SingletonOut, EcsOnUpdate, Position, [out] Velocity());
+    ECS_SYSTEM(world, SysA, EcsOnUpdate, Position);
+
+    const ecs_world_info_t *stats = ecs_get_world_info(world);
+
+    ecs_progress(world, 1);
+
+    test_int(sys_out_invoked, 1);
+    test_int(sys_a_invoked, 1);
+    test_int(stats->merge_count_total, 1);
 
     ecs_fini(world);
 }
@@ -3366,6 +3455,83 @@ void Pipeline_empty_pipeline_after_disable_phase(void) {
     ecs_enable(world,  CustomPhase, true);
     ecs_progress(world, 0);
     test_int(sys_a_invoked, 2);
+
+    ecs_fini(world);
+}
+
+void Pipeline_set_time_scale_w_stage(void) {
+    install_test_abort();
+
+    ecs_world_t *world = ecs_init();
+
+    ecs_world_t *stage = ecs_get_stage(world, 0);
+
+    test_expect_abort();
+    ecs_set_time_scale(stage, 2);
+}
+
+void Pipeline_set_time_scale_w_readonly(void) {
+    install_test_abort();
+
+    ecs_world_t *world = ecs_init();
+
+    ecs_readonly_begin(world, false);
+
+    test_expect_abort();
+    ecs_set_time_scale(world, 2);
+}
+
+void Pipeline_init_failure_preserves_user_entity(void) {
+    ecs_world_t *world = ecs_init();
+
+    ECS_TAG(world, Tag);
+
+    /* User-provided entity with valuable state. */
+    ecs_entity_t e = ecs_entity(world, { .name = "MyPipeline" });
+    ecs_add_id(world, e, Tag);
+
+    test_assert(ecs_is_alive(world, e));
+    test_str(ecs_get_name(world, e), "MyPipeline");
+
+    ecs_log_set_level(-4);
+
+    /* Provide a query expression that fails to compile, so init fails
+     * without aborting. */
+    ecs_entity_t r = ecs_pipeline_init(world, &(ecs_pipeline_desc_t){
+        .entity = e,
+        .query.expr = "@@@invalid syntax@@@"
+    });
+    test_assert(r == 0);
+
+    ecs_log_set_level(-1);
+
+    /* Entity must still exist with its original state. */
+    test_assert(ecs_is_alive(world, e));
+    test_str(ecs_get_name(world, e), "MyPipeline");
+    test_assert(ecs_has_id(world, e, Tag));
+
+    ecs_fini(world);
+}
+
+void Pipeline_update_pipeline_replaces_existing(void) {
+    ecs_world_t *world = ecs_init();
+
+    ECS_TAG(world, Tag);
+
+    ecs_entity_t pe = ecs_entity(world, { .name = "MyPipeline" });
+
+    ecs_entity_t p1 = ecs_pipeline_init(world, &(ecs_pipeline_desc_t){
+        .entity = pe,
+        .query.expr = "flecs.system.System, Tag"
+    });
+    test_assert(p1 == pe);
+
+    /* Replace the pipeline query; pipeline entity must be preserved. */
+    ecs_entity_t p2 = ecs_pipeline_update(world, pe, &(ecs_pipeline_desc_t){
+        .query.expr = "flecs.system.System"
+    });
+    test_assert(p2 == pe);
+    test_str(ecs_get_name(world, pe), "MyPipeline");
 
     ecs_fini(world);
 }

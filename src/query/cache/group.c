@@ -1,9 +1,26 @@
 /**
  * @file query/cache/group.c
- * @brief Adding/removing tables to query groups.
+ * @brief Adding/removing tables to/from query groups.
  */
 
 #include "../../private_api.h"
+
+/* Check if group is currently linked in the cache group list. */
+static
+bool flecs_query_cache_group_is_linked(
+    const ecs_query_cache_t *cache,
+    const ecs_query_cache_group_t *group)
+{
+    ecs_query_cache_group_t *cur = cache->first_group;
+    while (cur) {
+        if (cur == group) {
+            return true;
+        }
+        cur = cur->next;
+    }
+
+    return false;
+}
 
 /* Get group id for table. */
 static
@@ -36,18 +53,15 @@ ecs_query_cache_group_t* flecs_query_cache_get_group(
 static
 void flecs_query_cache_group_insert(
     ecs_query_cache_t *cache,
-    ecs_query_cache_group_t *group) 
+    ecs_query_cache_group_t *group)
 {
-    bool desc = false; /* Descending order */
-    if (cache->cascade_by) {
-        desc = (cache->query->terms[
-            cache->cascade_by - 1].src.id & EcsDesc) != 0;
-    }
-
-    if (!group->info.id) {
-        /* Default group is always inserted */
+    if (!(cache->query->flags & EcsQueryGroupByOrdered)) {
+        group->next = cache->first_group;
+        cache->first_group = group;
         return;
     }
+
+    bool desc = (cache->query->flags & EcsQueryGroupByDesc) != 0;
 
     ecs_query_cache_group_t *cur = cache->first_group, *prev = NULL;
     do {
@@ -88,11 +102,15 @@ ecs_query_cache_group_t* flecs_query_cache_ensure_group(
                     &cache->groups, ecs_query_cache_group_t, 0);
                 *group_ptr = group;
             }
-        }
 
-        if (cache->on_group_create) {
-            group->info.ctx = cache->on_group_create(
-                cache->query->world, 0, cache->group_by_ctx);
+            if (!flecs_query_cache_group_is_linked(cache, group)) {
+                flecs_query_cache_group_insert(cache, group);
+            }
+
+            if (cache->on_group_create) {
+                group->info.ctx = cache->on_group_create(
+                    cache->query->world, 0, cache->group_by_ctx);
+            }
         }
 
         return group;
@@ -133,7 +151,10 @@ void flecs_query_cache_group_fini(
     ecs_query_cache_t *cache,
     ecs_query_cache_group_t *group)
 {
-    if (cache->on_group_delete) {
+    /* Group callbacks are only meaningful for groups that have matched at
+     * least one table. The default group can exist as list head without ever
+     * being materialized through on_group_create (group id 0). */
+    if (cache->on_group_delete && group->info.table_count) {
         cache->on_group_delete(cache->query->world, group->info.id,
             group->info.ctx, cache->group_by_ctx);
     }
@@ -142,6 +163,9 @@ void flecs_query_cache_group_fini(
 
     ecs_allocator_t *a = &cache->query->real_world->allocator;
     ecs_vec_fini(a, &group->tables, elem_size);
+    group->info.table_count = 0;
+    group->info.match_count = 0;
+    group->info.ctx = NULL;
 
     if (group != &cache->default_group) {
         ecs_map_remove_free(&cache->groups, group->info.id);
@@ -177,7 +201,7 @@ void flecs_query_cache_remove_group(
      * never delete the default group. */
     group->next = NULL;
 
-    /* ensure group was found */
+    /* Ensure group was found */
     ecs_assert(cur != NULL, ECS_INTERNAL_ERROR, NULL);
 
     if (!cache->first_group) {

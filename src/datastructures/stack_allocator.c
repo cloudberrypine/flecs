@@ -48,6 +48,7 @@ void* flecs_stack_alloc(
 
     ecs_assert(page->data != NULL, ECS_INTERNAL_ERROR, NULL);
 
+    ecs_assert(align != 0, ECS_INTERNAL_ERROR, NULL);
     int16_t sp = flecs_ito(int16_t, ECS_ALIGN(page->sp, align));
     int16_t next_sp = flecs_ito(int16_t, sp + size);
 
@@ -144,7 +145,7 @@ void flecs_stack_restore_cursor(
     -- stack->cursor_count;
 #endif
 
-    /* If cursor is not the last on the stack no memory should be freed */
+    /* If cursor is not the last on the stack, no memory should be freed */
     if (cursor != stack->tail_cursor) {
         return;
     }
@@ -162,8 +163,8 @@ void flecs_stack_restore_cursor(
     stack->tail_page = cursor->page;
     stack->tail_page->sp = cursor->sp;
 
-    /* If the cursor count is zero, stack should be empty
-     * if the cursor count is non-zero, stack should not be empty */
+    /* If the cursor count is zero, the stack should be empty.
+     * If the cursor count is non-zero, the stack should not be empty. */
     ecs_dbg_assert((stack->cursor_count == 0) == 
         (stack->tail_page == stack->first && stack->tail_page->sp == 0), 
             ECS_LEAK_DETECTED, FLECS_STACK_LEAK_MSG);

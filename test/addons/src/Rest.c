@@ -242,6 +242,116 @@ void Rest_components(void) {
     ecs_fini(world);
 }
 
+void Rest_type_info_non_existing_entity(void) {
+    ecs_world_t *world = ecs_init();
+
+    ecs_http_server_t *srv = ecs_rest_server_init(world, NULL);
+    test_assert(srv != NULL);
+
+    ecs_http_reply_t reply = ECS_HTTP_REPLY_INIT;
+    test_int(-1, ecs_http_server_request(srv, "GET",
+        "/type_info/transform/DoesNotExist", NULL, &reply));
+    test_int(reply.code, 404);
+
+    char *reply_str = ecs_strbuf_get(&reply.body);
+    test_assert(reply_str != NULL);
+    test_str(reply_str,
+        "{\"error\":\"entity 'transform/DoesNotExist' not found\"}");
+    ecs_os_free(reply_str);
+
+    ecs_rest_server_fini(srv);
+
+    ecs_fini(world);
+}
+
+void Rest_type_info_not_component(void) {
+    ecs_world_t *world = ecs_init();
+
+    ecs_http_server_t *srv = ecs_rest_server_init(world, NULL);
+    test_assert(srv != NULL);
+
+    ecs_entity(world, { .name = "NotAComponent" });
+
+    ecs_http_reply_t reply = ECS_HTTP_REPLY_INIT;
+    test_int(0, ecs_http_server_request(srv, "GET",
+        "/type_info/NotAComponent", NULL, &reply));
+    test_int(reply.code, 200);
+
+    char *reply_str = ecs_strbuf_get(&reply.body);
+    test_assert(reply_str != NULL);
+    test_str(reply_str, "0");
+    ecs_os_free(reply_str);
+
+    ecs_rest_server_fini(srv);
+
+    ecs_fini(world);
+}
+
+void Rest_type_info_component_without_reflection(void) {
+    ecs_world_t *world = ecs_init();
+
+    ecs_http_server_t *srv = ecs_rest_server_init(world, NULL);
+    test_assert(srv != NULL);
+
+    ecs_component(world, {
+        .entity = ecs_entity(world, { .name = "NoReflection" }),
+        .type = {
+            .size = ECS_SIZEOF(ecs_i32_t),
+            .alignment = ECS_ALIGNOF(ecs_i32_t)
+        }
+    });
+
+    ecs_http_reply_t reply = ECS_HTTP_REPLY_INIT;
+    test_int(0, ecs_http_server_request(srv, "GET",
+        "/type_info/NoReflection", NULL, &reply));
+    test_int(reply.code, 200);
+
+    char *reply_str = ecs_strbuf_get(&reply.body);
+    test_assert(reply_str != NULL);
+    test_str(reply_str, "0");
+    ecs_os_free(reply_str);
+
+    ecs_rest_server_fini(srv);
+
+    ecs_fini(world);
+}
+
+void Rest_type_info_component_with_reflection(void) {
+    ecs_world_t *world = ecs_init();
+
+    ecs_http_server_t *srv = ecs_rest_server_init(world, NULL);
+    test_assert(srv != NULL);
+
+    ecs_entity_t transform = ecs_entity(world, { .name = "transform" });
+    test_assert(transform != 0);
+
+    ecs_entity_t position_component = ecs_struct(world, {
+        .entity = ecs_entity(world, {
+            .name = "PositionComponent",
+            .parent = transform
+        }),
+        .members = {
+            {"x", ecs_id(ecs_f32_t)},
+            {"y", ecs_id(ecs_f32_t)}
+        }
+    });
+    test_assert(position_component != 0);
+
+    ecs_http_reply_t reply = ECS_HTTP_REPLY_INIT;
+    test_int(0, ecs_http_server_request(srv, "GET",
+        "/type_info/transform/PositionComponent", NULL, &reply));
+    test_int(reply.code, 200);
+
+    char *reply_str = ecs_strbuf_get(&reply.body);
+    test_assert(reply_str != NULL);
+    test_str(reply_str, "{\"x\":[\"float\"], \"y\":[\"float\"]}");
+    ecs_os_free(reply_str);
+
+    ecs_rest_server_fini(srv);
+
+    ecs_fini(world);
+}
+
 void Rest_request_commands(void) {
     ecs_world_t *world = ecs_init();
 
@@ -814,6 +924,162 @@ void Rest_world_has_build_info(void) {
     ecs_entity_t build_info = ecs_lookup(world, "flecs.core.BuildInfo");
     test_assert(build_info != 0);
     test_assert(ecs_has_id(world, EcsWorld, build_info));
+
+    ecs_rest_server_fini(srv);
+
+    ecs_fini(world);
+}
+
+void Rest_world_default(void) {
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT(world, Position);
+    ecs_entity_t e = ecs_entity(world, { .name = "e" });
+    ecs_set(world, e, Position, {10, 20});
+
+    ecs_http_server_t *srv = ecs_rest_server_init(world, NULL);
+    test_assert(srv != NULL);
+
+    ecs_http_reply_t reply = ECS_HTTP_REPLY_INIT;
+    test_int(0, ecs_http_server_request(srv, "GET",
+        "/world", NULL, &reply));
+    test_int(reply.code, 200);
+
+    char *reply_str = ecs_strbuf_get(&reply.body);
+    test_assert(reply_str != NULL);
+
+    ecs_strbuf_t buf = ECS_STRBUF_INIT;
+    test_int(0, ecs_world_to_json_buf(world, &buf, NULL));
+    char *expect = ecs_strbuf_get(&buf);
+    test_str(reply_str, expect);
+    ecs_os_free(expect);
+    ecs_os_free(reply_str);
+
+    ecs_rest_server_fini(srv);
+
+    ecs_fini(world);
+}
+
+void Rest_world_builtin(void) {
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT(world, Position);
+    ecs_entity_t e = ecs_entity(world, { .name = "e" });
+    ecs_set(world, e, Position, {10, 20});
+
+    ecs_http_server_t *srv = ecs_rest_server_init(world, NULL);
+    test_assert(srv != NULL);
+
+    ecs_http_reply_t reply = ECS_HTTP_REPLY_INIT;
+    test_int(0, ecs_http_server_request(srv, "GET",
+        "/world?builtin=true", NULL, &reply));
+    test_int(reply.code, 200);
+
+    char *reply_str = ecs_strbuf_get(&reply.body);
+    test_assert(reply_str != NULL);
+
+    ecs_world_to_json_desc_t desc = { .serialize_builtin = true };
+    ecs_strbuf_t buf = ECS_STRBUF_INIT;
+    test_int(0, ecs_world_to_json_buf(world, &buf, &desc));
+    char *expect = ecs_strbuf_get(&buf);
+    test_str(reply_str, expect);
+    ecs_os_free(expect);
+    ecs_os_free(reply_str);
+
+    ecs_rest_server_fini(srv);
+
+    ecs_fini(world);
+}
+
+void Rest_world_modules(void) {
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT(world, Position);
+    ecs_entity_t e = ecs_entity(world, { .name = "e" });
+    ecs_set(world, e, Position, {10, 20});
+
+    ecs_http_server_t *srv = ecs_rest_server_init(world, NULL);
+    test_assert(srv != NULL);
+
+    ecs_http_reply_t reply = ECS_HTTP_REPLY_INIT;
+    test_int(0, ecs_http_server_request(srv, "GET",
+        "/world?modules=true", NULL, &reply));
+    test_int(reply.code, 200);
+
+    char *reply_str = ecs_strbuf_get(&reply.body);
+    test_assert(reply_str != NULL);
+
+    ecs_world_to_json_desc_t desc = { .serialize_modules = true };
+    ecs_strbuf_t buf = ECS_STRBUF_INIT;
+    test_int(0, ecs_world_to_json_buf(world, &buf, &desc));
+    char *expect = ecs_strbuf_get(&buf);
+    test_str(reply_str, expect);
+    ecs_os_free(expect);
+    ecs_os_free(reply_str);
+
+    ecs_rest_server_fini(srv);
+
+    ecs_fini(world);
+}
+
+void Rest_world_builtin_and_modules(void) {
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT(world, Position);
+    ecs_entity_t e = ecs_entity(world, { .name = "e" });
+    ecs_set(world, e, Position, {10, 20});
+
+    ecs_http_server_t *srv = ecs_rest_server_init(world, NULL);
+    test_assert(srv != NULL);
+
+    ecs_http_reply_t reply = ECS_HTTP_REPLY_INIT;
+    test_int(0, ecs_http_server_request(srv, "GET",
+        "/world?builtin=true&modules=true", NULL, &reply));
+    test_int(reply.code, 200);
+
+    char *reply_str = ecs_strbuf_get(&reply.body);
+    test_assert(reply_str != NULL);
+
+    ecs_world_to_json_desc_t desc = {
+        .serialize_builtin = true,
+        .serialize_modules = true
+    };
+    ecs_strbuf_t buf = ECS_STRBUF_INIT;
+    test_int(0, ecs_world_to_json_buf(world, &buf, &desc));
+    char *expect = ecs_strbuf_get(&buf);
+    test_str(reply_str, expect);
+    ecs_os_free(expect);
+    ecs_os_free(reply_str);
+
+    ecs_rest_server_fini(srv);
+
+    ecs_fini(world);
+}
+
+void Rest_world_explicit_false(void) {
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT(world, Position);
+    ecs_entity_t e = ecs_entity(world, { .name = "e" });
+    ecs_set(world, e, Position, {10, 20});
+
+    ecs_http_server_t *srv = ecs_rest_server_init(world, NULL);
+    test_assert(srv != NULL);
+
+    ecs_http_reply_t reply = ECS_HTTP_REPLY_INIT;
+    test_int(0, ecs_http_server_request(srv, "GET",
+        "/world?builtin=false&modules=false", NULL, &reply));
+    test_int(reply.code, 200);
+
+    char *reply_str = ecs_strbuf_get(&reply.body);
+    test_assert(reply_str != NULL);
+
+    ecs_strbuf_t buf = ECS_STRBUF_INIT;
+    test_int(0, ecs_world_to_json_buf(world, &buf, NULL));
+    char *expect = ecs_strbuf_get(&buf);
+    test_str(reply_str, expect);
+    ecs_os_free(expect);
+    ecs_os_free(reply_str);
 
     ecs_rest_server_fini(srv);
 

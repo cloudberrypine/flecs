@@ -1,5 +1,5 @@
 /**
- * @file addons.h
+ * @file private/addons.h
  * @brief Include enabled addons.
  *
  * This file should only be included by the main flecs.h header.
@@ -73,10 +73,10 @@
 #undef FLECS_JOURNAL
 #endif
 
-/* Always included, if disabled functions are replaced with dummy macros */
+/* Always included; if disabled, functions are replaced with dummy macros. */
 #include "flecs/addons/log.h"
 
-/* Handle addon dependencies that need declarations to be visible in header */
+/* Handle addon dependencies that need declarations to be visible in the header. */
 #ifdef FLECS_STATS
 #ifndef FLECS_PIPELINE
 #define FLECS_PIPELINE

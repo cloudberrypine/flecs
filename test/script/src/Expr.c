@@ -1611,6 +1611,38 @@ void Expr_var_element(void) {
     ecs_fini(world);
 }
 
+void Expr_var_element_out_of_range(void) {
+    ecs_world_t *world = ecs_init();
+
+    ecs_entity_t array = ecs_array(world, {
+        .entity = ecs_entity(world, { .name = "array" }),
+        .type = ecs_id(ecs_i32_t),
+        .count = 2
+    });
+
+    ecs_script_vars_t *vars = ecs_script_vars_init(world);
+
+    ecs_script_var_t *var = ecs_script_vars_define_id(
+        vars, "foo", array);
+    ((int*)var->value.ptr)[0] = 10;
+    ((int*)var->value.ptr)[1] = 20;
+
+    ecs_expr_eval_desc_t desc = { .vars = vars, .disable_folding = disable_folding };
+
+    ecs_log_set_level(-4);
+    {
+        ecs_value_t v = {0};
+        test_assert(ecs_expr_run(world, "$foo[2]", &v, &desc) == NULL);
+    }
+    {
+        ecs_value_t v = {0};
+        test_assert(ecs_expr_run(world, "$foo[1000000]", &v, &desc) == NULL);
+    }
+
+    ecs_script_vars_fini(vars);
+    ecs_fini(world);
+}
+
 void Expr_var_element_element(void) {
     ecs_world_t *world = ecs_init();
 
@@ -2731,6 +2763,20 @@ void Expr_cond_eq_int_flt(void) {
     test_assert(ecs_expr_run(world, "1 != 1.0", &v, NULL) == NULL);
     test_assert(ecs_expr_run(world, "1 != 0.0", &v, NULL) == NULL);
     test_assert(ecs_expr_run(world, "0 != 0.0", &v, NULL) == NULL);
+
+    ecs_fini(world);
+}
+
+void Expr_cond_eq_flt(void) {
+    ecs_world_t *world = ecs_init();
+
+    ecs_value_t v = {0};
+
+    ecs_log_set_level(-4);
+    test_assert(ecs_expr_run(world, "1.5 == 1.5", &v, NULL) == NULL);
+    test_assert(ecs_expr_run(world, "1.5 == 0.5", &v, NULL) == NULL);
+    test_assert(ecs_expr_run(world, "1.5 != 1.5", &v, NULL) == NULL);
+    test_assert(ecs_expr_run(world, "1.5 != 0.5", &v, NULL) == NULL);
 
     ecs_fini(world);
 }
@@ -9027,6 +9073,55 @@ void Expr_match_i32_1_collection_case(void) {
     ecs_fini(world);
 }
 
+void Expr_match_i32_1_collection_case_crlf(void) {
+    ecs_world_t *world = ecs_init();
+
+    typedef int32_t Ints[2];
+
+    ecs_entity_t ecs_id(Ints) = ecs_array(world, {
+        .type = ecs_id(ecs_i32_t),
+        .count = 2
+    });
+
+    ecs_script_vars_t *vars = ecs_script_vars_init(world);
+    ecs_script_var_t *var = ecs_script_vars_define(vars, "i", ecs_i32_t);
+    ecs_expr_eval_desc_t desc = {
+        .vars = vars, .disable_folding = disable_folding,
+        .type = ecs_id(Ints) };
+
+    const char *expr =
+        "match $i {\r\n"
+        "  1: [10, 20]\r\n"
+        "}\r\n";
+
+    ecs_script_t *s = ecs_expr_parse(world, expr, &desc);
+    test_assert(s != NULL);
+
+    {
+        *(int32_t*)var->value.ptr = 0;
+        Ints p = {0};
+        ecs_value_t result = { .type = ecs_id(Ints), .ptr = &p };
+        ecs_log_set_level(-4);
+        test_assert(0 != ecs_expr_eval(s, &result, &desc));
+        ecs_log_set_level(-1);
+    }
+
+    {
+        *(int32_t*)var->value.ptr = 1;
+        Ints p = {0};
+        ecs_value_t result = { .type = ecs_id(Ints), .ptr = &p };
+        test_assert(0 == ecs_expr_eval(s, &result, &desc));
+        test_assert(result.type == ecs_id(Ints));
+        test_int(p[0], 10);
+        test_int(p[1], 20);
+    }
+
+    ecs_script_vars_fini(vars);
+    ecs_script_free(s);
+
+    ecs_fini(world);
+}
+
 void Expr_match_i32_2_collection_cases(void) {
     ecs_world_t *world = ecs_init();
 
@@ -9965,6 +10060,53 @@ void Expr_new_entity(void) {
     test_assert(e != 0);
     test_assert(ecs_is_alive(world, e));
     test_int(ecs_get_type(world, e)->count, 0);
+
+    ecs_fini(world);
+}
+
+static int expr_on_replace_position_invoked = 0;
+
+static void expr_on_replace_position(ecs_iter_t *it) {
+    expr_on_replace_position_invoked ++;
+    test_int(it->count, 1);
+}
+
+void Expr_new_entity_w_component_w_on_replace(void) {
+    ecs_world_t *world = ecs_init();
+
+    typedef struct {
+        int32_t x;
+        int32_t y;
+    } Position;
+
+    ecs_entity_t ecs_id(Position) = ecs_struct(world, {
+        .entity = ecs_entity(world, { .name = "Position" }),
+        .members = {
+            {"x", ecs_id(ecs_i32_t)},
+            {"y", ecs_id(ecs_i32_t)}
+        }
+    });
+
+    ecs_set_hooks(world, Position, {
+        .on_replace = expr_on_replace_position
+    });
+
+    ecs_expr_eval_desc_t desc = { .disable_folding = disable_folding };
+
+    expr_on_replace_position_invoked = 0;
+
+    ecs_entity_t e = 0;
+    ecs_value_t v = { .type = ecs_id(ecs_entity_t), .ptr = &e };
+    test_assert(ecs_expr_run(world, "new { Position: {10, 20} }", &v, &desc) != NULL);
+    test_assert(e != 0);
+    test_assert(ecs_is_alive(world, e));
+    test_int(ecs_get_type(world, e)->count, 1);
+
+    const Position *p = ecs_get(world, e, Position);
+    test_assert(p != NULL);
+    test_int(p->x, 10);
+    test_int(p->y, 20);
+    test_int(expr_on_replace_position_invoked, 1);
 
     ecs_fini(world);
 }

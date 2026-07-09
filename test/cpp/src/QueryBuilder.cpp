@@ -2197,9 +2197,76 @@ void QueryBuilder_group_by_raw(void) {
         .group_by(ecs.id<TagX>(), group_by_first_id_negated)
         .build();
 
-    auto e3 = ecs.entity().add<TagX>().add<TagC>();
-    auto e2 = ecs.entity().add<TagX>().add<TagB>();
     auto e1 = ecs.entity().add<TagX>().add<TagA>();
+    auto e2 = ecs.entity().add<TagX>().add<TagB>();
+    auto e3 = ecs.entity().add<TagX>().add<TagC>();
+
+    int count = 0;
+
+    q.run([&](flecs::iter& it){
+        while (it.next()) {
+            test_int(it.count(), 1);
+            if(count == 0){
+                test_bool(it.entity(0) == e3, true);
+            }else if(count == 1){
+                test_bool(it.entity(0) == e2, true);
+            }else if(count == 2){
+                test_bool(it.entity(0) == e1, true);
+            }else{
+                test_assert(false);
+            }
+            count++;
+        }
+    });
+    test_int(count, 3);
+
+    count = 0;
+    q_reverse.run([&](flecs::iter& it){
+        while (it.next()) {
+            test_int(it.count(), 1);
+            if(count == 0){
+                test_bool(it.entity(0) == e3, true);
+            }else if(count == 1){
+                test_bool(it.entity(0) == e2, true);
+            }else if(count == 2){
+                test_bool(it.entity(0) == e1, true);
+            }else{
+                test_assert(false);
+            }
+            count++;
+        }
+    });
+    test_int(count, 3);
+}
+
+void QueryBuilder_group_by_raw_ordered(void) {
+    flecs::world ecs;
+
+    struct TagA { };
+    struct TagB { };
+    struct TagC { };
+    struct TagX { };
+
+    ecs.component<TagA>();
+    ecs.component<TagB>();
+    ecs.component<TagC>();
+    ecs.component<TagX>();
+
+    auto q = ecs.query_builder()
+        .with<TagX>()
+        .group_by(ecs.id<TagX>(), group_by_first_id)
+        .query_flags(EcsQueryGroupByOrdered)
+        .build();
+
+    auto q_reverse = ecs.query_builder()
+        .with<TagX>()
+        .group_by(ecs.id<TagX>(), group_by_first_id_negated)
+        .query_flags(EcsQueryGroupByOrdered)
+        .build();
+
+    auto e1 = ecs.entity().add<TagX>().add<TagA>();
+    auto e2 = ecs.entity().add<TagX>().add<TagB>();
+    auto e3 = ecs.entity().add<TagX>().add<TagC>();
 
     int count = 0;
 
@@ -2219,7 +2286,7 @@ void QueryBuilder_group_by_raw(void) {
         }
     });
     test_int(count, 3);
-    
+
     count = 0;
     q_reverse.run([&](flecs::iter& it){
         while (it.next()) {
@@ -2262,9 +2329,76 @@ void QueryBuilder_group_by_template(void) {
         .group_by<TagX>( group_by_first_id_negated)
         .build();
 
-    auto e3 = ecs.entity().add<TagX>().add<TagC>();
-    auto e2 = ecs.entity().add<TagX>().add<TagB>();
     auto e1 = ecs.entity().add<TagX>().add<TagA>();
+    auto e2 = ecs.entity().add<TagX>().add<TagB>();
+    auto e3 = ecs.entity().add<TagX>().add<TagC>();
+
+    int count = 0;
+
+    q.run([&](flecs::iter& it){
+        while (it.next()) {
+            test_int(it.count(), 1);
+            if(count == 0){
+                test_bool(it.entity(0) == e3, true);
+            }else if(count == 1){
+                test_bool(it.entity(0) == e2, true);
+            }else if(count == 2){
+                test_bool(it.entity(0) == e1, true);
+            }else{
+                test_assert(false);
+            }
+            count++;
+        }
+    });
+    test_int(count, 3);
+
+    count = 0;
+    q_reverse.run([&](flecs::iter& it){
+        while (it.next()) {
+            test_int(it.count(), 1);
+            if(count == 0){
+                test_bool(it.entity(0) == e3, true);
+            }else if(count == 1){
+                test_bool(it.entity(0) == e2, true);
+            }else if(count == 2){
+                test_bool(it.entity(0) == e1, true);
+            }else{
+                test_assert(false);
+            }
+            count++;
+        }
+    });
+    test_int(count, 3);
+}
+
+void QueryBuilder_group_by_template_ordered(void) {
+    flecs::world ecs;
+
+    struct TagA { };
+    struct TagB { };
+    struct TagC { };
+    struct TagX { };
+
+    ecs.component<TagA>();
+    ecs.component<TagB>();
+    ecs.component<TagC>();
+    ecs.component<TagX>();
+
+    auto q = ecs.query_builder()
+        .with<TagX>()
+        .group_by<TagX>(group_by_first_id)
+        .query_flags(EcsQueryGroupByOrdered)
+        .build();
+
+    auto q_reverse = ecs.query_builder()
+        .with<TagX>()
+        .group_by<TagX>( group_by_first_id_negated)
+        .query_flags(EcsQueryGroupByOrdered)
+        .build();
+
+    auto e1 = ecs.entity().add<TagX>().add<TagA>();
+    auto e2 = ecs.entity().add<TagX>().add<TagB>();
+    auto e3 = ecs.entity().add<TagX>().add<TagC>();
 
     int count = 0;
 
@@ -2284,7 +2418,7 @@ void QueryBuilder_group_by_template(void) {
         }
     });
     test_int(count, 3);
-    
+
     count = 0;
     q_reverse.run([&](flecs::iter& it){
         while (it.next()) {
@@ -2470,9 +2604,9 @@ void QueryBuilder_group_by_default_func_w_id(void) {
     auto TgtB = ecs.entity();
     auto TgtC = ecs.entity();
 
-    auto e1 = ecs.entity().add(Rel, TgtC);
+    auto e1 = ecs.entity().add(Rel, TgtA);
     auto e2 = ecs.entity().add(Rel, TgtB);
-    auto e3 = ecs.entity().add(Rel, TgtA);
+    auto e3 = ecs.entity().add(Rel, TgtC);
 
     auto q = ecs.query_builder()
         .with(Rel, flecs::Wildcard)
@@ -2487,7 +2621,7 @@ void QueryBuilder_group_by_default_func_w_id(void) {
     q.each([&](flecs::iter& it, size_t i) {
         flecs::entity e = it.entity(i);
         if (e == e1) {
-            test_assert(it.group_id() == TgtC);
+            test_assert(it.group_id() == TgtA);
             test_assert(!e1_found);
             test_assert(e2_found);
             test_assert(e3_found);
@@ -2501,9 +2635,64 @@ void QueryBuilder_group_by_default_func_w_id(void) {
             e2_found = true;
         }
         if (e == e3) {
+            test_assert(it.group_id() == TgtC);
+            test_assert(!e1_found);
+            test_assert(!e2_found);
+            test_assert(!e3_found);
+            e3_found = true;
+        }
+        count ++;
+    });
+
+    test_int(3, count);
+    test_bool(true, e1_found);
+    test_bool(true, e2_found);
+    test_bool(true, e3_found);
+}
+
+void QueryBuilder_group_by_default_func_w_id_ordered(void) {
+    flecs::world ecs;
+
+    auto Rel = ecs.entity();
+    auto TgtA = ecs.entity();
+    auto TgtB = ecs.entity();
+    auto TgtC = ecs.entity();
+
+    auto e1 = ecs.entity().add(Rel, TgtA);
+    auto e2 = ecs.entity().add(Rel, TgtB);
+    auto e3 = ecs.entity().add(Rel, TgtC);
+
+    auto q = ecs.query_builder()
+        .with(Rel, flecs::Wildcard)
+        .group_by(Rel)
+        .query_flags(EcsQueryGroupByOrdered)
+        .build();
+
+    bool e1_found = false;
+    bool e2_found = false;
+    bool e3_found = false;
+    int32_t count = 0;
+
+    q.each([&](flecs::iter& it, size_t i) {
+        flecs::entity e = it.entity(i);
+        if (e == e1) {
             test_assert(it.group_id() == TgtA);
             test_assert(!e1_found);
             test_assert(!e2_found);
+            test_assert(!e3_found);
+            e1_found = true;
+        }
+        if (e == e2) {
+            test_assert(it.group_id() == TgtB);
+            test_assert(e1_found);
+            test_assert(!e2_found);
+            test_assert(!e3_found);
+            e2_found = true;
+        }
+        if (e == e3) {
+            test_assert(it.group_id() == TgtC);
+            test_assert(e1_found);
+            test_assert(e2_found);
             test_assert(!e3_found);
             e3_found = true;
         }
@@ -2524,9 +2713,9 @@ void QueryBuilder_group_by_default_func_w_type(void) {
     auto TgtB = ecs.entity();
     auto TgtC = ecs.entity();
 
-    auto e1 = ecs.entity().add<Rel>(TgtC);
+    auto e1 = ecs.entity().add<Rel>(TgtA);
     auto e2 = ecs.entity().add<Rel>(TgtB);
-    auto e3 = ecs.entity().add<Rel>(TgtA);
+    auto e3 = ecs.entity().add<Rel>(TgtC);
 
     auto q = ecs.query_builder()
         .with<Rel>(flecs::Wildcard)
@@ -2541,7 +2730,7 @@ void QueryBuilder_group_by_default_func_w_type(void) {
     q.each([&](flecs::iter& it, size_t i) {
         flecs::entity e = it.entity(i);
         if (e == e1) {
-            test_assert(it.group_id() == TgtC);
+            test_assert(it.group_id() == TgtA);
             test_assert(!e1_found);
             test_assert(e2_found);
             test_assert(e3_found);
@@ -2555,9 +2744,64 @@ void QueryBuilder_group_by_default_func_w_type(void) {
             e2_found = true;
         }
         if (e == e3) {
+            test_assert(it.group_id() == TgtC);
+            test_assert(!e1_found);
+            test_assert(!e2_found);
+            test_assert(!e3_found);
+            e3_found = true;
+        }
+        count ++;
+    });
+
+    test_int(3, count);
+    test_bool(true, e1_found);
+    test_bool(true, e2_found);
+    test_bool(true, e3_found);
+}
+
+void QueryBuilder_group_by_default_func_w_type_ordered(void) {
+    flecs::world ecs;
+
+    struct Rel { };
+    auto TgtA = ecs.entity();
+    auto TgtB = ecs.entity();
+    auto TgtC = ecs.entity();
+
+    auto e1 = ecs.entity().add<Rel>(TgtA);
+    auto e2 = ecs.entity().add<Rel>(TgtB);
+    auto e3 = ecs.entity().add<Rel>(TgtC);
+
+    auto q = ecs.query_builder()
+        .with<Rel>(flecs::Wildcard)
+        .group_by<Rel>()
+        .query_flags(EcsQueryGroupByOrdered)
+        .build();
+
+    bool e1_found = false;
+    bool e2_found = false;
+    bool e3_found = false;
+    int32_t count = 0;
+
+    q.each([&](flecs::iter& it, size_t i) {
+        flecs::entity e = it.entity(i);
+        if (e == e1) {
             test_assert(it.group_id() == TgtA);
             test_assert(!e1_found);
             test_assert(!e2_found);
+            test_assert(!e3_found);
+            e1_found = true;
+        }
+        if (e == e2) {
+            test_assert(it.group_id() == TgtB);
+            test_assert(e1_found);
+            test_assert(!e2_found);
+            test_assert(!e3_found);
+            e2_found = true;
+        }
+        if (e == e3) {
+            test_assert(it.group_id() == TgtC);
+            test_assert(e1_found);
+            test_assert(e2_found);
             test_assert(!e3_found);
             e3_found = true;
         }
@@ -2580,9 +2824,9 @@ void QueryBuilder_group_by_callbacks(void) {
     auto TgtB = ecs.entity();
     auto TgtC = ecs.entity();
 
-    auto e1 = ecs.entity().add<Rel>(TgtC);
+    auto e1 = ecs.entity().add<Rel>(TgtA);
     auto e2 = ecs.entity().add<Rel>(TgtB);
-    auto e3 = ecs.entity().add<Rel>(TgtA);
+    auto e3 = ecs.entity().add<Rel>(TgtC);
 
     auto q = ecs.query_builder()
         .with<Rel>(flecs::Wildcard)
@@ -2618,7 +2862,7 @@ void QueryBuilder_group_by_callbacks(void) {
     q.each([&](flecs::iter& it, size_t i) {
         flecs::entity e = it.entity(i);
         if (e == e1) {
-            test_assert(it.group_id() == TgtC);
+            test_assert(it.group_id() == TgtA);
             test_assert(!e1_found);
             test_assert(e2_found);
             test_assert(e3_found);
@@ -2636,9 +2880,91 @@ void QueryBuilder_group_by_callbacks(void) {
             test_uint(*ctx, it.group_id());
         }
         if (e == e3) {
+            test_assert(it.group_id() == TgtC);
+            test_assert(!e1_found);
+            test_assert(!e2_found);
+            test_assert(!e3_found);
+            e3_found = true;
+            uint64_t *ctx = (uint64_t*)q.group_ctx(it.group_id());
+            test_uint(*ctx, it.group_id());
+        }
+        count ++;
+    });
+
+    test_int(3, count);
+    test_bool(true, e1_found);
+    test_bool(true, e2_found);
+    test_bool(true, e3_found);
+}
+
+void QueryBuilder_group_by_callbacks_ordered(void) {
+    flecs::world ecs;
+
+    struct Rel { };
+    auto TgtA = ecs.entity();
+    auto TgtB = ecs.entity();
+    auto TgtC = ecs.entity();
+
+    auto e1 = ecs.entity().add<Rel>(TgtA);
+    auto e2 = ecs.entity().add<Rel>(TgtB);
+    auto e3 = ecs.entity().add<Rel>(TgtC);
+
+    auto q = ecs.query_builder()
+        .with<Rel>(flecs::Wildcard)
+        .group_by<Rel>()
+        .group_by_ctx(&group_by_ctx)
+        .query_flags(EcsQueryGroupByOrdered)
+        .on_group_create(
+            [](flecs::world_t *world, uint64_t id, void *group_by_arg) {
+                test_assert(world != nullptr);
+                test_assert(id != 0);
+                test_assert(group_by_arg != nullptr);
+                test_assert(group_by_arg == &group_by_ctx);
+                uint64_t *ctx = ecs_os_malloc_t(uint64_t);
+                *ctx = id;
+                return (void*)ctx;
+            })
+        .on_group_delete(
+            [](flecs::world_t *world, uint64_t id, void *ctx, void *group_by_arg) {
+                test_assert(world != nullptr);
+                test_assert(id != 0);
+                test_assert(group_by_arg != nullptr);
+                test_assert(group_by_arg == &group_by_ctx);
+                test_assert(ctx != NULL);
+                test_uint(*(uint64_t*)ctx, id);
+                ecs_os_free(ctx);
+            })
+        .build();
+
+    bool e1_found = false;
+    bool e2_found = false;
+    bool e3_found = false;
+    int32_t count = 0;
+
+    q.each([&](flecs::iter& it, size_t i) {
+        flecs::entity e = it.entity(i);
+        if (e == e1) {
             test_assert(it.group_id() == TgtA);
             test_assert(!e1_found);
             test_assert(!e2_found);
+            test_assert(!e3_found);
+            e1_found = true;
+            uint64_t *ctx = (uint64_t*)q.group_ctx(it.group_id());
+            test_uint(*ctx, it.group_id());
+        }
+        if (e == e2) {
+            test_assert(it.group_id() == TgtB);
+            test_assert(e1_found);
+            test_assert(!e2_found);
+            test_assert(!e3_found);
+            e2_found = true;
+            uint64_t *ctx = (uint64_t*)q.group_ctx(it.group_id());
+            test_uint(*ctx, it.group_id());
+        }
+        if (e == e3) {
+            test_assert(it.group_id() == TgtC);
+            test_assert(e1_found);
+            test_assert(e2_found);
             test_assert(!e3_found);
             e3_found = true;
             uint64_t *ctx = (uint64_t*)q.group_ctx(it.group_id());
@@ -2732,6 +3058,88 @@ void QueryBuilder_set_group_type_on_query(void) {
     test_int(2, count);
     test_bool(true, e2_found);
     test_bool(true, e5_found);
+}
+
+void QueryBuilder_iterate_groups(void) {
+    flecs::world ecs;
+
+    auto Rel = ecs.entity();
+    auto TgtA = ecs.entity();
+    auto TgtB = ecs.entity();
+    auto TgtC = ecs.entity();
+
+    ecs.entity().add(Rel, TgtA);
+    ecs.entity().add(Rel, TgtB);
+    ecs.entity().add(Rel, TgtC);
+
+    auto q = ecs.query_builder()
+        .with(Rel, flecs::Wildcard)
+        .group_by(Rel, group_by_rel)
+        .build();
+
+    q.run([](flecs::iter& it) { while (it.next()) {} });
+
+    bool a_found = false, b_found = false, c_found = false;
+    int32_t count = 0;
+    for (auto g : q.groups()) {
+        if (g.first == TgtA) a_found = true;
+        if (g.first == TgtB) b_found = true;
+        if (g.first == TgtC) c_found = true;
+        count ++;
+    }
+
+    test_int(3, count);
+    test_bool(true, a_found);
+    test_bool(true, b_found);
+    test_bool(true, c_found);
+}
+
+void QueryBuilder_iterate_groups_empty(void) {
+    flecs::world ecs;
+
+    auto Rel = ecs.entity();
+
+    auto q = ecs.query_builder()
+        .with(Rel, flecs::Wildcard)
+        .group_by(Rel, group_by_rel)
+        .build();
+
+    int32_t count = 0;
+    for (auto g : q.groups()) {
+        (void)g;
+        count ++;
+    }
+
+    test_int(0, count);
+}
+
+void QueryBuilder_iterate_groups_w_isa(void) {
+    flecs::world ecs;
+
+    auto AssetA = ecs.entity();
+    auto AssetB = ecs.entity();
+
+    ecs.entity().is_a(AssetA).set<Position>({1, 2});
+    ecs.entity().is_a(AssetA).set<Position>({3, 4});
+    ecs.entity().is_a(AssetB).set<Position>({5, 6});
+
+    auto q = ecs.query_builder<Position>()
+        .group_by(flecs::IsA)
+        .build();
+
+    q.run([](flecs::iter& it) { while (it.next()) {} });
+
+    bool a_found = false, b_found = false;
+    int32_t count = 0;
+    for (auto g : q.groups()) {
+        if (g.first == AssetA) a_found = true;
+        if (g.first == AssetB) b_found = true;
+        count ++;
+    }
+
+    test_int(2, count);
+    test_bool(true, a_found);
+    test_bool(true, b_found);
 }
 
 void QueryBuilder_create_w_no_template_args(void) {
@@ -3325,6 +3733,38 @@ void QueryBuilder_world_each_query_2_components(void) {
     });
 
     test_int(count, 3);
+}
+
+void QueryBuilder_world_each_entity(void) {
+    flecs::world ecs;
+
+    auto e1 = ecs.entity();
+    auto e2 = ecs.entity().add<Tag>();
+    auto e3 = ecs.entity().set<Position>({10, 20});
+
+    ecs_entities_t entities = ecs_get_entities(ecs.c_ptr());
+
+    bool e1_found = false;
+    bool e2_found = false;
+    bool e3_found = false;
+    int32_t count = 0;
+
+    ecs.each([&](flecs::entity e) {
+        if (e == e1) {
+            e1_found = true;
+        } else if (e == e2) {
+            e2_found = true;
+        } else if (e == e3) {
+            e3_found = true;
+        }
+
+        count ++;
+    });
+
+    test_bool(true, e1_found);
+    test_bool(true, e2_found);
+    test_bool(true, e3_found);
+    test_int(entities.alive_count, count);
 }
 
 void QueryBuilder_world_each_query_1_component_no_entity(void) {
@@ -5390,10 +5830,10 @@ void QueryBuilder_pred_match(void) {
     flecs::world ecs;
 
     auto q = ecs.query_builder()
-        .with(flecs::PredMatch).second("Fo").flags(flecs::IsName)
+        .with(flecs::PredMatch).second("FooB").flags(flecs::IsName)
         .build();
 
-    flecs::entity Foo = ecs.entity("Foo");
+    flecs::entity Foo = ecs.entity("FooBar");
 
     int32_t count = 0;
     q.each([&](flecs::entity e) {

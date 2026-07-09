@@ -174,7 +174,9 @@
                 "validator_1_var_src_terms_match_this",
                 "validator_2_var_src_terms_match_this",
                 "validator_2_terms_1_var_src_match_this",
-                "validator_1_tag_term_this_src_match_this"
+                "validator_1_tag_term_this_src_match_this",
+                "exceed_max_var_count",
+                "from_op_w_pair"
             ]
         }, {
             "id": "Parser",
@@ -484,7 +486,14 @@
                 "eq_this_not_a_var_w_wildcard",
                 "singleton_trait",
                 "singleton_trait_w_explicit_this_var",
-                "singleton_trait_w_explicit_src"
+                "singleton_trait_w_explicit_src",
+                "lookup_component_by_symbol_1",
+                "lookup_component_by_symbol_2",
+                "lookup_component_by_symbol_3",
+                "expr_longer_than_16kb",
+                "neq_w_or",
+                "invalid_id_literal",
+                "escaped_gt_in_entity_name"
             ]
         }, {
             "id": "Fuzzing",
@@ -744,7 +753,10 @@
                 "get_query",
                 "get_query_not_a_query",
                 "mixed_uncacheable_w_shared",
-                "query_has_and_optional_and"
+                "query_has_and_optional_and",
+                "recycled_pair",
+                "recycled_component_id",
+                "update_query_replaces_existing"
             ]
         }, {
             "id": "Combinations",
@@ -836,6 +848,14 @@
                 "cache_2_or",
                 "cache_2_or_w_not",
                 "1_plan_any_src",
+                "1_plan_any_src_first_var",
+                "1_plan_any_src_first_var_any_tgt",
+                "1_plan_any_src_first_var_fixed_tgt",
+                "1_plan_any_src_first_var_wildcard_tgt",
+                "1_plan_any_src_first_var_var_tgt",
+                "1_plan_any_src_fixed_first_var_tgt",
+                "1_plan_any_src_any_first_var_tgt",
+                "1_plan_any_src_wildcard_first_var_tgt",
                 "1_plan_not_any_src",
                 "1_plan_optional_any_src",
                 "pair_first_wildcard",
@@ -1054,6 +1074,7 @@
                 "check_vars_any",
                 "check_vars_var_as_tgt",
                 "check_vars_this_as_tgt",
+                "check_vars_this_as_tgt_before_src",
                 "check_vars_anonymous_var_as_tgt",
                 "check_vars_wildcard_as_tgt",
                 "check_vars_any_as_tgt",
@@ -1076,7 +1097,37 @@
                 "second_invalid_var_name_and_id",
                 "get_vars_from_chained_iter",
                 "set_var_from_chained_iter",
-                "set_var_range_from_chained_iter"
+                "set_var_range_from_chained_iter",
+                "field_w_or_var_src_w_pair",
+                "recycled_vars",
+                "recycled_pair_vars",
+                "recycled_this_ent_var",
+                "has_recycled_id_from_pair",
+                "first_var_any_src",
+                "first_var_any_src_pair_fixed_tgt",
+                "first_var_any_src_pair_wildcard_tgt",
+                "first_var_any_src_pair_any_tgt",
+                "first_var_any_src_pair_var_tgt",
+                "first_var_any_src_sparse",
+                "first_var_any_src_pair_sparse",
+                "first_fixed_any_src_pair_var_tgt",
+                "first_any_any_src_pair_var_tgt",
+                "first_wildcard_any_src_pair_var_tgt",
+                "first_fixed_any_src_pair_var_tgt_dont_fragment",
+                "first_var_any_src_pair_fixed_tgt_dont_fragment",
+                "first_fixed_any_src_pair_wildcard_tgt",
+                "first_wildcard_any_src_pair_fixed_tgt",
+                "first_any_any_src_pair_wildcard_tgt",
+                "first_fixed_any_src_pair_any_tgt",
+                "first_any_any_src_pair_any_tgt",
+                "first_wildcard_any_src",
+                "first_var_any_src_w_constrained_var",
+                "first_var_any_src_pair_constrained_tgt",
+                "1_any_src_set_pair_tgt_var_no_match",
+                "set_var_id_31",
+                "invalid_var_name_in_pair",
+                "invalid_var_name_w_toggle_cascade",
+                "invalid_var_name_w_neq"
             ]
         }, {
             "id": "Operators",
@@ -1247,11 +1298,14 @@
                 "not_isa_wildcard",
                 "not_transitive_rel_wildcard",
                 "not_reflexive_rel_wildcard",
-                "and_optional_and"
+                "and_optional_and",
+                "or_w_two_variables",
+                "or_w_two_entity_vars"
             ]
         }, {
             "id": "Transitive",
             "testcases": [
+                "written_src_unknown_tgt_first_leaf",
                 "1_fact_0_lvl_true",
                 "1_fact_1_lvl_true",
                 "1_fact_2_lvl_true",
@@ -1366,26 +1420,13 @@
                 "query_before_isa_relationship_0_src"
             ]
         }, {
-            "id": "Recycled",
-            "setup": true,
-            "params": {
-                "cache_kind": ["default", "auto"]
-            },
-            "testcases": [
-                "recycled_vars",
-                "recycled_pair_vars",
-                "recycled_this_ent_var",
-                "has_recycled_id_from_pair",
-                "recycled_pair",
-                "recycled_component_id"
-            ]
-        }, {
             "id": "BuiltinPredicates",
             "setup": true,
             "params": {
                 "cache_kind": ["default", "auto"]
             },
             "testcases": [
+                "this_neq_2_terms_second_lower_row",
                 "this_eq_id",
                 "this_eq_name",
                 "this_eq_var",
@@ -1442,6 +1483,8 @@
                 "var_2_or_id_written",
                 "var_2_or_name_written",
                 "this_match_eq",
+                "this_match_eq_case_insensitive",
+                "this_match_neq_case_insensitive",
                 "var_match_eq",
                 "this_match_eq_written",
                 "this_match_eq_written_self",
@@ -1475,7 +1518,10 @@
                 "neq_any",
                 "match_variable",
                 "match_wildcard",
-                "match_any"
+                "match_any",
+                "this_neq_id_written_after_eq",
+                "this_neq_id_written_same_table_twice",
+                "2_or_w_eq_wildcard"
             ]
         }, {
             "id": "Scopes",
@@ -1495,7 +1541,9 @@
                 "term_w_not_scope_2_terms_w_not_w_var",
                 "term_w_not_scope_2_terms_w_or",
                 "term_w_not_scope_3_terms_w_or",
-                "term_w_not_scope_2_terms_w_before_after"
+                "term_w_not_scope_2_terms_w_before_after",
+                "optional_operator_for_scope",
+                "max_scope_nesting"
             ]
         }, {
             "id": "Traversal",
@@ -1686,7 +1734,9 @@
                 "this_or_w_self_up_childof",
                 "this_or_w_self_up_childof_2",
                 "this_or_w_self_up_childof_w_tag",
-                "this_written_or_w_self_up_childof"
+                "this_written_or_w_self_up_childof",
+                "up_w_isa_component_recycled",
+                "up_after_pair_target_delete"
             ]
         }, {
             "id": "Cascade",
@@ -1724,11 +1774,16 @@
                 "parent_component_n_parents_for_depth",
                 "parent_component_after_query",
                 "parent_component_n_children_after_query",
-                "parent_component_n_parents_for_depth_after_query"
+                "parent_component_n_parents_for_depth_after_query",
+                "cascade_optional_change_detection_after_remove",
+                "two_cascade_terms",
+                "cascade_in_or_chain"
             ]
         }, {
             "id": "Cached",
             "testcases": [
+                "fixed_src_wildcard_before_cache",
+                "rematch_fewer_wildcard_matches",
                 "simple_query_existing_table",
                 "simple_query_2_existing_tables",
                 "simple_query_new_table",
@@ -1818,16 +1873,7 @@
                 "2_self_up_terms_new_tables",
                 "this_self_up_childof_pair_new_tables",
                 "up_w_delete_table_and_move_parent",
-                "it_ptrs",
-                "it_ptrs_after_column_resize",
-                "it_ptrs_after_column_merge",
-                "it_ptrs_after_column_shrink",
-                "it_ptrs_w_wildcard",
-                "it_ptrs_w_up",
-                "it_ptrs_w_up_childof",
-                "test_it_ptrs",
-                "test_it_ptrs_w_wildcard",
-                "test_it_ptrs_w_up",
+                "cascade_default_group_reinsert_after_empty_table_delete",
                 "match_count_after_rematch",
                 "no_rematch_after_parent_delete",
                 "no_rematch_after_parent_create",
@@ -1889,7 +1935,8 @@
                 "this_self_up_w_3_levels_ppc_after_query", 
                 "this_self_up_w_3_levels_ppp_after_query",
                 "rematch_after_reparent_parent",
-                "no_rematch_after_reparent_child"
+                "no_rematch_after_reparent_child",
+                "filter_term_not_term_table_recycle"
             ]
         }, {
             "id": "ChangeDetection",
@@ -1966,7 +2013,12 @@
                 "detect_w_childof_self_up",
                 "detect_w_cascade",
                 "detect_w_cascade_desc",
-                "detect_partially_cached"
+                "detect_partially_cached",
+                "mark_fixed_fields_dirty_after_remove",
+                "mark_fixed_fields_dirty_w_tag_before",
+                "query_changed_after_wildcard_matched_table_emptied",
+                "detect_w_not_cached_fixed_src_term",
+                "detect_changes_w_order_by"
             ]
         }, {
             "id": "GroupBy",
@@ -1994,7 +2046,18 @@
                 "group_by_parent_depth",
                 "get_groups",
                 "get_groups_default_group",
-                "on_group_create_delete_default_group"
+                "on_group_create_delete_default_group",
+                "on_group_delete_not_called_for_uncreated_default_group",
+                "group_by_ordered",
+                "group_by_default_action_ordered",
+                "group_by_recreate_two_groups_after_rematch_ordered",
+                "group_by_ordered_desc",
+                "group_by_default_action_ordered_desc",
+                "group_by_recreate_two_groups_after_rematch_ordered_desc",
+                "group_by_recreate_group_after_rematch_ordered",
+                "group_by_recreate_one_group_after_rematch_ordered",
+                "recreate_after_remove_all_ordered",
+                "group_by_parent_depth_ordered"
             ]
         }, {
             "id": "MemberTarget",
@@ -2236,7 +2299,9 @@
                 "this_sort",
                 "this_table_move_2_from_3",
                 "toggle_0_src_only_term",
-                "toggle_0_src"
+                "toggle_0_src",
+                "remove_toggle_from_table_w_other_toggle_and_entity",
+                "this_toggle_after_or_chain"
             ]
         }, {
             "id": "Sparse",
@@ -2245,6 +2310,7 @@
                 "cache_kind": ["default", "auto"]
             },
             "testcases": [
+                "sparse_written_up_2_levels",
                 "1_fixed_sparse",
                 "1_fixed_sparse_none",
                 "1_fixed_sparse_self",
@@ -2275,7 +2341,8 @@
                 "sparse_pair_first",
                 "sparse_pair_second",
                 "sparse_pair_first_after_query",
-                "sparse_pair_second_after_query"
+                "sparse_pair_second_after_query",
+                "sparse_after_or"
             ]
         }, {
             "id": "DontFragment",
@@ -2345,6 +2412,7 @@
                 "1_var_sparse_pair_exclusive_wildcard_not",
                 "1_var_sparse_pair_any_not",
                 "1_var_sparse_pair_exclusive_any_not",
+                "2_this_sparse_with_component_and_not",
                 "1_sparse_component_unused",
                 "1_sparse_tag_unused",
                 "1_sparse_pair_wildcard_unused",
@@ -2410,7 +2478,13 @@
                 "this_written_sparse_recycled",
                 "this_written_sparse_pair_recycled",
                 "this_written_sparse_wildcard_pair_recycled",
-                "this_written_sparse_any_pair_recycled"
+                "this_written_sparse_any_pair_recycled",
+                "this_written_not_sparse_wildcard_pair",
+                "this_written_not_sparse_pair",
+                "1_sparse_written_up_w_non_fragmenting_childof",
+                "1_sparse_written_self_up_w_non_fragmenting_childof",
+                "src_var_w_trait_on_dont_fragment_tag",
+                "src_var_w_trait_on_dont_fragment_tag_anonymous"
             ]
         }, {
             "id": "NonFragmentingChildOf",
@@ -2419,6 +2493,7 @@
                 "cache_kind": ["default", "auto"]
             },
             "testcases": [
+                "optional_up_set_var_2nd_child",
                 "0_src_childof_parent",
                 "0_src_childof_0",
                 "fixed_src_childof_0",
@@ -2520,6 +2595,8 @@
                 "this_src_childof_component_w_parent_single_child",
                 "this_src_childof_component_w_parent_single_child_table",
                 "this_src_childof_wildcard",
+                "this_src_childof_wildcard_count",
+                "this_src_childof_var_count",
                 "this_src_childof_wildcard_w_tag",
                 "this_src_childof_wildcard_w_component",
                 "this_src_childof_any",
@@ -2732,7 +2809,10 @@
                 "this_childof_w_prefab",
                 "this_childof_w_prefab_match_prefab",
                 "this_set_childof_w_prefab",
-                "this_set_childof_w_prefab_match_prefab"
+                "this_set_childof_w_prefab_match_prefab",
+                "query_parent_in_on_add_parent_observer",
+                "up_query_cache_stale_table_after_shrink",
+                "this_src_childof_var_doesnt_match_root"
             ]
         }, {
             "id": "OrderBy",
@@ -2781,7 +2861,10 @@
                 "sort_optional_term",
                 "order_empty_table",
                 "order_empty_table_only",
-                "order_empty_table_only_2_tables"
+                "order_empty_table_only_2_tables",
+                "sort_w_or_term_before_order_by_term",
+                "sort_after_set_shared_component",
+                "sort_w_scope_term"
             ]
         }, {
             "id": "OrderByEntireTable",

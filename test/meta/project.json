@@ -194,7 +194,11 @@
                 "overlapping_value_error_range",
                 "overlapping_value_warning_range",
                 "struct_w_16_alignment",
-                "struct_w_use_offset"
+                "struct_w_use_offset",
+                "direct_cycle",
+                "indirect_cycle",
+                "use_before_registering_reflection",
+                "use_before_registering_reflection_w_hooks"
             ]
         }, {
             "id": "NestedStructTypes",
@@ -246,7 +250,9 @@
                 "array_of_standaline_array_bool_1",
                 "array_of_standaline_array_bool_2",
                 "array_of_standaline_array_bool_3",
-                "array_w_short_notation"
+                "array_w_short_notation",
+                "direct_cycle",
+                "indirect_cycle"
             ]
         }, {
             "id": "VectorTypes",
@@ -358,6 +364,8 @@
         }, {
             "id": "Cursor",
             "testcases": [
+                "set_value_enum_u8_underlying",
+                "get_char",
                 "set_bool",
                 "set_byte",
                 "set_char",
@@ -515,11 +523,16 @@
                 "set_out_of_bounds",
                 "get_member_id",
                 "get_array_type",
-                "get_vector_type"
+                "get_vector_type",
+                "set_string_literal_single_quote"
             ]
         }, {
             "id": "DeserializeFromJson",
             "testcases": [
+                "string_w_unknown_escape_large",
+                "u64_max_roundtrip",
+                "f64_nan_roundtrip",
+                "struct_i32_long_number_literal",
                 "struct_bool",
                 "struct_byte",
                 "struct_char",
@@ -555,6 +568,8 @@
                 "struct_struct_i32_i32_array_3",
                 "struct_w_array_type_i32_i32",
                 "struct_w_2_array_type_i32_i32",
+                "struct_w_array_member_i32",
+                "struct_w_array_member_struct",
                 "struct_w_nested_member_i32",
                 "struct_w_2_nested_members_i32",
                 "struct_w_nested_members_struct",
@@ -570,6 +585,7 @@
                 "deser_entity_1_component_composite_member",
                 "deser_entity_1_component_nested_member",
                 "deser_entity_1_pair",
+                "deser_entity_pair_w_long_name",
                 "deser_entity_2_pairs",
                 "deser_entity_1_pair_2_targets",
                 "deser_entity_empty",
@@ -660,6 +676,8 @@
                 "ser_deser_with_child_tgt_no_child",
                 "ser_deser_prefab_instance_w_named_children",
                 "ser_deser_prefab_instance_w_named_children_parent_component",
+                "ser_deser_prefab_w_enum_constant_override",
+                "ser_deser_prefab_w_enum_constant_override_2",
                 "deser_invalid_entity_name",
                 "deser_unknown_component_w_spaces",
                 "deser_unknown_component_no_spaces",
@@ -669,11 +687,20 @@
                 "deser_valid_after_unknown_member",
                 "deser_unknown_member_w_strict",
                 "deser_pretty_printed_identifier_pair",
-                "ser_deser_alias"
+                "ser_deser_alias",
+                "ser_deser_dont_fragment_pair_w_component",
+                "ser_deser_dont_fragment_tag",
+                "ser_deser_dont_fragment_component",
+                "ser_deser_dont_fragment_pair_multi_target",
+                "ser_deser_dont_fragment_component_pair",
+                "ser_deser_dont_fragment_tag_removes_stale"
             ]
         }, {
             "id": "SerializeToJson",
             "testcases": [
+                "struct_string_w_control_char",
+                "struct_uptr_large",
+                "enum_negative_constant",
                 "struct_bool",
                 "struct_byte",
                 "struct_char",
@@ -740,6 +767,7 @@
                 "serialize_w_name_2_tags",
                 "serialize_w_name_1_pair",
                 "serialize_w_base",
+                "serialize_w_base_w_type_info",
                 "serialize_w_base_dont_inherit_tag",
                 "serialize_w_base_dont_inherit_component",
                 "serialize_w_base_dont_inherit_pair",
@@ -803,6 +831,18 @@
                 "serialize_sparse_inherited_mixed",
                 "serialize_sparse_w_type_info",
                 "serialize_sparse_tag",
+                "serialize_sparse_tag_simple",
+                "serialize_sparse_pair_tag",
+                "serialize_dont_fragment_tag_w_type_info",
+                "serialize_dont_fragment_pair_tag_w_type_info",
+                "serialize_dont_fragment_tag",
+                "serialize_dont_fragment_pair",
+                "serialize_dont_fragment_pair_multi_target",
+                "serialize_dont_fragment_pair_multi_rel",
+                "serialize_dont_fragment_component",
+                "serialize_dont_fragment_component_pair",
+                "serialize_dont_fragment_component_pair_multi_target",
+                "serialize_dont_fragment_component_w_type_info",
                 "serialize_auto_override_w_inherited",
                 "serialize_auto_override",
                 "serialize_auto_override_pair",
@@ -816,7 +856,11 @@
                 "serialize_w_allow_blacklist",
                 "serialize_w_partial_blacklist",
                 "serialize_value_pair",
-                "serialize_parent_component"
+                "serialize_parent_component",
+                "serialize_w_quote_in_name",
+                "serialize_w_backslash_in_name",
+                "serialize_w_quote_in_parent_name",
+                "serialize_w_quote_in_alert_message"
             ]
         }, {
             "id": "SerializeIterToJson",
@@ -837,6 +881,7 @@
                 "serialize_type_info_2_components",
                 "serialize_type_info_1_struct",
                 "serialize_type_info_1_component_1_struct",
+                "serialize_type_info_1_component_1_pair_tag",
                 "serialize_type_info_2_structs",
                 "serialize_type_info_w_unit",
                 "serialize_type_info_w_unit_quantity",
@@ -880,6 +925,7 @@
                 "serialize_colors_w_offset",
                 "serialize_anonymous_entities_w_offset",
                 "serialize_table",
+                "serialize_table_w_type_info",
                 "serialize_table_w_id_labels",
                 "serialize_table_w_var_labels",
                 "serialize_world",
@@ -902,7 +948,10 @@
                 "serialize_children_w_parent_component",
                 "serialize_children_w_parent_component_table",
                 "serialize_children_w_tag_w_parent_component",
-                "serialize_children_w_tag_w_parent_component_table"
+                "serialize_children_w_tag_w_parent_component_table",
+                "serialize_childof_var_w_parent",
+                "serialize_childof_wildcard_w_parent",
+                "serialize_table_dont_fragment_no_leak"
             ]
         }, {
             "id": "SerializeIterToRowJson",
@@ -1178,6 +1227,7 @@
         },{
             "id": "RttCompare",
             "testcases": [
+                "struct_with_array",
                 "struct_with_ints",
                 "struct_with_strings",
                 "struct_with_opaque",
@@ -1203,7 +1253,8 @@
                 "vector_of_struct_with_ints",
                 "vector_of_struct_with_strings",
                 "vector_of_arrays_of_strings",
-                "vector_of_opaque"
+                "vector_of_opaque",
+                "struct_with_vector_of_ints_different_length"
             ]
         }]
     }

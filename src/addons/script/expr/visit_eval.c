@@ -1,12 +1,13 @@
 /**
- * @file addons/script/expr_ast.c
- * @brief Script expression AST implementation.
+ * @file addons/script/expr/visit_eval.c
+ * @brief Script expression evaluation visitor.
  */
 
 #include "flecs.h"
 
 #ifdef FLECS_SCRIPT
 #include "../script.h"
+#include <inttypes.h>
 
 typedef struct ecs_script_eval_ctx_t {
     const ecs_script_t *script;
@@ -130,8 +131,16 @@ int flecs_expr_initializer_eval_static(
         ecs_assert(elem->value != NULL, ECS_INTERNAL_ERROR, NULL);
 
         if (elem->value->kind == EcsExprInitializer) {
-            if (flecs_expr_initializer_eval(ctx, 
-                (ecs_expr_initializer_t*)elem->value, value, NULL, value_size)) 
+            ecs_expr_initializer_t *inner =
+                (ecs_expr_initializer_t*)elem->value;
+            void *inner_value = value;
+            ecs_size_t inner_size = value_size;
+            if (inner->is_dynamic) {
+                inner_value = ECS_OFFSET(value, elem->offset);
+                inner_size = inner->node.type_info->size;
+            }
+            if (flecs_expr_initializer_eval(ctx,
+                inner, inner_value, NULL, inner_size))
             {
                 goto error;
             }
@@ -491,7 +500,7 @@ int flecs_expr_cast_visit_eval(
         goto error;
     }
 
-    /* Copy expression result to storage of casted-to type */
+    /* Copy expression result to storage of cast-to type */
     if (flecs_value_copy_to(ctx->world, &out->value, expr)) {
         flecs_expr_visit_error(ctx->script, node, "failed to cast value");
         goto error;
@@ -711,6 +720,15 @@ int flecs_expr_function_visit_eval(
         node->calldata.is.callback(&call_ctx, argc, argv, &out->value);
     }
 
+    ecs_script_runtime_t *r = flecs_script_runtime_get(ctx->world);
+    if (r->error) {
+        r->error = false;
+        flecs_expr_visit_error(ctx->script, node,
+            "error in script function '%s'",
+            node->function_name);
+        goto error;
+    }
+
     out->owned = true;
 
     flecs_expr_stack_pop(ctx->stack);
@@ -765,6 +783,15 @@ int flecs_expr_method_visit_eval(
             node->calldata.is.callback(&call_ctx, argc, argv, &out->value);
         }
 
+        ecs_script_runtime_t *r = flecs_script_runtime_get(ctx->world);
+        if (r->error) {
+            r->error = false;
+            flecs_expr_visit_error(ctx->script, node,
+                "error in script method '%s'",
+                node->function_name);
+            goto error;
+        }
+
         out->owned = true;
     }
 
@@ -788,9 +815,20 @@ int flecs_expr_member_visit_eval(
         goto error;
     }
 
-    out->value.ptr = ECS_OFFSET(expr->value.ptr, node->offset);
-    out->value.type = node->node.type;
-    out->owned = false;
+    if (node->swizzle_count) {
+        ecs_size_t size = node->swizzle_size;
+        int32_t i;
+        for (i = 0; i < node->swizzle_count; i ++) {
+            ecs_os_memcpy(ECS_OFFSET(out->value.ptr, i * size),
+                ECS_OFFSET(expr->value.ptr, node->swizzle[i]), size);
+        }
+        out->value.type = node->node.type;
+        out->owned = false;
+    } else {
+        out->value.ptr = ECS_OFFSET(expr->value.ptr, node->offset);
+        out->value.type = node->node.type;
+        out->owned = false;
+    }
 
     flecs_expr_stack_pop(ctx->stack);
     return 0;
@@ -816,6 +854,20 @@ int flecs_expr_element_visit_eval(
     }
 
     int64_t index_value = *(int64_t*)index->value.ptr;
+
+    int64_t elem_count = node->elem_count;
+    if (!elem_count) {
+        if (ecs_get(ctx->world, expr->value.type, EcsVector) != NULL) {
+            elem_count = ecs_vec_count(expr->value.ptr);
+        }
+    }
+
+    if (index_value < 0 || index_value >= elem_count) {
+        flecs_expr_visit_error(ctx->script, node,
+            "index %" PRId64 " is out of range for collection (count = %"
+                PRId64 ")", index_value, elem_count);
+        goto error;
+    }
 
     out->value.ptr = ECS_OFFSET(expr->value.ptr, node->elem_size * index_value);
     out->value.type = node->node.type;
@@ -902,6 +954,12 @@ int flecs_expr_new_visit_eval(
     ecs_script_eval_visitor_t *v = ctx->desc ? ctx->desc->script_visitor : NULL;
     ecs_script_eval_visitor_t temp_v = {0};
     ecs_script_eval_desc_t desc = {0};
+
+    if (v && v->template) {
+        *(ecs_entity_t*)out->value.ptr = 0;
+        out->value.type = ecs_id(ecs_entity_t);
+        return 0;
+    }
 
     if (!v) {
         /* Safe const cast, script won't modify variables since it only contains 
@@ -1186,7 +1244,7 @@ int flecs_expr_visit_eval(
                 goto error;
             }
         } else {
-            /* Values not owned by runtime should be copied */
+            /* Values not owned by the runtime should be copied */
             if (flecs_value_copy_to(ctx.world, out, val)) {
                 flecs_expr_visit_error(script, node, "failed to write to output");
                 goto error;

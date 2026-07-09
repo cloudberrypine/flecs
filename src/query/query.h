@@ -1,7 +1,10 @@
- /**
+/**
  * @file query/query.h
  * @brief Query implementation.
  */
+
+#ifndef FLECS_QUERY_H
+#define FLECS_QUERY_H
 
 #include "compiler/compiler.h"
 #include "cache/cache.h"
@@ -30,14 +33,18 @@ int flecs_query_finalize_query(
 void flecs_query_copy_arrays(
     ecs_query_t *q);
 
-/* Free terms, sizes and ids arrays */
-void flecs_query_free_arrays(
-    ecs_query_t *q);
-
-/* Internal function for creating iterator, doesn't run aperiodic tasks */
+/* Internal function for creating an iterator, doesn't run aperiodic tasks */
 ecs_iter_t flecs_query_iter(
     const ecs_world_t *world,
     const ecs_query_t *q);
+
+int flecs_query_trivial_has_range(
+    const ecs_query_t *q,
+    ecs_iter_t *it,
+    const ecs_world_t *world,
+    ecs_table_t *table,
+    int32_t offset,
+    int32_t count);
 
 /* Internal function for initializing an iterator after vars are constrained */
 void flecs_query_iter_constrain(
@@ -51,4 +58,6 @@ void flecs_query_rematch(
 /* Reclaim memory from queries */
 void flecs_query_reclaim(
     ecs_query_t *query);
+
+#endif
 

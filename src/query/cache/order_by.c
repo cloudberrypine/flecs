@@ -1,6 +1,6 @@
 /**
- * @file query/cache/cache_order_by.c
- * @brief Query sorting (order_by) implenentation.
+ * @file query/cache/order_by.c
+ * @brief Query sorting (order_by) implementation.
  */
 
 #include "../../private_api.h"
@@ -117,7 +117,8 @@ void flecs_query_cache_build_sorted_table_range(
             ecs_size_t size = cache->query->sizes[field];
             ecs_entity_t src = qm->_sources[field];
             if (src == 0) {
-                int32_t column_index = qm->base.trs[field]->column;
+                int32_t column_index = qm->base.columns[field];
+                ecs_assert(column_index >= 0, ECS_INTERNAL_ERROR, NULL);
                 ecs_column_t *column = &table->data.columns[column_index];
                 helper[to_sort].ptr = column->data;
                 helper[to_sort].elem_size = size;
@@ -196,7 +197,7 @@ void flecs_query_cache_build_sorted_table_range(
         }
 
         sort_helper_t *cur_helper = &helper[min];
-        if (!cur || cur->base.trs != cur_helper->match->base.trs) {
+        if (!cur || cur->base.columns != cur_helper->match->base.columns) {
             cur = ecs_vec_append_t(NULL, &cache->table_slices, 
                 ecs_query_cache_match_t);
             *cur = *(cur_helper->match);
@@ -219,7 +220,7 @@ void flecs_query_cache_build_sorted_tables(
     ecs_vec_clear(&cache->table_slices);
 
     /* Sort tables in group order */
-    ecs_query_cache_group_t *cur = &cache->default_group;
+    ecs_query_cache_group_t *cur = cache->first_group;
     do {
         flecs_query_cache_build_sorted_table_range(cache, cur);
     } while ((cur = cur->next));
@@ -245,7 +246,7 @@ void flecs_query_cache_sort_tables(
 
     bool tables_sorted = false;
 
-    ecs_query_cache_group_t *cur = &cache->default_group;
+    ecs_query_cache_group_t *cur = cache->first_group;
     do {
         int32_t i, count = ecs_vec_count(&cur->tables);
         for (i = 0; i < count; i ++) {
@@ -276,8 +277,10 @@ void flecs_query_cache_sort_tables(
 
             int32_t column = -1;
             if (order_by) {
+                int32_t order_by_field =
+                    cache->query->terms[order_by_term].field_index;
                 if (flecs_query_check_table_monitor(
-                    impl, qm, order_by_term + 1)) 
+                    impl, qm, order_by_field + 1))
                 {
                     dirty = true;
                 }
@@ -294,6 +297,7 @@ void flecs_query_cache_sort_tables(
                     if (column == -1) {
                         /* Component is shared, no sorting is needed */
                         dirty = false;
+                        tables_sorted = true;
                     }
                 }
             }

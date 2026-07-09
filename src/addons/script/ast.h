@@ -26,7 +26,9 @@ typedef enum ecs_script_node_kind_t {
     EcsAstEntity,
     EcsAstPairScope,
     EcsAstIf,
-    EcsAstFor
+    EcsAstFor,
+    EcsAstInclude,
+    EcsAstFunction
 } ecs_script_node_kind_t;
 
 typedef struct ecs_script_node_t {
@@ -168,14 +170,31 @@ typedef struct ecs_script_for_range_t {
     ecs_script_scope_t *scope;
 } ecs_script_for_range_t;
 
+typedef struct ecs_script_include_t {
+    ecs_script_node_t node;
+    const char *filename;
+} ecs_script_include_t;
+
+typedef struct ecs_script_fn_param_t {
+    const char *name;
+    const char *type;
+} ecs_script_fn_param_t;
+
+typedef struct ecs_script_function_node_t {
+    ecs_script_node_t node;
+    const char *name;
+    const char *return_type;
+    ecs_vec_t params;
+    ecs_script_scope_t *body;
+    ecs_expr_node_t *return_expr;
+    ecs_entity_t eval;
+} ecs_script_function_node_t;
+
 #define ecs_script_node(kind, node)\
     ((ecs_script_##kind##_t*)node)
 
 bool flecs_scope_is_empty(
     ecs_script_scope_t *scope);
-
-ecs_script_scope_t* flecs_script_insert_scope(
-    ecs_parser_t *parser);
 
 ecs_script_entity_t* flecs_script_insert_entity(
     ecs_parser_t *parser,
@@ -240,5 +259,13 @@ ecs_script_if_t* flecs_script_insert_if(
 
 ecs_script_for_range_t* flecs_script_insert_for_range(
     ecs_parser_t *parser);
+
+ecs_script_include_t* flecs_script_insert_include(
+    ecs_parser_t *parser,
+    const char *filename);
+
+ecs_script_function_node_t* flecs_script_insert_function(
+    ecs_parser_t *parser,
+    const char *name);
 
 #endif

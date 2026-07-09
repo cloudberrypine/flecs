@@ -2262,20 +2262,19 @@ void System_register_twice_w_each(void) {
 
     int count1 = 0, count2 = 0;
 
-    flecs::system sys1 = ecs.system("Test")
+    flecs::system sys = ecs.system("Test")
         .each([&](flecs::iter&, size_t) {
             count1 ++;
         });
 
-    sys1.run();
+    sys.run();
     test_int(count1, 1);
 
-    flecs::system sys2 = ecs.system("Test")
-        .each([&](flecs::iter&, size_t) {
-            count2 ++;
-        });
+    sys.each([&](flecs::iter&, size_t) {
+        count2 ++;
+    });
 
-    sys2.run();
+    sys.run();
     test_int(count2, 1);
 }
 
@@ -2284,20 +2283,19 @@ void System_register_twice_w_run(void) {
 
     int count1 = 0, count2 = 0;
 
-    flecs::system sys1 = ecs.system("Test")
+    flecs::system sys = ecs.system("Test")
         .run([&](flecs::iter&) {
             count1 ++;
         });
 
-    sys1.run();
+    sys.run();
     test_int(count1, 1);
 
-    flecs::system sys2 = ecs.system("Test")
-        .run([&](flecs::iter&) {
-            count2 ++;
-        });
+    sys.run([&](flecs::iter&) {
+        count2 ++;
+    });
 
-    sys2.run();
+    sys.run();
     test_int(count2, 1);
 }
 
@@ -2306,20 +2304,19 @@ void System_register_twice_w_run_each(void) {
 
     int count1 = 0, count2 = 0;
 
-    flecs::system sys1 = ecs.system("Test")
+    flecs::system sys = ecs.system("Test")
         .run([&](flecs::iter&) {
             count1 ++;
         });
 
-    sys1.run();
+    sys.run();
     test_int(count1, 1);
 
-    flecs::system sys2 = ecs.system("Test")
-        .each([&](flecs::iter&, size_t) {
-            count2 ++;
-        });
+    sys.each([&](flecs::iter&, size_t) {
+        count2 ++;
+    });
 
-    sys2.run();
+    sys.run();
     test_int(count2, 1);
 }
 
@@ -2328,21 +2325,161 @@ void System_register_twice_w_each_run(void) {
 
     int count1 = 0, count2 = 0;
 
-    flecs::system sys1 = ecs.system("Test")
+    flecs::system sys = ecs.system("Test")
         .each([&](flecs::iter&, size_t) {
             count1 ++;
         });
 
-    sys1.run();
+    sys.run();
     test_int(count1, 1);
 
-    flecs::system sys2 = ecs.system("Test")
-        .run([&](flecs::iter&) {
-            count2 ++;
+    sys.run([&](flecs::iter&) {
+        count2 ++;
+    });
+
+    sys.run();
+    test_int(count2, 1);
+}
+
+void System_lookup_and_update_each(void) {
+    flecs::world ecs;
+
+    int count1 = 0, count2 = 0;
+
+    ecs.system("Test")
+        .each([&](flecs::iter&, size_t) {
+            count1 ++;
         });
 
-    sys2.run();
+    flecs::entity e = ecs.lookup("Test");
+    test_assert(e != 0);
+
+    flecs::system sys = ecs.system(e);
+    sys.each([&](flecs::iter&, size_t) {
+        count2 ++;
+    });
+
+    sys.run();
+    test_int(count1, 0);
     test_int(count2, 1);
+}
+
+void System_lookup_and_update_run(void) {
+    flecs::world ecs;
+
+    int count1 = 0, count2 = 0;
+
+    ecs.system("Test")
+        .each([&](flecs::iter&, size_t) {
+            count1 ++;
+        });
+
+    flecs::system sys = ecs.system(ecs.lookup("Test"));
+    sys.run([&](flecs::iter&) {
+        count2 ++;
+    });
+
+    sys.run();
+    test_int(count1, 0);
+    test_int(count2, 1);
+}
+
+void System_lookup_and_update_ctx(void) {
+    flecs::world ecs;
+
+    int my_ctx = 42;
+
+    ecs.system("Test")
+        .each([](flecs::iter&, size_t) { });
+
+    flecs::system sys = ecs.system(ecs.lookup("Test"));
+    test_assert(sys.ctx() == nullptr);
+
+    sys.ctx(&my_ctx);
+    test_assert(sys.ctx() == &my_ctx);
+}
+
+static
+uint64_t system_group_by_rel(
+    flecs::world_t *world,
+    flecs::table_t *table,
+    flecs::entity_t id,
+    void *ctx)
+{
+    (void)ctx;
+
+    ecs_id_t match;
+    if (ecs_search(world, table, ecs_pair(id, EcsWildcard), &match) != -1) {
+        return ECS_PAIR_SECOND(match);
+    }
+
+    return 0;
+}
+
+void System_set_group(void) {
+    flecs::world world;
+
+    struct Rel { };
+    struct TgtA { };
+    struct TgtB { };
+    struct TgtC { };
+    struct Tag { };
+
+    auto e1 = world.entity().add<Rel, TgtA>();
+    auto e2 = world.entity().add<Rel, TgtB>();
+    world.entity().add<Rel, TgtC>();
+
+    auto e4 = world.entity().add<Rel, TgtA>().add<Tag>();
+    auto e5 = world.entity().add<Rel, TgtB>().add<Tag>();
+    world.entity().add<Rel, TgtC>().add<Tag>();
+
+    flecs::entity_t expected_group = 0;
+    int count = 0;
+    bool e1_found = false;
+    bool e2_found = false;
+    bool e4_found = false;
+    bool e5_found = false;
+
+    auto sys = world.system()
+        .with<Rel>(flecs::Wildcard)
+        .group_by<Rel>(system_group_by_rel)
+        .run([&](flecs::iter& it) {
+            while (it.next()) {
+                test_assert(it.group_id() == expected_group);
+                for (auto i : it) {
+                    auto e = it.entity(i);
+                    if (e == e1) e1_found = true;
+                    if (e == e2) e2_found = true;
+                    if (e == e4) e4_found = true;
+                    if (e == e5) e5_found = true;
+                    count ++;
+                }
+            }
+        });
+
+    expected_group = world.id<TgtB>();
+    sys.set_group<TgtB>().run();
+
+    test_int(count, 2);
+    test_bool(e1_found, false);
+    test_bool(e2_found, true);
+    test_bool(e4_found, false);
+    test_bool(e5_found, true);
+
+    count = 0;
+    e1_found = false;
+    e2_found = false;
+    e4_found = false;
+    e5_found = false;
+
+    expected_group = world.id<TgtA>();
+    sys.set_group(expected_group).run();
+
+    test_int(count, 2);
+    test_bool(e1_found, true);
+    test_bool(e2_found, false);
+    test_bool(e4_found, true);
+    test_bool(e5_found, false);
 }
 
 void System_run_w_0_src_query(void) {

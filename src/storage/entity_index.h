@@ -1,8 +1,8 @@
 /**
- * @file datastructures/entity_index.h
+ * @file storage/entity_index.h
  * @brief Entity index data structure.
  *
- * The entity index stores the table, row for an entity id.
+ * The entity index stores the table and row for an entity id.
  */
  
 #ifndef FLECS_ENTITY_INDEX_H
@@ -18,8 +18,10 @@ typedef struct ecs_entity_index_page_t {
 typedef struct ecs_entity_index_t {
     ecs_vec_t dense;
     ecs_vec_t pages;
+    ecs_vec_t ranges;                /* vec<ecs_entity_range_t*> - sorted by min */
+    ecs_entity_range_t *active_range;       /* Currently active range (NULL = off) */
     int32_t alive_count;
-    uint64_t max_id;
+    uint32_t max_id;
     ecs_allocator_t *allocator;
 } ecs_entity_index_t;
 
@@ -62,7 +64,7 @@ void flecs_entity_index_remove(
     ecs_entity_index_t *index,
     uint64_t entity);
 
-/* Set generation of entity */
+/* Make entity alive */
 void flecs_entity_index_make_alive(
     ecs_entity_index_t *index,
     uint64_t entity);
@@ -121,7 +123,18 @@ void flecs_entity_index_clear(
 void flecs_entity_index_shrink(
     ecs_entity_index_t *index);
 
-/* Return number of alive entities in index */
+/* Ensure page for entity id exists */
+ecs_entity_index_page_t* flecs_entity_index_ensure_page(
+    ecs_entity_index_t *index,
+    uint32_t id);
+
+/* Set active entity range. Swaps not-alive entries between the entity index
+ * and the previous/new range's recycled lists. */
+void flecs_entity_index_set_range(
+    ecs_entity_index_t *index,
+    ecs_entity_range_t *range);
+
+/* Return ids of alive entities in index */
 const uint64_t* flecs_entity_index_ids(
     const ecs_entity_index_t *index);
 

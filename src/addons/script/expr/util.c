@@ -1,11 +1,36 @@
 /**
- * @file addons/script/expr/parser.c * brief Scriptexpoutsion parser.
+ * @file addons/script/expr/util.c
+ * @brief Script expression utilities.
  */
 
 #include "flecs.h"
 
 #ifdef FLECS_SCRIPT
 #include "../script.h"
+
+void flecs_expr_visit_error_(
+    const ecs_script_t *script,
+    const void *node,
+    const char *fmt,
+    ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    char *msg = flecs_vasprintf(fmt, args);
+    va_end(args);
+
+    const ecs_expr_node_t *expr_node = node;
+    const char *code = script->code;
+    const char *pos = expr_node ? expr_node->pos : NULL;
+
+    if (code && pos && (pos >= code) && (pos <= &code[ecs_os_strlen(code)])) {
+        ecs_parser_error(script->name, code, pos - code, "%s", msg);
+    } else {
+        ecs_parser_error(script->name, NULL, 0, "%s", msg);
+    }
+
+    ecs_os_free(msg);
+}
 
 int flecs_value_copy_to(
     ecs_world_t *world,
@@ -78,7 +103,7 @@ int flecs_value_unary(
         ecs_assert(out->type == ecs_id(ecs_bool_t), ECS_INTERNAL_ERROR, NULL);
         *(bool*)out->ptr = !*(bool*)expr->ptr;
     } else {
-        ecs_abort(ECS_INTERNAL_ERROR, "invalid operator for binary expression");
+        ecs_abort(ECS_INTERNAL_ERROR, "invalid operator for unary expression");
     }
 
     return 0;
@@ -330,6 +355,9 @@ int flecs_value_binary(
     case EcsTokKeywordExport:
     case EcsTokKeywordProp:
     case EcsTokKeywordConst:
+    case EcsTokKeywordInclude:
+    case EcsTokKeywordFn:
+    case EcsTokArrow:
     default:
         ecs_abort(ECS_INTERNAL_ERROR, "invalid operator for binary expression");
     }

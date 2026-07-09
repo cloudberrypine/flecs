@@ -2815,7 +2815,8 @@ void Pairs_with_for_existing(void) {
 void Pairs_65k_relations(void) {
     ecs_world_t *world = ecs_mini();
 
-    ecs_set_entity_range(world, 65536, 0);
+    const ecs_entity_range_t *range = ecs_entity_range_new(world, 65536, 0);
+    ecs_entity_range_set(world, range);
 
     ecs_entity_t rel = ecs_new(world);
     ecs_entity_t obj = ecs_new(world);
@@ -3218,6 +3219,30 @@ void Pairs_force_target_on_target(void) {
     ecs_fini(world);
 }
 
+void Pairs_disable_w_toggle_pair_rel_target_traits(void) {
+    ecs_world_t *world = ecs_init();
+
+    ecs_entity_t rel = ecs_new(world);
+    ecs_add_id(world, rel, EcsRelationship);
+    ecs_add_id(world, rel, EcsCanToggle);
+
+    ecs_entity_t tgt = ecs_new(world);
+    ecs_add_id(world, tgt, EcsTarget);
+
+    ecs_entity_t e = ecs_new(world);
+    ecs_add_pair(world, e, rel, tgt);
+
+    test_bool(true, ecs_is_enabled_id(world, e, ecs_pair(rel, tgt)));
+
+    ecs_enable_id(world, e, ecs_pair(rel, tgt), false);
+    test_bool(false, ecs_is_enabled_id(world, e, ecs_pair(rel, tgt)));
+
+    ecs_enable_id(world, e, ecs_pair(rel, tgt), true);
+    test_bool(true, ecs_is_enabled_id(world, e, ecs_pair(rel, tgt)));
+
+    ecs_fini(world);
+}
+
 void Pairs_relationship_with_exclusive(void) {
     ecs_world_t *world = ecs_mini();
 
@@ -3422,6 +3447,126 @@ void Pairs_target_w_value_pair(void) {
 
     uint64_t v = ecs_get_target(world, e, Number, 0);
     test_int(v, 10);
+
+    ecs_fini(world);
+}
+
+void Pairs_add_value_pair_w_0_target(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_TAG(world, Number);
+
+    ecs_entity_t e = ecs_new(world);
+
+    ecs_add_id(world, e, ecs_value_pair(Number, 0));
+
+    test_bool(true, ecs_has_id(world, e, ecs_value_pair(Number, 0)));
+
+    uint64_t v = ecs_get_target(world, e, Number, 0);
+    test_int(v, 0);
+
+    ecs_remove_id(world, e, ecs_value_pair(Number, 0));
+
+    test_bool(false, ecs_has_id(world, e, ecs_value_pair(Number, 0)));
+
+    ecs_fini(world);
+}
+
+void Pairs_add_value_pair_w_0_target_w_isa(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_COMPONENT(world, Position);
+    ECS_TAG(world, Number);
+
+    ecs_entity_t base = ecs_new(world);
+    ecs_set(world, base, Position, {10, 20});
+
+    ecs_entity_t e = ecs_new(world);
+    ecs_add_pair(world, e, EcsIsA, base);
+
+    ecs_add_id(world, e, ecs_value_pair(Number, 0));
+
+    test_bool(true, ecs_has_id(world, e, ecs_value_pair(Number, 0)));
+    test_bool(true, ecs_has(world, e, Position));
+
+    const Position *p = ecs_get(world, e, Position);
+    test_assert(p != NULL);
+    test_int(p->x, 10);
+    test_int(p->y, 20);
+
+    ecs_fini(world);
+}
+
+void Pairs_add_to_entity_w_value_pair_0_target_w_isa(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_COMPONENT(world, Velocity);
+    ECS_TAG(world, Number);
+
+    ecs_entity_t base = ecs_new(world);
+
+    ecs_entity_t e = ecs_new(world);
+    ecs_add_pair(world, e, EcsIsA, base);
+    ecs_set(world, e, Velocity, {1, 2});
+
+    /* Adding the value pair triggers a table move. The new table has a
+     * Velocity column and an IsA pair. flecs_table_update_overrides iterates
+     * columns and calls ecs_search_relation for each one. Velocity is not on
+     * the base, so the search continues looking for more IsA pairs by calling
+     * flecs_table_offset_search. The offset search iterates through the table
+     * type and encounters the value pair with 0 target. ecs_id_match treats
+     * it as a regular pair and asserts second element != 0, causing a crash. */
+    ecs_add_id(world, e, ecs_value_pair(Number, 0));
+
+    test_bool(true, ecs_has_id(world, e, ecs_value_pair(Number, 0)));
+    test_bool(true, ecs_has(world, e, Velocity));
+
+    const Velocity *v = ecs_get(world, e, Velocity);
+    test_assert(v != NULL);
+    test_int(v->x, 1);
+    test_int(v->y, 2);
+
+    ecs_fini(world);
+}
+
+void Pairs_inherit_relationship_trait(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ecs_entity_t base = ecs_new(world);
+    ecs_add_id(world, base, EcsRelationship);
+
+    ecs_entity_t derived = ecs_new_w_pair(world, EcsIsA, base);
+    test_assert(ecs_has_id(world, derived, EcsRelationship));
+
+    ecs_fini(world);
+}
+
+
+void Pairs_disable_toggle_component_and_toggle_pair(void) {
+    ecs_world_t *world = ecs_init();
+
+    ecs_entity_t comp = ecs_new(world);
+    ecs_add_id(world, comp, EcsCanToggle);
+
+    ecs_entity_t rel = ecs_new(world);
+    ecs_add_id(world, rel, EcsCanToggle);
+
+    ecs_entity_t tgt = ecs_new(world);
+
+    ecs_entity_t e = ecs_new(world);
+    ecs_add_id(world, e, comp);
+    ecs_add_pair(world, e, rel, tgt);
+
+    test_bool(true, ecs_is_enabled_id(world, e, comp));
+    test_bool(true, ecs_is_enabled_id(world, e, ecs_pair(rel, tgt)));
+
+    ecs_enable_id(world, e, comp, false);
+    test_bool(false, ecs_is_enabled_id(world, e, comp));
+    test_bool(true, ecs_is_enabled_id(world, e, ecs_pair(rel, tgt)));
+
+    ecs_enable_id(world, e, ecs_pair(rel, tgt), false);
+    test_bool(false, ecs_is_enabled_id(world, e, comp));
+    test_bool(false, ecs_is_enabled_id(world, e, ecs_pair(rel, tgt)));
 
     ecs_fini(world);
 }

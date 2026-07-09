@@ -11,16 +11,25 @@
 typedef struct ecs_script_impl_t ecs_script_impl_t;
 typedef struct ecs_script_scope_t ecs_script_scope_t;
 
+#ifndef ECS_PARSER_MAX_RECURSION_DEPTH
+#define ECS_PARSER_MAX_RECURSION_DEPTH (64)
+#endif
+
 typedef struct ecs_parser_t {
     const char *name;
     const char *code;
 
     const char *pos;
+    const char *fixed_pos;
+    const char *stmt_pos;
     char *token_cur;
+    char *token_end;
     char *token_keep;
     bool significant_newline;
     bool merge_variable_members;
     bool function_token;
+    int16_t scope_depth;
+    int16_t expr_depth;
 
     ecs_world_t *world;
 

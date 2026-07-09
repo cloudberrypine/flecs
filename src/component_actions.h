@@ -1,7 +1,10 @@
 /**
- * @file component_actions.c
+ * @file component_actions.h
  * @brief Logic executed after adding/removing a component.
  */
+
+#ifndef FLECS_COMPONENT_ACTIONS_H
+#define FLECS_COMPONENT_ACTIONS_H
 
 #include "private_api.h"
 
@@ -19,7 +22,7 @@ void flecs_invoke_hook(
     ecs_entity_t event,
     ecs_iter_action_t hook);
 
-/* Invoke replace hook */
+/* Invoke replace hook. */
 void flecs_invoke_replace_hook(
     ecs_world_t *world,
     ecs_table_t *table,
@@ -36,7 +39,7 @@ bool flecs_sparse_on_add(
     int32_t row,
     int32_t count,
     const ecs_type_t *added,
-    bool construct);
+    ecs_id_t emplace_id);
 
 /* Add action for single sparse component. */
 bool flecs_sparse_on_add_cr(
@@ -55,18 +58,10 @@ void flecs_actions_new(
     int32_t count,
     const ecs_table_diff_t *diff,
     ecs_flags32_t flags,
-    bool construct,
-    bool sparse);
+    bool sparse,
+    ecs_id_t emplace_id);
 
-/* Run actions for deleting an entity. */
-void flecs_actions_delete(
-    ecs_world_t *world,
-    ecs_table_t *table,
-    int32_t row,
-    int32_t count,
-    const ecs_table_diff_t *diff);
-
-/* Same as flecs_actions_delete, but for entities whose parent is also deleted */
+/* Run actions for deleting an entity and its children. */
 void flecs_actions_delete_tree(
     ecs_world_t *world,
     ecs_table_t *table,
@@ -74,7 +69,7 @@ void flecs_actions_delete_tree(
     int32_t count,
     const ecs_table_diff_t *diff);
 
-/* Run actions for added components in table move */
+/* Run actions for added components in table move. */
 void flecs_actions_move_add(
     ecs_world_t *world,
     ecs_table_t *table,
@@ -83,10 +78,11 @@ void flecs_actions_move_add(
     int32_t count,
     const ecs_table_diff_t *diff,
     ecs_flags32_t flags,
-    bool construct,
-    bool sparse);
+    bool sparse,
+    ecs_id_t emplace_id,
+    bool update_parent_records);
 
-/* Run actions for removed components in table move */
+/* Run actions for removed components in table move. */
 void flecs_actions_move_remove(
     ecs_world_t *world,
     ecs_table_t *table,
@@ -95,7 +91,7 @@ void flecs_actions_move_remove(
     int32_t count,
     const ecs_table_diff_t *diff);
 
-/* Run on set actions. */
+/* Run on_set actions. */
 void flecs_notify_on_set(
     ecs_world_t *world,
     ecs_table_t *table,
@@ -110,3 +106,5 @@ void flecs_notify_on_set_ids(
     int32_t row,
     int32_t count,
     ecs_type_t *ids);
+
+#endif

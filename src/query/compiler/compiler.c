@@ -1,5 +1,5 @@
 /**
- * @file query/compiler/compile.c
+ * @file query/compiler/compiler.c
  * @brief Compile query program from query.
  */
 
@@ -271,7 +271,7 @@ int flecs_query_discover_vars(
         bool first_is_this = 
             (ECS_TERM_REF_ID(first) == EcsThis) && (first->id & EcsIsVariable);
         bool second_is_this = 
-            (ECS_TERM_REF_ID(first) == EcsThis) && (first->id & EcsIsVariable);
+            (ECS_TERM_REF_ID(second) == EcsThis) && (second->id & EcsIsVariable);
 
         if (first_is_this || second_is_this) {
             if (!table_this) {
@@ -297,7 +297,7 @@ int flecs_query_discover_vars(
                 var->table_id = base_table_id;
             } else if (anonymous_table_count) {
                 /* Scan for implicit anonymous table variables that haven't been
-                 * inserted yet (happens after this step). Doing this here vs.
+                 * inserted yet (happens after this step). Doing this here
                  * ensures that anonymous variables are appended at the end of
                  * the variable array, while also ensuring that variable ids are
                  * stable (no swapping of table var ids that are in use). */
@@ -395,9 +395,16 @@ int flecs_query_discover_vars(
     query->vars = query_vars;
     query->var_count = var_count;
     query->pub.var_count = flecs_ito(int8_t, var_count);
-    ECS_BIT_COND(query->pub.flags, EcsQueryHasTableThisVar, 
+    ECS_BIT_COND(query->pub.flags, EcsQueryHasTableThisVar,
         !entity_before_table_this);
     query->var_size = var_count + anonymous_count;
+
+    if (query->var_size > EcsQueryMaxVarCount) {
+        ecs_err(
+            "query has too many (%d) variables (maximum is %d)",
+            query->var_size, EcsQueryMaxVarCount);
+        goto error;
+    }
 
     char **var_names;
     if (query_vars != &flecs_this_array) {
@@ -585,7 +592,7 @@ void flecs_query_insert_trivial_search(
             continue;
         }
 
-        /* We can only add trivial terms to plan if they no up traversal */
+        /* We can only add trivial terms to plan if they have no up traversal */
         if ((term->src.id & EcsTraverseFlags) != EcsSelf) {
             continue;
         }
@@ -772,11 +779,11 @@ int flecs_query_insert_toggle(
 
                 /* Source matches, set flag */
                 if (term->oper == EcsNot) {
-                    not_toggles |= (1llu << j);
+                    not_toggles |= (1llu << term->field_index);
                 } else if (term->oper == EcsOptional) {
-                    optional_toggles |= (1llu << j);
+                    optional_toggles |= (1llu << term->field_index);
                 } else {
-                    and_toggles |= (1llu << j);
+                    and_toggles |= (1llu << term->field_index);
                 }
 
                 fields_done |= (1llu << j);
@@ -809,11 +816,16 @@ int flecs_query_insert_toggle(
              * set, separate instructions let the query engine backtrack to get 
              * the right results. */
             if (optional_toggles) {
+                ecs_flags64_t optional_done = 0;
                 for (j = i; j < term_count; j ++) {
-                    uint64_t field_bit = 1ull << j;
-                    if (!(optional_toggles & field_bit)) {
+                    uint64_t field_bit = 1ull << terms[j].field_index;
+                    if (!(optional_toggles & field_bit) ||
+                        (optional_done & field_bit))
+                    {
                         continue;
                     }
+
+                    optional_done |= field_bit;
 
                     ecs_query_op_t op = {0};
                     op.kind = EcsQueryToggleOption;
@@ -924,7 +936,6 @@ int flecs_query_compile(
     ctx.ops = &stage->operations;
     ctx.cur = ctx.ctrlflow;
     ctx.cur->lbl_begin = -1;
-    ctx.cur->lbl_begin = -1;
     ecs_vec_clear(ctx.ops);
 
     /* Find all variables defined in query */
@@ -1001,8 +1012,8 @@ int flecs_query_compile(
 
             if (term->oper == EcsOptional && start_term) {
                 /* Don't reorder past the first optional term that's not in the
-                 * initial list of optional terms. This protects short
-                 * circuiting branching in the query. 
+                 * initial list of optional terms. This protects short-circuiting
+                 * branching in the query. 
                  * A future algorithm could look at which variables are 
                  * accessed by optional terms, and continue reordering terms 
                  * that don't access those variables. */
@@ -1045,8 +1056,8 @@ int flecs_query_compile(
         }
     } while (true);
 
-    /* If this is the last term and it's a Tree instruction, replace it 
-     * with Children. If the queried for parent has the OrderedChildren
+    /* If there is only one term and it's a Tree instruction, replace it
+     * with Children. If the queried-for parent has the OrderedChildren
      * trait, the Children instruction will return the array with child
      * entities vs. returning children one by one. */
     if (term_count == 1 && ecs_vec_count(ctx.ops)) {

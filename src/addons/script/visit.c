@@ -8,6 +8,20 @@
 #ifdef FLECS_SCRIPT
 #include "script.h"
 
+static
+int flecs_script_visit_push_checked(
+    ecs_script_visit_t *v,
+    ecs_script_node_t *node)
+{
+    if (v->depth >= ECS_SCRIPT_VISIT_MAX_DEPTH) {
+        ecs_err("maximum script nesting depth exceeded");
+        return -1;
+    }
+
+    v->nodes[v->depth ++] = node;
+    return 0;
+}
+
 ecs_script_node_t* ecs_script_parent_node_(
     ecs_script_visit_t *v)
 {
@@ -32,37 +46,6 @@ ecs_script_scope_t* ecs_script_current_scope_(
     return NULL;
 }
 
-ecs_script_node_t* ecs_script_parent_(
-    ecs_script_visit_t *v,
-    ecs_script_node_t *child)
-{
-    int32_t depth;
-    for(depth = v->depth - 1; depth >= 0; depth --) {
-        ecs_script_node_t *node = v->nodes[depth];
-        if (node == child && depth) {
-            return v->nodes[depth - 1];
-        }
-    }
-
-    return NULL;
-}
-
-int32_t ecs_script_node_line_number_(
-    ecs_script_impl_t *script,
-    ecs_script_node_t *node)
-{
-    const char *ptr;
-    int32_t line_count = 1;
-    for (ptr = script->pub.code; ptr < node->pos; ptr ++) {
-        ecs_assert(ptr[0] != 0, ECS_INTERNAL_ERROR, NULL);
-        if (ptr[0] == '\n') {
-            line_count ++;
-        }
-    }
-
-    return line_count;
-}
-
 void ecs_script_visit_push_(
     ecs_script_visit_t *v,
     ecs_script_node_t *node)
@@ -83,10 +66,13 @@ int ecs_script_visit_scope_(
     ecs_script_visit_t *v,
     ecs_script_scope_t *scope)
 {
+    int32_t depth = v->depth;
     ecs_script_node_t **nodes = ecs_vec_first_t(
         &scope->stmts, ecs_script_node_t*);
 
-    v->nodes[v->depth ++] = (ecs_script_node_t*)scope;
+    if (flecs_script_visit_push_checked(v, (ecs_script_node_t*)scope)) {
+        return -1;
+    }
 
     int32_t i, count = ecs_vec_count(&scope->stmts);
     for (i = 0; i < count; i ++) {
@@ -102,18 +88,22 @@ int ecs_script_visit_scope_(
             v->next = NULL;
         }
 
-        ecs_script_visit_push(v, nodes[i]);
+        if (flecs_script_visit_push_checked(v, nodes[i])) {
+            v->depth = depth;
+            return -1;
+        }
 
         ecs_assert(v->visit != NULL, ECS_INTERNAL_ERROR, NULL);
 
         if (v->visit(v, nodes[i])) {
+            v->depth = depth;
             return -1;
         }
 
         ecs_script_visit_pop(v, nodes[i]);
     }
 
-    v->depth --;
+    v->depth = depth;
 
     return 0;
 }
@@ -122,13 +112,17 @@ int ecs_script_visit_node_(
     ecs_script_visit_t *v,
     ecs_script_node_t *node)
 {
-    v->nodes[v->depth ++] = node;
-
-    if (v->visit(v, node)) {
+    int32_t depth = v->depth;
+    if (flecs_script_visit_push_checked(v, node)) {
         return -1;
     }
 
-    v->depth --;
+    if (v->visit(v, node)) {
+        v->depth = depth;
+        return -1;
+    }
+
+    v->depth = depth;
 
     return 0;
 }

@@ -14,12 +14,11 @@
  * dependencies will automatically show up in this file. Include bake_config.h
  * in your main project file. Do not edit! */
 
-#ifndef CORE_BAKE_CONFIG_H
-#define CORE_BAKE_CONFIG_H
+#ifndef HOST_BAKE_CONFIG_H
+#define HOST_BAKE_CONFIG_H
 
 /* Headers of public dependencies */
 #include <flecs.h>
-#include <bake_test.h>
 
 #endif
 

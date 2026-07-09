@@ -1,11 +1,11 @@
 /**
- * @file query/engine/eval.c
- * @brief Query engine implementation.
+ * @file query/engine/eval_up.c
+ * @brief Up traversal evaluation.
  */
 
 #include "../../private_api.h"
 
-/* Find tables with requested component that has traversable entities. */
+/* Find tables with requested component that have traversable entities. */
 static
 bool flecs_query_up_select_table(
     const ecs_query_op_t *op,
@@ -50,8 +50,8 @@ bool flecs_query_up_select_table(
         range = flecs_query_get_range(op, &op->src, EcsQuerySrc, ctx);
         ecs_assert(range.table != NULL, ECS_INTERNAL_ERROR, NULL);
 
-        /* Keep searching until we find a table that has the requested component, 
-        * with traversable entities */
+        /* Keep searching until we find a table that has the requested component,
+         * with traversable entities */
     } while (!self && range.table->_->traversable_count == 0);
 
     if (!range.count) {
@@ -97,6 +97,7 @@ ecs_trav_down_t* flecs_query_up_find_next_traversable(
             if (record->row & EcsEntityIsTraversable) {
                 /* Found traversable entity */
                 it->sources[op->field_index] = entity;
+                ECS_CONST_CAST(int16_t*, it->columns)[op->field_index] = -1;
                 break;
             }
         }
@@ -144,7 +145,7 @@ bool flecs_query_up_select(
 
     impl->trav = q->terms[op->term_index].trav;
 
-    /* Reuse component record from previous iteration if possible*/
+    /* Reuse component record from previous iteration if possible */
     if (!impl->cr_trav) {
         impl->cr_trav = flecs_components_get(ctx->world, 
             ecs_pair(impl->trav, EcsWildcard));
@@ -218,10 +219,14 @@ next_down_entry:
              * means that before traversing downwards, we should also return 
              * the current table as result. */
             if (self) {
-                if (!flecs_query_table_filter(table, op->other, 
+                if (!flecs_query_table_filter(table, op->other,
                     (EcsTableNotQueryable|EcsTableIsPrefab|EcsTableIsDisabled)))
                 {
                     flecs_reset_source_set_flag(it, op->field_index);
+                    const ecs_table_record_t *tr =
+                        it->trs[op->field_index];
+                    ECS_CONST_CAST(int16_t*, it->columns)[op->field_index] =
+                        tr ? tr->column : -1;
                     impl->row --;
                     return true;
                 }
@@ -243,7 +248,7 @@ next_down_entry:
 next_down_elem:
     /* Get next element (table) in cache entry */
     if ((++ impl->cache_elem) >= ecs_vec_count(&down->elems)) {
-        /* No more elements in cache entry, find next.*/
+        /* No more elements in cache entry, find next. */
         down = NULL;
         goto next_down_entry;
     }
@@ -338,6 +343,7 @@ bool flecs_query_up_with(
                      * This helps distinguish between tables with a Parent 
                      * component that own the component vs. those that don't. */
                     it->sources[op->field_index] = EcsWildcard;
+                    ECS_CONST_CAST(int16_t*, it->columns)[op->field_index] = -1;
                     return true;
                 }
 
@@ -350,7 +356,7 @@ bool flecs_query_up_with(
 next_row:
         if (op_ctx->cur == -1) {
             /* The table either can or can't reach the component, nothing to do 
-             * for a second evaluation of this operation.*/
+             * for a second evaluation of this operation. */
             return false;
         }
 
@@ -378,7 +384,7 @@ next_row:
 
     it->sources[op->field_index] = flecs_entities_get_alive(
         ctx->world, up->src);
-    it->trs[op->field_index] = up->tr;
+    flecs_query_it_set_tr(it, op->field_index, up->tr);
     it->ids[op->field_index] = up->id;
     if (op->match_flags & EcsTermMatchAny) {
         it->ids[op->field_index] = ecs_pair(impl->trav, EcsWildcard);
@@ -428,10 +434,14 @@ bool flecs_query_self_up_with(
         }
 
         if (result) {
-            /* Table has component, no need to traverse*/            
+            /* Table has component, no need to traverse */
             if (flecs_query_ref_flags(op->flags, EcsQuerySrc) & EcsQueryIsVar) {
                 /* Matching self, so set sources to 0 */
                 it->sources[op->field_index] = 0;
+                flecs_reset_source_set_flag(it, op->field_index);
+                const ecs_table_record_t *tr = it->trs[op->field_index];
+                ECS_CONST_CAST(int16_t*, it->columns)[op->field_index] =
+                    tr ? tr->column : -1;
             }
             return true;
         }

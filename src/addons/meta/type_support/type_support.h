@@ -1,5 +1,5 @@
 /**
- * @file addons/meta/meta.h
+ * @file addons/meta/type_support/type_support.h
  * @brief Type support for meta addon.
  */
 
@@ -16,6 +16,11 @@ int flecs_init_type(
     ecs_type_kind_t kind,
     ecs_size_t size,
     ecs_size_t alignment);
+
+void flecs_meta_detect_cycles(
+    ecs_world_t *world,
+    ecs_entity_t type,
+    ecs_entity_t target);
 
 #define flecs_init_type_t(world, type, kind, T) \
     flecs_init_type(world, type, kind, ECS_SIZEOF(T), ECS_ALIGNOF(T))

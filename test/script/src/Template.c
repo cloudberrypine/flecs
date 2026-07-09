@@ -1487,7 +1487,7 @@ void Template_template_w_composite_prop(void) {
     const char *expr =
     LINE "template Tree {"
     LINE "  prop pos = Position: {10, 20}"
-    LINE "  child { $pos }"
+    LINE "  child { Position: $pos }"
     LINE "}"
     LINE "t { Tree: {pos: {20, 30}} }"
     LINE "";
@@ -2597,7 +2597,7 @@ void Template_template_w_child_w_var(void) {
     HEAD "template Foo {"
     LINE "  const pos = Position: {10, 20}"
     LINE "  child {"
-    LINE "    $pos"
+    LINE "    Position: $pos"
     LINE "  }"
     LINE "}"
     LINE ""
@@ -2641,7 +2641,7 @@ void Template_template_w_child_w_prop(void) {
     HEAD "template Foo {"
     LINE "  prop pos = Position: {0, 0}"
     LINE "  child {"
-    LINE "    $pos"
+    LINE "    Position: $pos"
     LINE "  }"
     LINE "}"
     LINE ""
@@ -3765,3 +3765,313 @@ void Template_template_w_tree_parent_change_value(void) {
 
     ecs_fini(world);
 }
+
+void Template_template_w_nested_template_w_with(void) {
+    ecs_world_t *world = ecs_init();
+
+    const char *expr =
+    HEAD "template Frame {"
+    LINE "}"
+    LINE ""
+    LINE "template CityBlock {"
+    LINE "  Frame frame() { }"
+    LINE "}"
+    LINE ""
+    LINE "template Cross {"
+    LINE "  with CityBlock() {"
+    LINE "    CityBlock block() { }"
+    LINE "  }"
+    LINE "}"
+    LINE ""
+    LINE "Cross city()"
+    LINE "";
+
+    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
+
+    ecs_entity_t Cross = ecs_lookup(world, "Cross");
+    test_assert(Cross != 0);
+
+    ecs_entity_t city = ecs_lookup(world, "city");
+    test_assert(city != 0);
+
+    ecs_entity_t block = ecs_lookup_child(world, city, "block");
+    test_assert(block != 0);
+
+    ecs_entity_t frame = ecs_lookup_child(world, block, "frame");
+    test_assert(frame != 0);
+
+    ecs_fini(world);
+}
+
+void Template_template_w_nested_template_w_with_kind_value(void) {
+    ecs_world_t *world = ecs_init();
+
+    const char *expr =
+    HEAD "template Frame {"
+    LINE "}"
+    LINE ""
+    LINE "template CityBlock {"
+    LINE "  prop value = i32: 0"
+    LINE "  Frame frame() { }"
+    LINE "}"
+    LINE ""
+    LINE "template Cross {"
+    LINE "  with CityBlock(10) {"
+    LINE "    CityBlock block(20) { }"
+    LINE "  }"
+    LINE "}"
+    LINE ""
+    LINE "Cross city()"
+    LINE "";
+
+    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
+
+    ecs_entity_t CityBlock = ecs_lookup(world, "CityBlock");
+    test_assert(CityBlock != 0);
+
+    ecs_entity_t city = ecs_lookup(world, "city");
+    test_assert(city != 0);
+
+    ecs_entity_t block = ecs_lookup_child(world, city, "block");
+    test_assert(block != 0);
+
+    const int32_t *value = ecs_get_id(world, block, CityBlock);
+    test_assert(value != NULL);
+    test_int(*value, 20);
+
+    ecs_entity_t frame = ecs_lookup_child(world, block, "frame");
+    test_assert(frame != 0);
+
+    ecs_fini(world);
+}
+
+void Template_pair_component_w_entity_prop_target(void) {
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT(world, Position);
+
+    ecs_struct(world, {
+        .entity = ecs_id(Position),
+        .members = {
+            {"x", ecs_id(ecs_f32_t)},
+            {"y", ecs_id(ecs_f32_t)}
+        }
+    });
+
+    const char *expr =
+    LINE "template Foo {\n"
+    LINE "  prop tgt = flecs.meta.entity: flecs\n"
+    LINE "  (Position, $tgt): {5, 6}\n"
+    LINE "}\n"
+    LINE "ent { Foo: {flecs.core} }\n"
+    LINE "\n";
+
+    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
+
+    ecs_entity_t foo = ecs_lookup(world, "Foo");
+    ecs_entity_t ent = ecs_lookup(world, "ent");
+
+    test_assert(foo != 0);
+    test_assert(ent != 0);
+
+    test_assert(ecs_has_id(world, ent, foo));
+    test_assert(ecs_has_pair(world, ent, ecs_id(Position), EcsFlecsCore));
+
+    const Position *p = ecs_get_pair(world, ent, Position, EcsFlecsCore);
+    test_assert(p != NULL);
+    test_int(p->x, 5);
+    test_int(p->y, 6);
+
+    ecs_fini(world);
+}
+
+void Template_child_name_from_string_prop(void) {
+    ecs_world_t *world = ecs_init();
+
+    const char *expr =
+    LINE "template Foo {"
+    LINE "  prop suffix = flecs.meta.string: \"a\""
+    LINE "  \"child_$suffix\" {}"
+    LINE "}"
+    LINE "ent { Foo: {suffix: \"hello\"} }"
+    LINE "";
+
+    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
+
+    ecs_entity_t ent = ecs_lookup(world, "ent");
+    test_assert(ent != 0);
+
+    ecs_entity_t child = ecs_lookup(world, "ent.child_hello");
+    test_assert(child != 0);
+
+    ecs_fini(world);
+}
+
+
+void Template_default_component_w_prop_var(void) {
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT(world, Position);
+
+    ecs_struct(world, {
+        .entity = ecs_id(Position),
+        .members = {
+            {"x", ecs_id(ecs_f32_t)},
+            {"y", ecs_id(ecs_f32_t)}
+        }
+    });
+
+    const char *expr =
+    HEAD "DefaultChildComponent Foo(Position)"
+    LINE "template Tree {"
+    LINE "  prop height = flecs.meta.f32: 5"
+    LINE "  Foo holder {"
+    LINE "    child = $height, 20"
+    LINE "  }"
+    LINE "}"
+    LINE "Tree e()";
+
+    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
+
+    ecs_entity_t child = ecs_lookup(world, "e.holder.child");
+    test_assert(child != 0);
+
+    const Position *p = ecs_get(world, child, Position);
+    test_assert(p != NULL);
+    test_int(p->x, 5);
+    test_int(p->y, 20);
+
+    ecs_fini(world);
+}
+
+void Template_default_component_w_prop_var_in_nested_if(void) {
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT(world, Position);
+
+    ecs_struct(world, {
+        .entity = ecs_id(Position),
+        .members = {
+            {"x", ecs_id(ecs_f32_t)},
+            {"y", ecs_id(ecs_f32_t)}
+        }
+    });
+
+    const char *expr =
+    HEAD "DefaultChildComponent Foo(Position)"
+    LINE "template Tree {"
+    LINE "  prop height = flecs.meta.f32: 5"
+    LINE "  const cond: true"
+    LINE "  Foo holder {"
+    LINE "    if $cond {"
+    LINE "      if $cond {"
+    LINE "        child = $height, 20"
+    LINE "      }"
+    LINE "    }"
+    LINE "  }"
+    LINE "}"
+    LINE "Tree e()";
+
+    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
+
+    ecs_entity_t child = ecs_lookup(world, "e.holder.child");
+    test_assert(child != 0);
+
+    const Position *p = ecs_get(world, child, Position);
+    test_assert(p != NULL);
+    test_int(p->x, 5);
+    test_int(p->y, 20);
+
+    ecs_fini(world);
+}
+
+void Template_default_component_w_prop_var_in_nested_for(void) {
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT(world, Position);
+
+    ecs_struct(world, {
+        .entity = ecs_id(Position),
+        .members = {
+            {"x", ecs_id(ecs_f32_t)},
+            {"y", ecs_id(ecs_f32_t)}
+        }
+    });
+
+    const char *expr =
+    HEAD "DefaultChildComponent Foo(Position)"
+    LINE "template Tree {"
+    LINE "  prop height = flecs.meta.f32: 5"
+    LINE "  Foo holder {"
+    LINE "    for i in 0..2 {"
+    LINE "      for j in 0..2 {"
+    LINE "        \"child_{$i}_{$j}\" = $height, 20"
+    LINE "      }"
+    LINE "    }"
+    LINE "  }"
+    LINE "}"
+    LINE "Tree e()";
+
+    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
+
+    int i, j;
+    for (i = 0; i < 2; i ++) {
+        for (j = 0; j < 2; j ++) {
+            char name[64];
+            ecs_os_snprintf(name, 64, "e.holder.child_%d_%d", i, j);
+            ecs_entity_t child = ecs_lookup(world, name);
+            test_assert(child != 0);
+
+            const Position *p = ecs_get(world, child, Position);
+            test_assert(p != NULL);
+            test_int(p->x, 5);
+            test_int(p->y, 20);
+        }
+    }
+
+    ecs_fini(world);
+}
+
+void Template_template_w_new_expr_in_const(void) {
+    ecs_world_t *world = ecs_init();
+
+    const char *expr =
+    HEAD "Foo {}"
+    LINE "Rel {}"
+    LINE "template Tree {"
+    LINE "  const helper: new { Foo }"
+    LINE "  child {"
+    LINE "    (Rel, $helper)"
+    LINE "  }"
+    LINE "}"
+    LINE "Tree e1()"
+    LINE "Tree e2()";
+
+    test_assert(ecs_script_run(world, NULL, expr, NULL) == 0);
+
+    ecs_entity_t rel = ecs_lookup(world, "Rel");
+    ecs_entity_t foo = ecs_lookup(world, "Foo");
+    ecs_entity_t e1 = ecs_lookup(world, "e1");
+    ecs_entity_t e2 = ecs_lookup(world, "e2");
+    test_assert(e1 != 0);
+    test_assert(e2 != 0);
+
+    ecs_entity_t child_1 = ecs_lookup(world, "e1.child");
+    ecs_entity_t child_2 = ecs_lookup(world, "e2.child");
+    test_assert(child_1 != 0);
+    test_assert(child_2 != 0);
+
+    ecs_entity_t helper_1 = ecs_get_target(world, child_1, rel, 0);
+    ecs_entity_t helper_2 = ecs_get_target(world, child_2, rel, 0);
+    test_assert(helper_1 != 0);
+    test_assert(helper_2 != 0);
+    test_assert(helper_1 != helper_2);
+
+    test_assert(ecs_has_id(world, helper_1, foo));
+    test_assert(ecs_has_id(world, helper_2, foo));
+    test_assert(ecs_has_pair(world, helper_1, EcsChildOf, e1));
+    test_assert(ecs_has_pair(world, helper_2, EcsChildOf, e2));
+
+    ecs_fini(world);
+}
+

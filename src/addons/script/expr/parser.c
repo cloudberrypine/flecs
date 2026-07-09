@@ -198,8 +198,18 @@ const char* flecs_script_parse_initializer(
             goto error;
         }
 
+        if (elem->member) {
+            node->is_partial = true;
+        }
+
+        if (elem->value && elem->value->kind == EcsExprInitializer &&
+            ((ecs_expr_initializer_t*)elem->value)->is_partial)
         {
-            /* Parse next element or end of initializer*/
+            node->is_partial = true;
+        }
+
+        {
+            /* Parse next element or end of initializer */
             LookAhead(
                 case ',': {
                     pos = lookahead;
@@ -207,7 +217,7 @@ const char* flecs_script_parse_initializer(
                 }
 
                 case ')':
-                case '}': 
+                case '}':
                     /* Return last character of initializer */
                     pos = lookahead - 1;
 
@@ -260,6 +270,12 @@ const char* flecs_script_parse_collection_initializer(
         pos = flecs_script_parse_expr(parser, pos, 0, &elem->value);
         if (!pos) {
             goto error;
+        }
+
+        if (elem->value && elem->value->kind == EcsExprInitializer &&
+            ((ecs_expr_initializer_t*)elem->value)->is_partial)
+        {
+            node->is_partial = true;
         }
 
         {
@@ -610,16 +626,20 @@ const char* flecs_script_parse_lhs(
             int32_t stmt_count = ecs_vec_count(&parser->scope->stmts);
 
             bool old_function_token = parser->function_token;
+            bool old_significant_newline = parser->significant_newline;
             parser->function_token = false;
+            parser->significant_newline = true;
             pos = flecs_script_stmt(parser, pos);
             if (!pos) {
+                parser->significant_newline = old_significant_newline;
                 goto error;
             }
             parser->function_token = old_function_token;
+            parser->significant_newline = old_significant_newline;
 
             pos = flecs_parse_ws_eol(pos);
 
-            if ((stmt_count - ecs_vec_count(&parser->scope->stmts)) > 1) {
+            if ((ecs_vec_count(&parser->scope->stmts) - stmt_count) != 1) {
                 Error("expected entity statement after new");
             }
 
@@ -698,7 +718,7 @@ const char* flecs_script_parse_lhs(
     TokenFramePop();
 
     /* Return if this was end of expression, or if the parsed expression cannot
-     * have a right hand side. */
+     * have a right-hand side. */
     if (!pos[0] || !can_have_rhs) {
         return pos;
     }
@@ -715,6 +735,15 @@ const char* flecs_script_parse_expr(
     ecs_token_kind_t left_oper,
     ecs_expr_node_t **out)
 {
+    if (parser->expr_depth >= ECS_PARSER_MAX_RECURSION_DEPTH) {
+        ecs_parser_error(parser->name, parser->code,
+            flecs_parser_errpos(parser, pos),
+            "maximum expression nesting depth exceeded");
+        return NULL;
+    }
+
+    parser->expr_depth ++;
+
     ecs_tokenizer_t _tokenizer;
     ecs_os_zeromem(&_tokenizer);
     _tokenizer.tokens = _tokenizer.stack.tokens;
@@ -725,6 +754,7 @@ const char* flecs_script_parse_expr(
     pos = flecs_script_parse_lhs(parser, pos, tokenizer, left_oper, out);
     parser->function_token = old_function_token;
     if (!pos) {
+        parser->expr_depth --;
         if (out && *out) {
             flecs_script_parser_expr_free(parser, *out);
             *out = NULL;
@@ -732,6 +762,7 @@ const char* flecs_script_parse_expr(
         return NULL;
     }
 
+    parser->expr_depth --;
     return pos;
 }
 
@@ -751,10 +782,12 @@ ecs_script_t* ecs_expr_parse(
 
     ecs_script_t *script = flecs_script_new(world);
     ecs_script_impl_t *impl = flecs_script_impl(script);
+    script->code = ecs_os_strdup(expr);
 
     ecs_parser_t parser = {
         .name = script->name,
         .code = script->code,
+        .pos = script->code,
         .script = impl,
         .scope = impl->root,
         .significant_newline = false,
@@ -765,13 +798,15 @@ ecs_script_t* ecs_expr_parse(
     impl->token_buffer = flecs_alloc_w_dbg_info(
         &impl->allocator, impl->token_buffer_size, "token buffer");
     parser.token_cur = impl->token_buffer;
+    parser.token_end = &impl->token_buffer[impl->token_buffer_size];
 
-    const char *ptr = flecs_script_parse_expr(&parser, expr, 0, &impl->expr);
+    const char *ptr = flecs_script_parse_expr(
+        &parser, script->code, 0, &impl->expr);
     if (!ptr) {
         goto error;
     }
 
-    impl->next_token = ptr;
+    impl->next_token = &expr[ptr - script->code];
     impl->token_remaining = parser.token_cur;
 
     if (flecs_expr_visit_type(script, impl->expr, &priv_desc)) {
@@ -813,6 +848,8 @@ int ecs_expr_eval(
     if (!priv_desc.lookup_action) {
         priv_desc.lookup_action = flecs_script_default_lookup;
     }
+
+    flecs_script_runtime_get(script->world)->error = false;
 
     if (flecs_expr_visit_eval(script, impl->expr, &priv_desc, value)) {
         goto error;

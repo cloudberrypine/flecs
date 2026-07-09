@@ -3763,649 +3763,52 @@ void Cached_up_w_delete_table_and_move_parent(void) {
     ecs_fini(world);
 }
 
-void Cached_it_ptrs(void) {
+void Cached_cascade_default_group_reinsert_after_empty_table_delete(void) {
     ecs_world_t *world = ecs_mini();
 
     ECS_COMPONENT(world, Position);
 
     ecs_query_t *q = ecs_query(world, {
-        .terms = {{ ecs_id(Position) }},
+        .expr = "Position, ?Position(cascade)",
         .cache_kind = EcsQueryCacheAuto
     });
-
     test_assert(q != NULL);
 
+    ecs_entity_t p = ecs_new(world);
+    ecs_entity_t c = ecs_new_w_pair(world, EcsChildOf, p);
+    ecs_set(world, c, Position, {10, 20});
+
     ecs_entity_t e1 = ecs_new(world);
-    ecs_set(world, e1, Position, {10, 20});
+    ecs_set(world, e1, Position, {1, 2});
 
     ecs_iter_t it = ecs_query_iter(world, q);
     test_bool(true, ecs_query_next(&it));
-    Position *p = ecs_field(&it, Position, 0);
-    test_int(p->x, 10); test_int(p->y, 20);
-    test_assert(it.ptrs != NULL);
-    test_assert(it.ptrs[0] == p);
+    test_bool(true, ecs_query_next(&it));
     test_bool(false, ecs_query_next(&it));
 
-    ecs_query_fini(q);
+    ecs_delete(world, e1);
 
-    ecs_fini(world);
-}
-
-void Cached_it_ptrs_after_column_resize(void) {
-    ecs_world_t *world = ecs_mini();
-
-    ECS_COMPONENT(world, Position);
-
-    ecs_query_t *q = ecs_query(world, {
-        .terms = {{ ecs_id(Position) }},
-        .cache_kind = EcsQueryCacheAuto
+    ecs_delete_empty_tables(world, &(ecs_delete_empty_tables_desc_t) {
+        .delete_generation = 1
+    });
+    ecs_delete_empty_tables(world, &(ecs_delete_empty_tables_desc_t) {
+        .delete_generation = 1
     });
 
-    test_assert(q != NULL);
-
-    ecs_entity_t e1 = ecs_new(world);
-    ecs_set(world, e1, Position, {10, 20});
-
-    Position *ptr = NULL;
-
-    {
-        ecs_iter_t it = ecs_query_iter(world, q);
-        test_bool(true, ecs_query_next(&it));
-        test_int(1, it.count);
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p == ecs_get(world, e1, Position));
-        test_int(p->x, 10); test_int(p->y, 20);
-        test_assert(it.ptrs != NULL);
-        test_assert(it.ptrs[0] == p);
-        test_bool(false, ecs_query_next(&it));
-
-        ptr = p;
-    }
-
     ecs_entity_t e2 = ecs_new(world);
-    ecs_set(world, e2, Position, {30, 40});
-
-    ecs_entity_t e3 = ecs_new(world);
-    ecs_set(world, e3, Position, {50, 60});
-
-    {
-        ecs_iter_t it = ecs_query_iter(world, q);
-        test_bool(true, ecs_query_next(&it));
-        test_int(3, it.count);
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p == ecs_get(world, e1, Position));
-        test_assert(&p[1] == ecs_get(world, e2, Position));
-        test_assert(&p[2] == ecs_get(world, e3, Position));
-        test_assert(p != ptr); // verify realloc happened
-        test_int(p[0].x, 10); test_int(p[0].y, 20);
-        test_int(p[1].x, 30); test_int(p[1].y, 40);
-        test_int(p[2].x, 50); test_int(p[2].y, 60);
-        test_assert(it.ptrs != NULL);
-        test_assert(it.ptrs[0] == p);
-        test_bool(false, ecs_query_next(&it));
-    }
-
-    ecs_query_fini(q);
-
-    ecs_fini(world);
-}
-
-void Cached_it_ptrs_after_column_merge(void) {
-    ecs_world_t *world = ecs_mini();
-
-    ECS_COMPONENT(world, Position);
-
-    ecs_entity_t tag = ecs_new(world);
-
-    ecs_query_t *q = ecs_query(world, {
-        .terms = {{ ecs_id(Position) }},
-        .cache_kind = EcsQueryCacheAuto
-    });
-
-    test_assert(q != NULL);
-
-    ecs_entity_t e1 = ecs_new(world);
-    ecs_set(world, e1, Position, {10, 20});
-
-    Position *ptr = NULL;
-
-    {
-        ecs_iter_t it = ecs_query_iter(world, q);
-        test_bool(true, ecs_query_next(&it));
-        test_int(1, it.count);
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p == ecs_get(world, e1, Position));
-        test_int(p->x, 10); test_int(p->y, 20);
-        test_assert(it.ptrs != NULL);
-        test_assert(it.ptrs[0] == p);
-        test_bool(false, ecs_query_next(&it));
-
-        ptr = p;
-    }
-
-    ecs_entity_t e2 = ecs_new(world);
-    ecs_add_id(world, e2, tag);
-    ecs_set(world, e2, Position, {30, 40});
-
-    ecs_entity_t e3 = ecs_new(world);
-    ecs_add_id(world, e3, tag);
-    ecs_set(world, e3, Position, {50, 60});
-
-    {
-        ecs_iter_t it = ecs_query_iter(world, q);
-        test_bool(true, ecs_query_next(&it));
-        test_int(1, it.count);
-        {
-            Position *p = ecs_field(&it, Position, 0);
-            test_assert(p == ecs_get(world, e1, Position));
-            test_assert(p == ptr); // verify no realloc happened
-            test_int(p[0].x, 10); test_int(p[0].y, 20);
-            test_assert(it.ptrs != NULL);
-            test_assert(it.ptrs[0] == p);
-        }
-
-        test_bool(true, ecs_query_next(&it));
-        test_int(2, it.count);
-        {
-            Position *p = ecs_field(&it, Position, 0);
-            test_assert(&p[0] == ecs_get(world, e2, Position));
-            test_assert(&p[1] == ecs_get(world, e3, Position));
-            test_int(p[0].x, 30); test_int(p[0].y, 40);
-            test_int(p[1].x, 50); test_int(p[1].y, 60);
-            test_assert(it.ptrs != NULL);
-            test_assert(it.ptrs[0] == p);
-        }
-
-        test_bool(false, ecs_query_next(&it));
-    }
-
-    ecs_delete(world, tag);
-
-    {
-        ecs_iter_t it = ecs_query_iter(world, q);
-        test_bool(true, ecs_query_next(&it));
-        test_int(3, it.count);
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p == ecs_get(world, e1, Position));
-        test_assert(&p[1] == ecs_get(world, e2, Position));
-        test_assert(&p[2] == ecs_get(world, e3, Position));
-        test_assert(p != ptr); // verify realloc happened
-        test_int(p[0].x, 10); test_int(p[0].y, 20);
-        test_int(p[1].x, 30); test_int(p[1].y, 40);
-        test_int(p[2].x, 50); test_int(p[2].y, 60);
-        test_assert(it.ptrs != NULL);
-        test_assert(it.ptrs[0] == p);
-        test_bool(false, ecs_query_next(&it));
-    }
-
-    ecs_query_fini(q);
-
-    ecs_fini(world);
-}
-
-void Cached_it_ptrs_after_column_shrink(void) {
-    ecs_world_t *world = ecs_mini();
-
-    ECS_COMPONENT(world, Position);
-
-    ecs_query_t *q = ecs_query(world, {
-        .terms = {{ ecs_id(Position) }},
-        .cache_kind = EcsQueryCacheAuto
-    });
-
-    test_assert(q != NULL);
-
-    ecs_entity_t e1 = ecs_new(world);
-    ecs_set(world, e1, Position, {10, 20});
-
-    Position *ptr = NULL;
-
-    {
-        ecs_iter_t it = ecs_query_iter(world, q);
-        test_bool(true, ecs_query_next(&it));
-        test_int(1, it.count);
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p == ecs_get(world, e1, Position));
-        test_int(p->x, 10); test_int(p->y, 20);
-        test_assert(it.ptrs != NULL);
-        test_assert(it.ptrs[0] == p);
-        test_bool(false, ecs_query_next(&it));
-
-        ptr = p;
-    }
-
-    ecs_entity_t e2 = ecs_new(world);
-    ecs_set(world, e2, Position, {30, 40});
-
-    ecs_entity_t e3 = ecs_new(world);
-    ecs_set(world, e3, Position, {50, 60});
-
-    {
-        ecs_iter_t it = ecs_query_iter(world, q);
-        test_bool(true, ecs_query_next(&it));
-        test_int(3, it.count);
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p == ecs_get(world, e1, Position));
-        test_assert(&p[1] == ecs_get(world, e2, Position));
-        test_assert(&p[2] == ecs_get(world, e3, Position));
-        test_assert(p != ptr); // verify realloc happened
-        test_int(p[0].x, 10); test_int(p[0].y, 20);
-        test_int(p[1].x, 30); test_int(p[1].y, 40);
-        test_int(p[2].x, 50); test_int(p[2].y, 60);
-        test_assert(it.ptrs != NULL);
-        test_assert(it.ptrs[0] == p);
-        test_bool(false, ecs_query_next(&it));
-
-        ptr = p;
-    }
+    ecs_set(world, e2, Position, {3, 4});
 
     ecs_delete(world, e2);
-    ecs_delete(world, e3);
 
-    {
-        ecs_iter_t it = ecs_query_iter(world, q);
-        test_bool(true, ecs_query_next(&it));
-        test_int(1, it.count);
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p == ecs_get(world, e1, Position));
-        test_assert(p == ptr); // verify no realloc happened
-        test_int(p[0].x, 10); test_int(p[0].y, 20);
-        test_assert(it.ptrs != NULL);
-        test_assert(it.ptrs[0] == p);
-        test_bool(false, ecs_query_next(&it));
-
-        ptr = p;
-    }
-
-    ecs_shrink(world);
-
-    {
-        ecs_iter_t it = ecs_query_iter(world, q);
-        test_bool(true, ecs_query_next(&it));
-        test_int(1, it.count);
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p == ecs_get(world, e1, Position));
-        test_assert(p != ptr); // verify shrink happened
-        test_int(p[0].x, 10); test_int(p[0].y, 20);
-        test_assert(it.ptrs != NULL);
-        test_assert(it.ptrs[0] == p);
-        test_bool(false, ecs_query_next(&it));
-    }
-
-    ecs_query_fini(q);
-
-    ecs_fini(world);
-}
-
-void Cached_it_ptrs_w_wildcard(void) {
-    ecs_world_t *world = ecs_mini();
-
-    ECS_COMPONENT(world, Position);
-    ECS_TAG(world, TgtA);
-    ECS_TAG(world, TgtB);
-
-    ecs_query_t *q = ecs_query(world, {
-        .terms = {{ ecs_pair_t(Position, EcsWildcard) }},
-        .cache_kind = EcsQueryCacheAuto
+    /* Reproduces assert in flecs_query_cache_remove_group:
+     * ecs_assert(cur != NULL, ECS_INTERNAL_ERROR, NULL);
+     */
+    ecs_delete_empty_tables(world, &(ecs_delete_empty_tables_desc_t) {
+        .delete_generation = 1
     });
-
-    test_assert(q != NULL);
-
-    ecs_entity_t e1 = ecs_new(world);
-    ecs_set_pair(world, e1, Position, TgtA, {10, 20});
-    ecs_set_pair(world, e1, Position, TgtB, {11, 21});
-
-    Position *ptr_a = NULL, *ptr_b = NULL;
-
-    {
-        ecs_iter_t it = ecs_query_iter(world, q);
-        {
-            test_bool(true, ecs_query_next(&it));
-            test_int(1, it.count);
-            Position *p = ecs_field(&it, Position, 0);
-            test_assert(p == ecs_get_pair(world, e1, Position, TgtA));
-            test_int(p->x, 10); test_int(p->y, 20);
-            test_assert(it.ptrs != NULL);
-            test_assert(it.ptrs[0] == p);
-            ptr_a = p;
-        }
-        {
-            test_bool(true, ecs_query_next(&it));
-            test_int(1, it.count);
-            Position *p = ecs_field(&it, Position, 0);
-            test_assert(p == ecs_get_pair(world, e1, Position, TgtB));
-            test_int(p->x, 11); test_int(p->y, 21);
-            test_assert(it.ptrs != NULL);
-            test_assert(it.ptrs[0] == p);
-            ptr_b = p;
-        }
-
-        test_bool(false, ecs_query_next(&it));
-    }
-
-    ecs_entity_t e2 = ecs_new(world);
-    ecs_set_pair(world, e2, Position, TgtA, {30, 40});
-    ecs_set_pair(world, e2, Position, TgtB, {31, 41});
-
-    ecs_entity_t e3 = ecs_new(world);
-    ecs_set_pair(world, e3, Position, TgtA, {50, 60});
-    ecs_set_pair(world, e3, Position, TgtB, {51, 61});
-
-    {
-        ecs_iter_t it = ecs_query_iter(world, q);
-        {
-            test_bool(true, ecs_query_next(&it));
-            test_int(3, it.count);
-            Position *p = ecs_field(&it, Position, 0);
-            test_assert(p == ecs_get_pair(world, e1, Position, TgtA));
-            test_assert(&p[1] == ecs_get_pair(world, e2, Position, TgtA));
-            test_assert(&p[2] == ecs_get_pair(world, e3, Position, TgtA));
-            test_assert(p != ptr_a); // verify realloc happened
-            test_int(p[0].x, 10); test_int(p[0].y, 20);
-            test_int(p[1].x, 30); test_int(p[1].y, 40);
-            test_int(p[2].x, 50); test_int(p[2].y, 60);
-            test_assert(it.ptrs != NULL);
-            test_assert(it.ptrs[0] == p);
-        }
-        {
-            test_bool(true, ecs_query_next(&it));
-            test_int(3, it.count);
-            Position *p = ecs_field(&it, Position, 0);
-            test_assert(p == ecs_get_pair(world, e1, Position, TgtB));
-            test_assert(&p[1] == ecs_get_pair(world, e2, Position, TgtB));
-            test_assert(&p[2] == ecs_get_pair(world, e3, Position, TgtB));
-            test_assert(p != ptr_b); // verify realloc happened
-            test_int(p[0].x, 11); test_int(p[0].y, 21);
-            test_int(p[1].x, 31); test_int(p[1].y, 41);
-            test_int(p[2].x, 51); test_int(p[2].y, 61);
-            test_assert(it.ptrs != NULL);
-            test_assert(it.ptrs[0] == p);
-        }
-        test_bool(false, ecs_query_next(&it));
-    }
-
-    ecs_query_fini(q);
-
-    ecs_fini(world);
-}
-
-void Cached_it_ptrs_w_up(void) {
-    ecs_world_t *world = ecs_mini();
-
-    ECS_ENTITY(world, Rel, Traversable);
-    ECS_COMPONENT(world, Position);
-    ECS_COMPONENT(world, Mass);
-
-    ecs_query_t *q = ecs_query(world, {
-        .terms = {{ ecs_id(Position) }, { ecs_id(Mass), .src.id = EcsUp, .trav = Rel }},
-        .cache_kind = EcsQueryCacheAuto
+    ecs_delete_empty_tables(world, &(ecs_delete_empty_tables_desc_t) {
+        .delete_generation = 1
     });
-
-    test_assert(q != NULL);
-
-    ecs_entity_t p = ecs_new(world);
-    ecs_set(world, p, Mass, {100});
-
-    ecs_entity_t e1 = ecs_new_w_pair(world, Rel, p);
-    ecs_set(world, e1, Position, {10, 20});
-
-    Position *ptr = NULL;
-
-    {
-        ecs_iter_t it = ecs_query_iter(world, q);
-        test_bool(true, ecs_query_next(&it));
-        test_int(1, it.count);
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p == ecs_get(world, e1, Position));
-        test_int(p->x, 10); test_int(p->y, 20);
-        test_assert(it.ptrs != NULL);
-        test_assert(it.ptrs[0] == p);
-        test_assert(it.ptrs[1] == NULL);
-        Mass *m = ecs_field(&it, Mass, 1);
-        test_assert(m != NULL);
-        test_int(*m, 100);
-        test_bool(false, ecs_query_next(&it));
-
-        ptr = p;
-    }
-
-    ecs_entity_t e2 = ecs_new_w_pair(world, Rel, p);
-    ecs_set(world, e2, Position, {30, 40});
-
-    ecs_entity_t e3 = ecs_new_w_pair(world, Rel, p);
-    ecs_set(world, e3, Position, {50, 60});
-
-    /* Make sure realloc happens */
-    int i;
-    for (i = 0; i < 1000; i ++) {
-        ecs_entity_t x = ecs_new_w_pair(world, Rel, p);
-        ecs_set(world, x, Position, {1, 1});
-
-        if (ecs_get(world, e1, Position) != ptr) {
-            break;
-        }
-    }
-
-    test_assert(i != 1000);
-
-    {
-        ecs_iter_t it = ecs_query_iter(world, q);
-        test_bool(true, ecs_query_next(&it));
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p == ecs_get(world, e1, Position));
-        test_assert(&p[1] == ecs_get(world, e2, Position));
-        test_assert(&p[2] == ecs_get(world, e3, Position));
-        test_assert(p != ptr); // verify realloc happened
-        test_int(p[0].x, 10); test_int(p[0].y, 20);
-        test_int(p[1].x, 30); test_int(p[1].y, 40);
-        test_int(p[2].x, 50); test_int(p[2].y, 60);
-        test_assert(it.ptrs != NULL);
-        test_assert(it.ptrs[0] == p);
-        test_assert(it.ptrs[1] == NULL);
-        Mass *m = ecs_field(&it, Mass, 1);
-        test_assert(m != NULL);
-        test_int(*m, 100);
-        test_bool(false, ecs_query_next(&it));
-    }
-
-    ecs_query_fini(q);
-
-    ecs_fini(world);
-}
-
-void Cached_it_ptrs_w_up_childof(void) {
-    ecs_world_t *world = ecs_mini();
-
-    ECS_COMPONENT(world, Position);
-    ECS_COMPONENT(world, Mass);
-
-    ecs_query_t *q = ecs_query(world, {
-        .terms = {{ ecs_id(Position) }, { ecs_id(Mass), .src.id = EcsUp }},
-        .cache_kind = EcsQueryCacheAuto
-    });
-
-    test_assert(q != NULL);
-
-    ecs_entity_t p = ecs_new(world);
-    ecs_set(world, p, Mass, {100});
-
-    ecs_entity_t e1 = ecs_new_w_pair(world, EcsChildOf, p);
-    ecs_set(world, e1, Position, {10, 20});
-
-    Position *ptr = NULL;
-
-    {
-        ecs_iter_t it = ecs_query_iter(world, q);
-        test_bool(true, ecs_query_next(&it));
-        test_int(1, it.count);
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p == ecs_get(world, e1, Position));
-        test_int(p->x, 10); test_int(p->y, 20);
-        test_assert(it.ptrs == NULL);
-        Mass *m = ecs_field(&it, Mass, 1);
-        test_assert(m != NULL);
-        test_int(*m, 100);
-        test_bool(false, ecs_query_next(&it));
-
-        ptr = p;
-    }
-
-    ecs_entity_t e2 = ecs_new_w_pair(world, EcsChildOf, p);
-    ecs_set(world, e2, Position, {30, 40});
-
-    ecs_entity_t e3 = ecs_new_w_pair(world, EcsChildOf, p);
-    ecs_set(world, e3, Position, {50, 60});
-
-    /* Make sure realloc happens */
-    int i;
-    for (i = 0; i < 1000; i ++) {
-        ecs_entity_t x = ecs_new_w_pair(world, EcsChildOf, p);
-        ecs_set(world, x, Position, {1, 1});
-
-        if (ecs_get(world, e1, Position) != ptr) {
-            break;
-        }
-    }
-
-    test_assert(i != 1000);
-
-    {
-        ecs_iter_t it = ecs_query_iter(world, q);
-        test_bool(true, ecs_query_next(&it));
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p == ecs_get(world, e1, Position));
-        test_assert(&p[1] == ecs_get(world, e2, Position));
-        test_assert(&p[2] == ecs_get(world, e3, Position));
-        test_assert(p != ptr); // verify realloc happened
-        test_int(p[0].x, 10); test_int(p[0].y, 20);
-        test_int(p[1].x, 30); test_int(p[1].y, 40);
-        test_int(p[2].x, 50); test_int(p[2].y, 60);
-        test_assert(it.ptrs == NULL);
-        Mass *m = ecs_field(&it, Mass, 1);
-        test_assert(m != NULL);
-        test_int(*m, 100);
-        test_bool(false, ecs_query_next(&it));
-    }
-
-    ecs_query_fini(q);
-
-    ecs_fini(world);
-}
-
-void Cached_test_it_ptrs(void) {
-    ecs_world_t *world = ecs_mini();
-
-    ECS_COMPONENT(world, Position);
-
-    ecs_query_t *q = ecs_query(world, {
-        .terms = {{ ecs_id(Position) }},
-        .cache_kind = EcsQueryCacheAuto
-    });
-
-    test_assert(q != NULL);
-
-    ecs_entity_t e1 = ecs_new(world);
-    ecs_set(world, e1, Position, {10, 20});
-
-    {
-        ecs_iter_t it = ecs_query_iter(world, q);
-        ecs_iter_set_var(&it, 0, e1);
-        test_bool(true, ecs_query_next(&it));
-        test_int(1, it.count);
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p == ecs_get(world, e1, Position));
-        test_int(p->x, 10); test_int(p->y, 20);
-        test_assert(it.ptrs == NULL);
-        test_bool(false, ecs_query_next(&it));
-    }
-
-    ecs_query_fini(q);
-
-    ecs_fini(world);
-}
-
-void Cached_test_it_ptrs_w_wildcard(void) {
-    ecs_world_t *world = ecs_mini();
-
-    ECS_COMPONENT(world, Position);
-    ECS_TAG(world, TgtA);
-    ECS_TAG(world, TgtB);
-
-    ecs_query_t *q = ecs_query(world, {
-        .terms = {{ ecs_pair_t(Position, EcsWildcard) }},
-        .cache_kind = EcsQueryCacheAuto
-    });
-
-    test_assert(q != NULL);
-
-    ecs_entity_t e1 = ecs_new(world);
-    ecs_set_pair(world, e1, Position, TgtA, {10, 20});
-    ecs_set_pair(world, e1, Position, TgtB, {11, 21});
-
-    {
-        ecs_iter_t it = ecs_query_iter(world, q);
-        ecs_iter_set_var(&it, 0, e1);
-
-        {
-            test_bool(true, ecs_query_next(&it));
-            test_int(1, it.count);
-            Position *p = ecs_field(&it, Position, 0);
-            test_assert(p == ecs_get_pair(world, e1, Position, TgtA));
-            test_int(p->x, 10); test_int(p->y, 20);
-            test_assert(it.ptrs == NULL);
-        }
-        {
-            test_bool(true, ecs_query_next(&it));
-            test_int(1, it.count);
-            Position *p = ecs_field(&it, Position, 0);
-            test_assert(p == ecs_get_pair(world, e1, Position, TgtB));
-            test_int(p->x, 11); test_int(p->y, 21);
-            test_assert(it.ptrs == NULL);
-        }
-
-        test_bool(false, ecs_query_next(&it));
-    }
-
-    ecs_query_fini(q);
-
-    ecs_fini(world);
-}
-
-void Cached_test_it_ptrs_w_up(void) {
-    ecs_world_t *world = ecs_mini();
-
-    ECS_COMPONENT(world, Position);
-    ECS_COMPONENT(world, Mass);
-
-    ecs_query_t *q = ecs_query(world, {
-        .terms = {{ ecs_id(Position) }, { ecs_id(Mass), .src.id = EcsUp }},
-        .cache_kind = EcsQueryCacheAuto
-    });
-
-    test_assert(q != NULL);
-
-    ecs_entity_t p = ecs_new(world);
-    ecs_set(world, p, Mass, {100});
-
-    ecs_entity_t e1 = ecs_new_w_pair(world, EcsChildOf, p);
-    ecs_set(world, e1, Position, {10, 20});
-
-    {
-        ecs_iter_t it = ecs_query_iter(world, q);
-        ecs_iter_set_var(&it, 0, e1);
-        test_bool(true, ecs_query_next(&it));
-        test_int(1, it.count);
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p == ecs_get(world, e1, Position));
-        test_int(p->x, 10); test_int(p->y, 20);
-        test_assert(it.ptrs == NULL);
-        Mass *m = ecs_field(&it, Mass, 1);
-        test_assert(m != NULL);
-        test_int(*m, 100);
-        test_bool(false, ecs_query_next(&it));
-    }
-
-    ecs_query_fini(q);
 
     ecs_fini(world);
 }
@@ -8203,5 +7606,197 @@ void Cached_no_rematch_after_reparent_child(void) {
 
     test_int(info->rematch_count_total, 0);
 
+    ecs_fini(world);
+}
+
+void Cached_filter_term_not_term_table_recycle(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_TAG(world, Body);
+    ECS_TAG(world, Rotation);
+    ECS_TAG(world, Position);
+
+    ecs_entity_t prefab_root = ecs_entity(world, { .name = "prefab_root" });
+    ecs_add_id(world, prefab_root, EcsPrefab);
+
+    ecs_entity_t child = ecs_entity(world, { .name = "child" });
+    ecs_add_pair(world, child, EcsChildOf, prefab_root);
+    ecs_add_id(world, child, Position);
+
+    ecs_entity_t prefab = ecs_entity(world, { .name = "prefab" });
+    ecs_add_id(world, prefab, EcsPrefab);
+    ecs_add_pair(world, prefab, EcsIsA, prefab_root);
+    ecs_add_id(world, prefab, Body);
+
+    ecs_entity_t dummy_prefab_root = ecs_entity(world,
+        { .name = "dummy_prefab_root" });
+    ecs_entity_t dummy = ecs_entity(world, { .name = "dummy" });
+    ecs_add_pair(world, dummy, EcsChildOf, dummy_prefab_root);
+    ecs_add_pair(world, dummy, EcsIsA, prefab);
+
+    ecs_query_t *position_q = ecs_query(world, {
+        .terms = {{ Position }},
+    });
+    {
+        ecs_iter_t it = ecs_query_iter(world, position_q);
+        while (ecs_query_next(&it)) {
+            for (int i = 0; i < it.count; i ++) {
+                ecs_add_id(world, it.entities[i], Rotation);
+            }
+        }
+    }
+
+    ecs_query_t *body_q = ecs_query(world, {
+        .terms = {
+            { Body, .inout = EcsInOutFilter },
+            { Rotation, .oper = EcsNot },
+        },
+        .cache_kind = EcsQueryCacheAuto
+    });
+
+    {
+        ecs_iter_t it = ecs_query_iter(world, body_q);
+        test_bool(true, ecs_query_next(&it));
+        test_int(1, it.count);
+        test_uint(dummy, it.entities[0]);
+        test_bool(false, ecs_query_next(&it));
+    }
+
+    ecs_delete(world, dummy_prefab_root);
+
+    ecs_entity_t scene = ecs_entity(world, { .name = "scene" });
+    ecs_entity_t entity = ecs_entity(world, { .name = "entity" });
+    ecs_add_pair(world, entity, EcsChildOf, scene);
+    ecs_add_pair(world, entity, EcsIsA, prefab);
+
+    {
+        ecs_iter_t it = ecs_query_iter(world, body_q);
+        while (ecs_query_next(&it)) {
+            for (int i = 0; i < it.count; i ++) {
+                ecs_entity_t e = it.entities[i];
+                test_assert(ecs_has_id(world, e, Body));
+                test_assert(!ecs_owns_id(world, e, Rotation));
+            }
+        }
+    }
+
+    ecs_query_fini(position_q);
+    ecs_query_fini(body_q);
+
+    ecs_fini(world);
+}
+
+void Cached_rematch_fewer_wildcard_matches(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ecs_entity_t Likes = ecs_new(world);
+    ecs_add_pair(world, Likes, EcsOnInstantiate, EcsInherit);
+
+    ecs_entity_t A = ecs_entity(world, { .name = "A" });
+    ecs_entity_t B = ecs_entity(world, { .name = "B" });
+    ecs_entity_t C = ecs_entity(world, { .name = "C" });
+
+    ecs_entity_t prefab = ecs_entity(world, { .add = ecs_ids(EcsPrefab) });
+    ecs_add_pair(world, prefab, Likes, A);
+    ecs_add_pair(world, prefab, Likes, B);
+    ecs_add_pair(world, prefab, Likes, C);
+
+    ecs_entity_t inst = ecs_new_w_pair(world, EcsIsA, prefab);
+    test_assert(inst != 0);
+
+    ecs_query_t *q = ecs_query(world, {
+        .terms = {{ .id = ecs_pair(Likes, EcsWildcard) }},
+        .cache_kind = EcsQueryCacheAuto
+    });
+
+    test_assert(q != NULL);
+
+    ecs_iter_t it = ecs_query_iter(world, q);
+
+    test_bool(true, ecs_query_next(&it));
+    test_uint(1, it.count);
+    test_uint(inst, it.entities[0]);
+    test_uint(ecs_pair(Likes, A), ecs_field_id(&it, 0));
+
+    test_bool(true, ecs_query_next(&it));
+    test_uint(1, it.count);
+    test_uint(inst, it.entities[0]);
+    test_uint(ecs_pair(Likes, B), ecs_field_id(&it, 0));
+
+    test_bool(true, ecs_query_next(&it));
+    test_uint(1, it.count);
+    test_uint(inst, it.entities[0]);
+    test_uint(ecs_pair(Likes, C), ecs_field_id(&it, 0));
+
+    test_bool(false, ecs_query_next(&it));
+
+    ecs_remove_pair(world, prefab, Likes, C);
+
+    it = ecs_query_iter(world, q);
+
+    test_bool(true, ecs_query_next(&it));
+    test_uint(1, it.count);
+    test_uint(inst, it.entities[0]);
+    test_uint(ecs_pair(Likes, A), ecs_field_id(&it, 0));
+
+    test_bool(true, ecs_query_next(&it));
+    test_uint(1, it.count);
+    test_uint(inst, it.entities[0]);
+    test_uint(ecs_pair(Likes, B), ecs_field_id(&it, 0));
+
+    test_bool(false, ecs_query_next(&it));
+
+    ecs_query_fini(q);
+
+    ecs_fini(world);
+}
+
+void Cached_fixed_src_wildcard_before_cache(void) {
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT(world, Position);
+
+    ecs_entity_t Likes = ecs_new(world);
+    ecs_entity_t A = ecs_new(world), B = ecs_new(world), C = ecs_new(world);
+
+    ecs_entity_t src = ecs_new(world);
+    ecs_add_pair(world, src, Likes, A);
+    ecs_add_pair(world, src, Likes, B);
+    ecs_add_pair(world, src, Likes, C);
+
+    ecs_entity_t parent = ecs_new(world);
+    ecs_set(world, parent, Position, {1, 2});
+    ecs_entity_t child = ecs_new_w_pair(world, EcsChildOf, parent);
+
+    ecs_query_t *q = ecs_query(world, {
+        .terms = {
+            { .id = ecs_id(Position), .src.id = EcsUp, .trav = EcsChildOf },
+            { .id = ecs_pair(Likes, EcsWildcard), .src.id = src | EcsIsEntity }},
+        .cache_kind = EcsQueryCacheAuto });
+    test_assert(q != NULL);
+
+    ecs_iter_t it = ecs_query_iter(world, q);
+
+    test_bool(true, ecs_query_next(&it));
+    test_uint(1, it.count);
+    test_uint(child, it.entities[0]);
+    test_uint(ecs_pair(Likes, A), ecs_field_id(&it, 1));
+    test_uint(src, ecs_field_src(&it, 1));
+
+    test_bool(true, ecs_query_next(&it));
+    test_uint(1, it.count);
+    test_uint(child, it.entities[0]);
+    test_uint(ecs_pair(Likes, B), ecs_field_id(&it, 1));
+    test_uint(src, ecs_field_src(&it, 1));
+
+    test_bool(true, ecs_query_next(&it));
+    test_uint(1, it.count);
+    test_uint(child, it.entities[0]);
+    test_uint(ecs_pair(Likes, C), ecs_field_id(&it, 1));
+    test_uint(src, ecs_field_src(&it, 1));
+
+    test_bool(false, ecs_query_next(&it));
+
+    ecs_query_fini(q);
     ecs_fini(world);
 }

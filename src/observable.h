@@ -8,10 +8,10 @@
 
 /** All observers for a specific (component) id */
 typedef struct ecs_event_id_record_t {
-    /* Triggers for Self */
-    ecs_map_t self;                  /* map<trigger_id, trigger_t> */
-    ecs_map_t self_up;               /* map<trigger_id, trigger_t> */
-    ecs_map_t up;                    /* map<trigger_id, trigger_t> */
+    /* Observers for Self */
+    ecs_map_t self;                  /* map<observer_id, observer_t> */
+    ecs_map_t self_up;               /* map<observer_id, observer_t> */
+    ecs_map_t up;                    /* map<observer_id, observer_t> */
 
     /* Number of active observers for (component) id */
     int32_t observer_count;
@@ -22,6 +22,7 @@ typedef struct ecs_observer_impl_t {
 
     int32_t *last_event_id;     /**< Last handled event id */
     int32_t last_event_id_storage;
+    ecs_termset_t last_event_field; /**< Field that last handled event triggered */
 
     ecs_flags32_t flags;        /**< Observer flags */
 
@@ -114,6 +115,11 @@ void flecs_emit_propagate_invalidate(
     ecs_table_t *table,
     int32_t offset,
     int32_t count);
+
+/* Invalidate reachable cache for traversable relationships targeting cr. */
+void flecs_emit_propagate_invalidate_tables(
+    ecs_world_t *world,
+    ecs_component_record_t *tgt_cr);
 
 /* Set bit indicating that observer is disabled. */
 void flecs_observer_set_disable_bit(

@@ -26,7 +26,7 @@ void* flecs_ast_new_(
     ecs_script_node_t *result = flecs_calloc_w_dbg_info(
         a, size, "ecs_script_node_t");
     result->kind = kind;
-    result->pos = parser->pos;
+    result->pos = parser->stmt_pos ? parser->stmt_pos : parser->pos;
     return result;
 }
 
@@ -44,17 +44,6 @@ bool flecs_scope_is_empty(
     ecs_script_scope_t *scope)
 {
     return ecs_vec_count(&scope->stmts) == 0;
-}
-
-ecs_script_scope_t* flecs_script_insert_scope(
-    ecs_parser_t *parser)
-{
-    ecs_script_scope_t *scope = parser->scope;
-    ecs_assert(scope != NULL, ECS_INTERNAL_ERROR, NULL);
-    ecs_script_scope_t *result = flecs_script_scope_new(parser);
-    flecs_ast_append(parser, scope->stmts, ecs_script_scope_t, result);
-    ecs_vec_init_t(NULL, &result->components, ecs_id_t, 0);
-    return result;
 }
 
 static
@@ -369,6 +358,39 @@ ecs_script_for_range_t* flecs_script_insert_for_range(
     result->scope = flecs_script_scope_new(parser);
 
     flecs_ast_append(parser, scope->stmts, ecs_script_for_range_t, result);
+    return result;
+}
+
+ecs_script_include_t* flecs_script_insert_include(
+    ecs_parser_t *parser,
+    const char *filename)
+{
+    ecs_script_scope_t *scope = parser->scope;
+    ecs_assert(scope != NULL, ECS_INTERNAL_ERROR, NULL);
+
+    ecs_script_include_t *result = flecs_ast_new(
+        parser, ecs_script_include_t, EcsAstInclude);
+    result->filename = filename;
+
+    flecs_ast_append(parser, scope->stmts, ecs_script_include_t, result);
+    return result;
+}
+
+ecs_script_function_node_t* flecs_script_insert_function(
+    ecs_parser_t *parser,
+    const char *name)
+{
+    ecs_script_scope_t *scope = parser->scope;
+    ecs_assert(scope != NULL, ECS_INTERNAL_ERROR, NULL);
+
+    ecs_script_function_node_t *result = flecs_ast_new(
+        parser, ecs_script_function_node_t, EcsAstFunction);
+    result->name = name;
+    result->body = flecs_script_scope_new(parser);
+    ecs_vec_init_t(&parser->script->allocator, &result->params,
+        ecs_script_fn_param_t, 0);
+
+    flecs_ast_append(parser, scope->stmts, ecs_script_function_node_t, result);
     return result;
 }
 

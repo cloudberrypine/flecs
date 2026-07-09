@@ -12,7 +12,13 @@ void flecs_iter_init(
     ecs_iter_t *it,
     bool alloc_resources);
 
-/* Deinitialize iterator. */
+/* Slow path for ecs_field when field is not a $this column. */
+void* flecs_field_shared(
+    const ecs_iter_t *it,
+    size_t size,
+    int8_t index);
+
+/* Free iterator memory block. */
 void flecs_iter_free(
     void *ptr,
     ecs_size_t size);

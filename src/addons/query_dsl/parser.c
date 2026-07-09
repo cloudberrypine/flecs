@@ -1,6 +1,6 @@
 /**
- * @file addons/script/query_parser.c
- * @brief Script grammar parser.
+ * @file addons/query_dsl/parser.c
+ * @brief Query DSL parser.
  */
 
 #include "flecs.h"
@@ -150,7 +150,7 @@ const char* flecs_term_parse_arg(
     } else if (arg == 1) {
         ref = &parser->term->second;
     } else {
-        if (arg > FLECS_TERM_ARG_COUNT_MAX) {
+        if (arg > FLECS_TERM_ARG_COUNT_MAX || !parser->extra_args) {
             Error("too many arguments in term");
         }
         ref = &parser->extra_args[arg - 2];
@@ -269,6 +269,9 @@ const char* flecs_term_parse_id(
             const char *ret = flecs_term_parse_equality_pred(
                 parser, pos, EcsPredEq);
             if (ret) {
+                if (parser->term->oper == EcsOr) {
+                    Error("cannot mix operators in || expression");
+                }
                 parser->term->oper = EcsNot;
             }
             return ret;
@@ -646,7 +649,7 @@ const char* flecs_term_parse(
     ecs_term_t *term)
 {
     ecs_assert(world != NULL, ECS_INVALID_PARAMETER, NULL);
-    ecs_assert(expr != NULL, ECS_INVALID_PARAMETER, name);
+    ecs_assert(expr != NULL, ECS_INVALID_PARAMETER, "%s", name);
     ecs_assert(term != NULL, ECS_INVALID_PARAMETER, NULL);
 
     ecs_parser_t parser = {
@@ -658,13 +661,6 @@ const char* flecs_term_parse(
 
     parser.term = term;
 
-    const char *result = flecs_query_term_parse(&parser, expr);
-    if (!result) {
-        return NULL;
-    }
-
-    ecs_os_memset_t(term, 0, ecs_term_t);
-
     return flecs_query_term_parse(&parser, expr);
 }
 
@@ -675,16 +671,19 @@ const char* flecs_id_parse(
     ecs_id_t *id)
 {
     ecs_assert(world != NULL, ECS_INVALID_PARAMETER, NULL);
-    ecs_assert(expr != NULL, ECS_INVALID_PARAMETER, name);
+    ecs_assert(expr != NULL, ECS_INVALID_PARAMETER, "%s", name);
     ecs_assert(id != NULL, ECS_INVALID_PARAMETER, NULL);
 
-    char token_buffer[256];
+    ecs_size_t token_buffer_size = ecs_os_strlen(expr) * 2 + 1;
+    char *token_buffer = ecs_os_malloc(token_buffer_size);
+    const char *ret = NULL;
 
     ecs_parser_t parser = {
         .name = name,
         .code = expr,
         .world = ECS_CONST_CAST(ecs_world_t*, world),  /* Safe, won't modify */
-        .token_cur = token_buffer
+        .token_cur = token_buffer,
+        .token_end = &token_buffer[token_buffer_size]
     };
 
     ecs_term_t term = {0};
@@ -693,12 +692,13 @@ const char* flecs_id_parse(
     expr = flecs_scan_whitespace(&parser, expr);
     if (!ecs_os_strcmp(expr, "#0")) {
         *id = 0;
-        return &expr[1];
+        ret = &expr[1];
+        goto done;
     }
 
     const char *result = flecs_query_term_parse(&parser, expr);
     if (!result) {
-        return NULL;
+        goto done;
     }
 
     ecs_query_validator_ctx_t ctx = {0};
@@ -706,24 +706,26 @@ const char* flecs_id_parse(
     ctx.term = &term;
 
     if (flecs_term_finalize(world, &term, &ctx)) {
-        return NULL;
+        goto done;
     }
 
     if (term.oper != EcsAnd) {
-        ecs_parser_error(name, expr, (result - expr), 
+        ecs_parser_error(name, expr, (result - expr),
             "invalid operator for add expression");
-        return NULL;
+        goto done;
     }
 
     if ((term.src.id & ~EcsTraverseFlags) != (EcsThis|EcsIsVariable)) {
-        ecs_parser_error(name, expr, (result - expr), 
+        ecs_parser_error(name, expr, (result - expr),
             "invalid source for add expression (must be $this)");
-        return NULL;
+        goto done;
     }
 
     *id = term.id;
-    
-    return result;
+    ret = result;
+done:
+    ecs_os_free(token_buffer);
+    return ret;
 }
 
 static

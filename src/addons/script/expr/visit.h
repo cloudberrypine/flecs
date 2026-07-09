@@ -1,16 +1,19 @@
 /**
- * @file addons/script/exor_visit.h
- * @brief Script AST visitor utilities.
+ * @file addons/script/expr/visit.h
+ * @brief Script expression AST visitor utilities.
  */
 
 #ifndef FLECS_EXPR_SCRIPT_VISIT_H
 #define FLECS_EXPR_SCRIPT_VISIT_H
 
+void flecs_expr_visit_error_(
+    const ecs_script_t *script,
+    const void *node,
+    const char *fmt,
+    ...);
+
 #define flecs_expr_visit_error(script, node, ...) \
-    ecs_parser_error( \
-        script->name, script->code, \
-            ((const ecs_expr_node_t*)node)->pos - script->code, \
-                __VA_ARGS__);
+    flecs_expr_visit_error_(script, node, __VA_ARGS__)
 
 int flecs_expr_visit_type(
     ecs_script_t *script,
@@ -31,9 +34,5 @@ int flecs_expr_visit_eval(
 void flecs_expr_visit_free(
     ecs_script_t *script,
     ecs_expr_node_t *node);
-
-ecs_script_var_t flecs_expr_find_var(
-    ecs_script_t *script,
-    const char *name);
 
 #endif

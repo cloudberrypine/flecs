@@ -87,6 +87,8 @@ int flecs_add_member_to_struct(
         return -1;
     }
 
+    flecs_meta_detect_cycles(world, m.type, struct_type);
+
     if (ecs_get_typeid(world, m.type) == 0) {
         char *path = ecs_get_path(world, struct_type);
         char *ent_path = ecs_get_path(world, m.type);
@@ -472,7 +474,7 @@ int flecs_member_validate_ranges(
     }
 
     if (ranges_set && !flecs_type_is_number(world, member->type)) {
-        ecs_err("member '%s.%s' has an value/error/warning range, but is "
+        ecs_err("member '%s.%s' has a value/error/warning range, but is "
             "not a number", 
                 flecs_errstr(ecs_get_path(world, type)), member->name);
         goto error;

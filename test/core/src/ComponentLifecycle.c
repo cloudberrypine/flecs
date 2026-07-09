@@ -1622,6 +1622,389 @@ void ComponentLifecycle_emplace_grow_w_existing_component(void) {
     ecs_fini(world);
 }
 
+void ComponentLifecycle_ctor_w_emplace_w_with(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_COMPONENT(world, Position);
+    ECS_COMPONENT(world, Velocity);
+
+    ecs_set_hooks(world, Position, {
+        .ctor = ecs_ctor(Position)
+    });
+
+    ecs_add_pair(world, ecs_id(Velocity), EcsWith, ecs_id(Position));
+
+    ctor_position = 0;
+
+    ecs_entity_t e = ecs_new(world);
+    Velocity *v = ecs_emplace(world, e, Velocity, NULL);
+    test_assert(v != NULL);
+    v->x = 1;
+    v->y = 2;
+
+    test_assert(ecs_has(world, e, Velocity));
+    test_assert(ecs_has(world, e, Position));
+    test_int(ctor_position, 1);
+
+    const Position *p = ecs_get(world, e, Position);
+    test_assert(p != NULL);
+    test_int(p->x, 0);
+    test_int(p->y, 0);
+
+    ecs_fini(world);
+}
+
+void ComponentLifecycle_ctor_w_emplace_w_with_defer(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_COMPONENT(world, Position);
+    ECS_COMPONENT(world, Velocity);
+
+    ecs_set_hooks(world, Position, {
+        .ctor = ecs_ctor(Position)
+    });
+
+    ecs_add_pair(world, ecs_id(Velocity), EcsWith, ecs_id(Position));
+
+    ctor_position = 0;
+
+    ecs_entity_t e = ecs_new(world);
+
+    ecs_defer_begin(world);
+    Velocity *v = ecs_emplace(world, e, Velocity, NULL);
+    test_assert(v != NULL);
+    v->x = 1;
+    v->y = 2;
+    ecs_defer_end(world);
+
+    test_assert(ecs_has(world, e, Velocity));
+    test_assert(ecs_has(world, e, Position));
+    test_int(ctor_position, 1);
+
+    const Position *p = ecs_get(world, e, Position);
+    test_assert(p != NULL);
+    test_int(p->x, 0);
+    test_int(p->y, 0);
+
+    ecs_fini(world);
+}
+
+void ComponentLifecycle_emplace_2_components_defer(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_COMPONENT(world, Position);
+    ECS_COMPONENT(world, Velocity);
+
+    ecs_set_hooks(world, Position, {
+        .ctor = ecs_ctor(Position)
+    });
+    ecs_set_hooks(world, Velocity, {
+        .ctor = ecs_ctor(Velocity)
+    });
+
+    ctor_position = 0;
+    ctor_velocity = 0;
+
+    ecs_entity_t e = ecs_new(world);
+
+    ecs_defer_begin(world);
+    Position *p = ecs_emplace(world, e, Position, NULL);
+    test_assert(p != NULL);
+    p->x = 10;
+    p->y = 20;
+    Velocity *v = ecs_emplace(world, e, Velocity, NULL);
+    test_assert(v != NULL);
+    v->x = 1;
+    v->y = 2;
+    ecs_defer_end(world);
+
+    test_assert(ecs_has(world, e, Position));
+    test_assert(ecs_has(world, e, Velocity));
+    test_int(ctor_position, 0);
+    test_int(ctor_velocity, 0);
+
+    const Position *pp = ecs_get(world, e, Position);
+    test_int(pp->x, 10);
+    test_int(pp->y, 20);
+    const Velocity *vv = ecs_get(world, e, Velocity);
+    test_int(vv->x, 1);
+    test_int(vv->y, 2);
+
+    ecs_fini(world);
+}
+
+void ComponentLifecycle_set_and_emplace_defer(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_COMPONENT(world, Position);
+    ECS_COMPONENT(world, Velocity);
+
+    ecs_set_hooks(world, Position, {
+        .ctor = ecs_ctor(Position)
+    });
+    ecs_set_hooks(world, Velocity, {
+        .ctor = ecs_ctor(Velocity)
+    });
+
+    ctor_position = 0;
+    ctor_velocity = 0;
+
+    ecs_entity_t e = ecs_new(world);
+
+    ecs_defer_begin(world);
+    ecs_set(world, e, Position, {10, 20});
+    Velocity *v = ecs_emplace(world, e, Velocity, NULL);
+    test_assert(v != NULL);
+    v->x = 1;
+    v->y = 2;
+    ecs_defer_end(world);
+
+    test_assert(ecs_has(world, e, Position));
+    test_assert(ecs_has(world, e, Velocity));
+    test_int(ctor_position, 1);
+    test_int(ctor_velocity, 0);
+
+    const Position *pp = ecs_get(world, e, Position);
+    test_int(pp->x, 10);
+    test_int(pp->y, 20);
+    const Velocity *vv = ecs_get(world, e, Velocity);
+    test_int(vv->x, 1);
+    test_int(vv->y, 2);
+
+    ecs_fini(world);
+}
+
+void ComponentLifecycle_emplace_2_components_w_with_defer(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_COMPONENT(world, Position);
+    ECS_COMPONENT(world, Velocity);
+    ECS_TAG(world, TagA);
+    ECS_TAG(world, TagB);
+
+    ecs_set_hooks(world, Position, {
+        .ctor = ecs_ctor(Position)
+    });
+    ecs_set_hooks(world, Velocity, {
+        .ctor = ecs_ctor(Velocity)
+    });
+
+    ecs_add_pair(world, ecs_id(Position), EcsWith, TagA);
+    ecs_add_pair(world, ecs_id(Velocity), EcsWith, TagB);
+
+    ctor_position = 0;
+    ctor_velocity = 0;
+
+    ecs_entity_t e = ecs_new(world);
+
+    ecs_defer_begin(world);
+    Position *p = ecs_emplace(world, e, Position, NULL);
+    test_assert(p != NULL);
+    p->x = 10;
+    p->y = 20;
+    Velocity *v = ecs_emplace(world, e, Velocity, NULL);
+    test_assert(v != NULL);
+    v->x = 1;
+    v->y = 2;
+    ecs_defer_end(world);
+
+    test_assert(ecs_has(world, e, Position));
+    test_assert(ecs_has(world, e, Velocity));
+    test_assert(ecs_has(world, e, TagA));
+    test_assert(ecs_has(world, e, TagB));
+    test_int(ctor_position, 0);
+    test_int(ctor_velocity, 0);
+
+    const Position *pp = ecs_get(world, e, Position);
+    test_int(pp->x, 10);
+    test_int(pp->y, 20);
+    const Velocity *vv = ecs_get(world, e, Velocity);
+    test_int(vv->x, 1);
+    test_int(vv->y, 2);
+
+    ecs_fini(world);
+}
+
+void ComponentLifecycle_set_and_emplace_w_with_defer(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_COMPONENT(world, Position);
+    ECS_COMPONENT(world, Velocity);
+
+    ecs_set_hooks(world, Position, {
+        .ctor = ecs_ctor(Position)
+    });
+    ecs_set_hooks(world, Velocity, {
+        .ctor = ecs_ctor(Velocity)
+    });
+
+    ecs_add_pair(world, ecs_id(Velocity), EcsWith, ecs_id(Position));
+
+    ctor_position = 0;
+    ctor_velocity = 0;
+
+    ecs_entity_t e = ecs_new(world);
+
+    ecs_defer_begin(world);
+    ecs_set(world, e, Position, {10, 20});
+    Velocity *v = ecs_emplace(world, e, Velocity, NULL);
+    test_assert(v != NULL);
+    v->x = 1;
+    v->y = 2;
+    ecs_defer_end(world);
+
+    test_assert(ecs_has(world, e, Position));
+    test_assert(ecs_has(world, e, Velocity));
+    test_int(ctor_position, 1);
+    test_int(ctor_velocity, 0);
+
+    const Position *pp = ecs_get(world, e, Position);
+    test_int(pp->x, 10);
+    test_int(pp->y, 20);
+    const Velocity *vv = ecs_get(world, e, Velocity);
+    test_int(vv->x, 1);
+    test_int(vv->y, 2);
+
+    ecs_fini(world);
+}
+
+void ComponentLifecycle_ctor_w_emplace_w_with_sparse(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_COMPONENT(world, Position);
+    ECS_COMPONENT(world, Velocity);
+
+    ecs_add_id(world, ecs_id(Position), EcsSparse);
+
+    ecs_set_hooks(world, Position, {
+        .ctor = ecs_ctor(Position)
+    });
+
+    ecs_add_pair(world, ecs_id(Velocity), EcsWith, ecs_id(Position));
+
+    ctor_position = 0;
+
+    ecs_entity_t e = ecs_new(world);
+    Velocity *v = ecs_emplace(world, e, Velocity, NULL);
+    test_assert(v != NULL);
+    v->x = 1;
+    v->y = 2;
+
+    test_assert(ecs_has(world, e, Velocity));
+    test_assert(ecs_has(world, e, Position));
+    test_int(ctor_position, 1);
+
+    ecs_fini(world);
+}
+
+void ComponentLifecycle_ctor_w_emplace_w_with_chain(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_COMPONENT(world, Position);
+    ECS_COMPONENT(world, Velocity);
+    ECS_COMPONENT(world, Mass);
+
+    ecs_set_hooks(world, Position, {
+        .ctor = ecs_ctor(Position)
+    });
+    ecs_set_hooks(world, Velocity, {
+        .ctor = ecs_ctor(Velocity)
+    });
+    ecs_set_hooks(world, Mass, {
+        .ctor = ecs_ctor(Mass)
+    });
+
+    ecs_add_pair(world, ecs_id(Velocity), EcsWith, ecs_id(Mass));
+    ecs_add_pair(world, ecs_id(Position), EcsWith, ecs_id(Velocity));
+
+    ctor_position = 0;
+    ctor_velocity = 0;
+    ctor_mass = 0;
+
+    ecs_entity_t e = ecs_new(world);
+    Position *p = ecs_emplace(world, e, Position, NULL);
+    test_assert(p != NULL);
+    p->x = 10;
+    p->y = 20;
+
+    test_assert(ecs_has(world, e, Position));
+    test_assert(ecs_has(world, e, Velocity));
+    test_assert(ecs_has(world, e, Mass));
+
+    test_int(ctor_position, 0);
+    test_int(ctor_velocity, 1);
+    test_int(ctor_mass, 1);
+
+    const Position *pp = ecs_get(world, e, Position);
+    test_int(pp->x, 10);
+    test_int(pp->y, 20);
+
+    ecs_fini(world);
+}
+
+void ComponentLifecycle_ctor_w_emplace_w_with_existing_component(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_COMPONENT(world, Position);
+    ECS_COMPONENT(world, Velocity);
+
+    ecs_set_hooks(world, Position, {
+        .ctor = ecs_ctor(Position)
+    });
+    ecs_set_hooks(world, Velocity, {
+        .ctor = ecs_ctor(Velocity)
+    });
+
+    ecs_add_pair(world, ecs_id(Velocity), EcsWith, ecs_id(Position));
+
+    ctor_position = 0;
+    ctor_velocity = 0;
+
+    ecs_entity_t e = ecs_new_w(world, Position);
+    test_int(ctor_position, 1);
+    test_int(ctor_velocity, 0);
+
+    Velocity *v = ecs_emplace(world, e, Velocity, NULL);
+    test_assert(v != NULL);
+    v->x = 1;
+    v->y = 2;
+
+    test_assert(ecs_has(world, e, Velocity));
+    test_assert(ecs_has(world, e, Position));
+    test_int(ctor_position, 1);
+    test_int(ctor_velocity, 0);
+
+    ecs_fini(world);
+}
+
+void ComponentLifecycle_ctor_w_emplace_exclusive_pair(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_COMPONENT(world, Position);
+    ECS_TAG(world, Rel);
+    ECS_TAG(world, TgtA);
+    ECS_TAG(world, TgtB);
+
+    ecs_add_id(world, Rel, EcsExclusive);
+
+    ecs_set_hooks(world, Position, {
+        .ctor = ecs_ctor(Position)
+    });
+
+    ctor_position = 0;
+
+    ecs_entity_t e = ecs_new_w_pair(world, Rel, TgtA);
+    ecs_set(world, e, Position, {10, 20});
+    test_int(ctor_position, 1);
+
+    ecs_add_pair(world, e, Rel, TgtB);
+
+    test_assert( ecs_has_pair(world, e, Rel, TgtB));
+    test_assert(!ecs_has_pair(world, e, Rel, TgtA));
+
+    ecs_fini(world);
+}
+
 void ComponentLifecycle_dtor_on_fini(void) {
     ecs_world_t *world = ecs_mini();
 
@@ -4407,6 +4790,425 @@ void ComponentLifecycle_dtor_after_add_exclusive_component_last(void) {
     ecs_set_pair(world, e, Position, TgtA, {10, 20});
 
     test_int(dtor_position, 1);
+
+    ecs_fini(world);
+}
+
+static int has_hook_invoked = 0;
+
+static void HasHook(ecs_iter_t *it) {
+    ecs_world_t *world = it->world;
+
+    for (int i = 0; i < it->count; i ++) {
+        ecs_entity_t e = it->entities[i];
+        test_assert(!ecs_has(world, e, Position));
+        has_hook_invoked ++;
+    }
+}
+
+static int get_hook_invoked = 0;
+
+static void GetHook(ecs_iter_t *it) {
+    ecs_world_t *world = it->world;
+    Position *p = ecs_field(it, Position, 0);
+
+    for (int i = 0; i < it->count; i ++) {
+        ecs_entity_t e = it->entities[i];
+        test_assert(!ecs_has(world, e, Position));
+        test_assert(ecs_get(world, e, Position) == NULL);
+        get_hook_invoked ++;
+    }
+}
+
+void ComponentLifecycle_has_in_on_add_hook_new(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_COMPONENT_DEFINE(world, Position);
+
+    ecs_set_hooks(world, Position, {
+        .on_add = HasHook
+    });
+
+    ecs_new_w(world, Position);
+
+    test_int(has_hook_invoked, 1);
+
+    ecs_fini(world);
+}
+
+void ComponentLifecycle_has_in_on_add_hook_move(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_COMPONENT_DEFINE(world, Position);
+
+    ecs_set_hooks(world, Position, {
+        .on_add = HasHook
+    });
+
+    ecs_entity_t e = ecs_new(world);
+    test_int(has_hook_invoked, 0);
+ 
+    ecs_add(world, e, Position);
+    test_int(has_hook_invoked, 1);
+
+    ecs_fini(world);
+}
+
+void ComponentLifecycle_get_in_on_add_hook_new(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_COMPONENT_DEFINE(world, Position);
+
+    ecs_set_hooks(world, Position, {
+        .on_add = GetHook
+    });
+
+    ecs_new_w(world, Position);
+    test_int(get_hook_invoked, 1);
+
+    ecs_new_w(world, Position);
+    test_int(get_hook_invoked, 2);
+
+    ecs_fini(world);
+}
+
+void ComponentLifecycle_get_in_on_add_hook_move(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_COMPONENT_DEFINE(world, Position);
+
+    ecs_set_hooks(world, Position, {
+        .on_add = GetHook
+    });
+
+    ecs_entity_t e1 = ecs_new(world);
+    test_int(get_hook_invoked, 0);
+ 
+    ecs_add(world, e1, Position);
+    test_int(get_hook_invoked, 1);
+
+    ecs_entity_t e2 = ecs_new(world);
+    test_int(get_hook_invoked, 1);
+ 
+    ecs_add(world, e2, Position);
+    test_int(get_hook_invoked, 2);
+
+    ecs_fini(world);
+}
+
+static int get_name_hook_invoked = 0;
+
+static void GetNameHook(ecs_iter_t *it) {
+    ecs_world_t *world = it->world;
+
+    for (int i = 0; i < it->count; i ++) {
+        ecs_entity_t e = it->entities[i];
+        const char *name = ecs_get_name(world, e);
+        test_assert(name != NULL);
+        test_str(name, "TestEntity");
+        get_name_hook_invoked ++;
+    }
+}
+
+void ComponentLifecycle_get_name_in_on_add_hook_move(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_COMPONENT_DEFINE(world, Position);
+
+    ecs_set_hooks(world, Position, {
+        .on_add = GetNameHook
+    });
+
+    ecs_entity_t e = ecs_entity(world, { .name = "TestEntity" });
+    test_int(get_name_hook_invoked, 0);
+
+    ecs_add(world, e, Position);
+    test_int(get_name_hook_invoked, 1);
+
+    test_str(ecs_get_name(world, e), "TestEntity");
+
+    ecs_fini(world);
+}
+
+static int reload_ctor_a_invoked = 0;
+static void reload_ctor_a(void *ptr, int32_t count, const ecs_type_info_t *ti) {
+    (void)ti;
+    Position *p = ptr;
+    for (int i = 0; i < count; i ++) {
+        p[i].x = 0;
+        p[i].y = 0;
+    }
+    reload_ctor_a_invoked += count;
+}
+
+static int reload_ctor_b_invoked = 0;
+static void reload_ctor_b(void *ptr, int32_t count, const ecs_type_info_t *ti) {
+    (void)ti;
+    Position *p = ptr;
+    for (int i = 0; i < count; i ++) {
+        p[i].x = 0;
+        p[i].y = 0;
+    }
+    reload_ctor_b_invoked += count;
+}
+
+static int reload_dtor_a_invoked = 0;
+static void reload_dtor_a(void *ptr, int32_t count, const ecs_type_info_t *ti) {
+    (void)ptr;
+    (void)ti;
+    reload_dtor_a_invoked += count;
+}
+
+static int reload_dtor_b_invoked = 0;
+static void reload_dtor_b(void *ptr, int32_t count, const ecs_type_info_t *ti) {
+    (void)ptr;
+    (void)ti;
+    reload_dtor_b_invoked += count;
+}
+
+static int reload_on_set_a_invoked = 0;
+static void reload_on_set_a(ecs_iter_t *it) {
+    reload_on_set_a_invoked += it->count;
+}
+
+static int reload_on_set_b_invoked = 0;
+static void reload_on_set_b(ecs_iter_t *it) {
+    reload_on_set_b_invoked += it->count;
+}
+
+void ComponentLifecycle_change_ctor_hook_while_in_use(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_COMPONENT(world, Position);
+
+    ecs_set_hooks(world, Position, {
+        .ctor = reload_ctor_a
+    });
+
+    ecs_new_w(world, Position);
+    test_int(reload_ctor_a_invoked, 1);
+    test_int(reload_ctor_b_invoked, 0);
+
+    const ecs_type_info_t *ti = ecs_get_type_info(world, ecs_id(Position));
+    test_assert(ti != NULL);
+    ecs_flags32_t flags = ti->hooks.flags;
+
+    ecs_set_hooks(world, Position, {
+        .ctor = reload_ctor_b
+    });
+
+    ti = ecs_get_type_info(world, ecs_id(Position));
+    test_assert(ti->hooks.ctor == reload_ctor_b);
+    test_assert(ti->hooks.flags == flags);
+
+    ecs_new_w(world, Position);
+    test_int(reload_ctor_a_invoked, 1);
+    test_int(reload_ctor_b_invoked, 1);
+
+    ecs_fini(world);
+}
+
+void ComponentLifecycle_change_multiple_hooks_while_in_use(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_COMPONENT(world, Position);
+
+    ecs_set_hooks(world, Position, {
+        .ctor = reload_ctor_a,
+        .dtor = reload_dtor_a
+    });
+
+    ecs_entity_t e = ecs_new_w(world, Position);
+    test_int(reload_ctor_a_invoked, 1);
+
+    const ecs_type_info_t *ti = ecs_get_type_info(world, ecs_id(Position));
+    test_assert(ti != NULL);
+    ecs_flags32_t flags = ti->hooks.flags;
+
+    ecs_set_hooks(world, Position, {
+        .ctor = reload_ctor_b,
+        .dtor = reload_dtor_b
+    });
+
+    ti = ecs_get_type_info(world, ecs_id(Position));
+    test_assert(ti->hooks.ctor == reload_ctor_b);
+    test_assert(ti->hooks.dtor == reload_dtor_b);
+    test_assert(ti->hooks.flags == flags);
+
+    ecs_delete(world, e);
+    test_int(reload_dtor_a_invoked, 0);
+    test_int(reload_dtor_b_invoked, 1);
+
+    ecs_fini(world);
+}
+
+void ComponentLifecycle_change_on_set_hook_while_in_use(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_COMPONENT(world, Position);
+
+    ecs_set_hooks(world, Position, {
+        .on_set = reload_on_set_a
+    });
+
+    ecs_entity_t e = ecs_new_w(world, Position);
+    ecs_set(world, e, Position, {10, 20});
+    test_int(reload_on_set_a_invoked, 1);
+    test_int(reload_on_set_b_invoked, 0);
+
+    const ecs_type_info_t *ti = ecs_get_type_info(world, ecs_id(Position));
+    test_assert(ti != NULL);
+    ecs_flags32_t flags = ti->hooks.flags;
+
+    ecs_set_hooks(world, Position, {
+        .on_set = reload_on_set_b
+    });
+
+    ti = ecs_get_type_info(world, ecs_id(Position));
+    test_assert(ti->hooks.on_set == reload_on_set_b);
+    test_assert(ti->hooks.flags == flags);
+
+    ecs_set(world, e, Position, {30, 40});
+    test_int(reload_on_set_a_invoked, 1);
+    test_int(reload_on_set_b_invoked, 1);
+
+    ecs_fini(world);
+}
+
+void ComponentLifecycle_change_hook_while_in_use_w_pair(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_COMPONENT(world, Position);
+    ECS_TAG(world, Tgt);
+
+    ecs_set_hooks(world, Position, {
+        .ctor = reload_ctor_a
+    });
+
+    ecs_entity_t e = ecs_new(world);
+    ecs_add_pair(world, e, ecs_id(Position), Tgt);
+    test_int(reload_ctor_a_invoked, 1);
+
+    const ecs_type_info_t *ti = ecs_get_type_info(world, ecs_id(Position));
+    test_assert(ti != NULL);
+    ecs_flags32_t flags = ti->hooks.flags;
+
+    ecs_set_hooks(world, Position, {
+        .ctor = reload_ctor_b
+    });
+
+    ti = ecs_get_type_info(world, ecs_id(Position));
+    test_assert(ti->hooks.ctor == reload_ctor_b);
+    test_assert(ti->hooks.flags == flags);
+
+    ecs_entity_t e2 = ecs_new(world);
+    ecs_add_pair(world, e2, ecs_id(Position), Tgt);
+    test_int(reload_ctor_a_invoked, 1);
+    test_int(reload_ctor_b_invoked, 1);
+
+    ecs_fini(world);
+}
+
+void ComponentLifecycle_add_hook_while_in_use(void) {
+    install_test_abort();
+
+    ecs_world_t *world = ecs_mini();
+
+    ECS_COMPONENT(world, Position);
+
+    ecs_set_hooks(world, Position, {
+        .ctor = reload_ctor_a
+    });
+
+    ecs_new_w(world, Position);
+
+    test_expect_abort();
+
+    ecs_set_hooks(world, Position, {
+        .dtor = reload_dtor_a
+    });
+
+    ecs_fini(world);
+}
+
+void ComponentLifecycle_add_on_set_hook_while_in_use(void) {
+    install_test_abort();
+
+    ecs_world_t *world = ecs_mini();
+
+    ECS_COMPONENT(world, Position);
+
+    ecs_set_hooks(world, Position, {
+        .ctor = reload_ctor_a
+    });
+
+    ecs_new_w(world, Position);
+
+    test_expect_abort();
+
+    ecs_set_hooks(world, Position, {
+        .on_set = reload_on_set_a
+    });
+
+    ecs_fini(world);
+}
+
+static int value_move_ctor_move_invoked = 0;
+static int value_move_ctor_move_ctor_invoked = 0;
+
+static
+void value_move_hook(
+    void *dst_ptr,
+    void *src_ptr,
+    int32_t count,
+    const ecs_type_info_t *info)
+{
+    (void)info;
+    Position *dst = dst_ptr;
+    Position *src = src_ptr;
+    int i;
+    for (i = 0; i < count; i ++) {
+        dst[i] = src[i];
+    }
+    value_move_ctor_move_invoked ++;
+}
+
+static
+void value_move_ctor_hook(
+    void *dst_ptr,
+    void *src_ptr,
+    int32_t count,
+    const ecs_type_info_t *info)
+{
+    (void)info;
+    Position *dst = dst_ptr;
+    Position *src = src_ptr;
+    int i;
+    for (i = 0; i < count; i ++) {
+        dst[i] = src[i];
+    }
+    value_move_ctor_move_ctor_invoked ++;
+}
+
+void ComponentLifecycle_value_move_ctor_invokes_move_ctor(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_COMPONENT(world, Position);
+
+    ecs_set_hooks(world, Position, {
+        .move = value_move_hook,
+        .move_ctor = value_move_ctor_hook
+    });
+
+    Position src = {10, 20};
+    Position dst;
+
+    test_int(0, ecs_value_move_ctor(world, ecs_id(Position), &dst, &src));
+
+    test_int(value_move_ctor_move_ctor_invoked, 1);
+    test_int(value_move_ctor_move_invoked, 0);
+    test_int(dst.x, 10);
+    test_int(dst.y, 20);
 
     ecs_fini(world);
 }

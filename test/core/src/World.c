@@ -96,100 +96,7 @@ void World_progress_w_t(void) {
     ecs_fini(world);
 }
 
-void World_entity_range_offset(void) {
-    ecs_world_t *world = ecs_init();
-
-    ecs_set_entity_range(world, 5000, 0);
-
-    ecs_entity_t e = ecs_new(world);
-    test_int(e, 5000);
-
-    ecs_fini(world);
-}
-
-void World_entity_range_offset_out_of_range(void) {
-    install_test_abort();
-
-    ecs_world_t *world = ecs_init();
-
-    ECS_COMPONENT(world, Position);
-
-    ecs_enable_range_check(world, true);
-    ecs_set_entity_range(world, 2000, 0);
-
-    test_expect_abort();
-
-    ecs_add(world, 1500, Position);
-
-    ecs_fini(world);
-}
-
-void World_entity_range_limit_out_of_range(void) {
-    install_test_abort();
-
-    ecs_world_t *world = ecs_init();
-
-    ECS_COMPONENT(world, Position);
-
-    ecs_enable_range_check(world, true);
-    ecs_set_entity_range(world, 0, 2000);
-
-    test_expect_abort();
-
-    ecs_add(world, 2500, Position);
-
-    ecs_fini(world);
-}
-
-void World_entity_range_out_of_range_check_disabled(void) {
-    ecs_world_t *world = ecs_init();
-
-    ECS_COMPONENT(world, Position);
-
-    ecs_make_alive(world, 4999);
-
-    ecs_enable_range_check(world, false);
-    ecs_set_entity_range(world, 5000, 10000);
-
-    /* Validate that range is being used when issuing new ids */
-    ecs_entity_t e = ecs_new(world);
-    test_int(e, 5000);
-
-    /* Validate that application does not abort when changing out of range */
-    ecs_entity_t e2 = 4999;
-    ecs_set(world, e2, Position, {10, 20});
-    test_assert( ecs_has(world, e2, Position));
-    
-    const Position *p = ecs_get(world, e2, Position);
-    test_assert(p != NULL);
-    test_int(p->x, 10);
-    test_int(p->y, 20);
-
-    ecs_fini(world);
-}
-
-void World_entity_range_check_after_delete(void) {
-    ecs_world_t *world = ecs_init();
-
-    ECS_COMPONENT(world, Position);
-
-    ecs_enable_range_check(world, true);
-    ecs_set_entity_range(world, 5000, 10000);
-
-    ecs_entity_t e = ecs_new(world);
-    test_assert(e != 0);
-    test_assert(e == 5000);
-
-    ecs_delete(world, e);
-
-    e = ecs_new(world);
-    test_assert(e != 0);
-    test_assert((uint32_t)e == 5000);
-
-    ecs_fini(world);
-}
-
-void World_entity_range_add_existing_staged(void) {
+void World_range_add_existing_staged(void) {
     ecs_world_t *world = ecs_mini();
 
     ECS_COMPONENT(world, Position);
@@ -199,7 +106,8 @@ void World_entity_range_add_existing_staged(void) {
     test_assert(e != 0);
     test_assert(e < 1000);
 
-    ecs_set_entity_range(world, 1000, 1500);
+    const ecs_entity_range_t *range = ecs_entity_range_new(world, 1000, 1500);
+    ecs_entity_range_set(world, range);
 
     ecs_readonly_begin(world, false);
     ecs_world_t *stage = ecs_get_stage(world, 0);
@@ -209,13 +117,14 @@ void World_entity_range_add_existing_staged(void) {
     ecs_fini(world);
 }
 
-void World_entity_range_add_in_range_staged(void) {
+void World_range_add_in_range_staged(void) {
     ecs_world_t *world = ecs_mini();
 
     ECS_COMPONENT(world, Position);
     ECS_COMPONENT(world, Velocity);
 
-    ecs_set_entity_range(world, 500, 1000);
+    const ecs_entity_range_t *range = ecs_entity_range_new(world, 500, 1000);
+    ecs_entity_range_set(world, range);
 
     ecs_entity_t e = ecs_new_w(world, Position);
     test_assert(e == 500);
@@ -228,130 +137,677 @@ void World_entity_range_add_in_range_staged(void) {
     ecs_fini(world);
 }
 
-void AddOutOfRange(ecs_iter_t *it) {
-    ecs_id_t ecs_id(Velocity) = ecs_field_id(it, 1);
-
-    int i;
-    for (i = 0; i < it->count; i ++) {
-        test_expect_abort();
-        ecs_add(it->world, 1001, Velocity);
-    }
-}
-
-void World_entity_range_add_out_of_range_staged(void) {
-    install_test_abort();
-
+void World_range_get(void) {
     ecs_world_t *world = ecs_mini();
 
-    ECS_COMPONENT(world, Position);
-    ECS_COMPONENT(world, Velocity);
+    test_assert(ecs_entity_range_get(world) == NULL);
 
-    ecs_enable_range_check(world, true);
-    ecs_set_entity_range(world, 500, 1000);
+    const ecs_entity_range_t *range_a = ecs_entity_range_new(world, 1000, 2000);
+    const ecs_entity_range_t *range_b = ecs_entity_range_new(world, 3000, 4000);
 
-    /* Dummy entity to invoke the system */
-    ecs_entity_t e = ecs_new_w(world, Position);
-    test_assert(e == 500);
+    const ecs_entity_range_t *default_range = ecs_entity_range_get(world);
+    test_assert(default_range != NULL);
+    test_assert(default_range != range_a);
+    test_assert(default_range != range_b);
+    test_uint(default_range->min, 1);
+    test_uint(default_range->max, 999);
 
-    ecs_readonly_begin(world, false);
-    ecs_world_t *stage = ecs_get_stage(world, 0);
-    ecs_add(stage, e, Velocity);
-    ecs_readonly_end(world);
+    ecs_entity_range_set(world, range_a);
+    test_assert(ecs_entity_range_get(world) == range_a);
+
+    ecs_entity_range_set(world, range_b);
+    test_assert(ecs_entity_range_get(world) == range_b);
+
+    ecs_entity_range_set(world, range_a);
+    test_assert(ecs_entity_range_get(world) == range_a);
 
     ecs_fini(world);
 }
 
-void World_entity_range_offset_0(void) {
+void World_range_recycled_in_range(void) {
     ecs_world_t *world = ecs_mini();
 
-    const ecs_world_info_t *info = ecs_get_world_info(world);
-    test_assert(info != NULL);
-
-    ecs_set_entity_range(world, 0, 1000);
-
-    test_uint(info->min_id, ecs_get_max_id(world) + 1);
-    test_uint(info->max_id, 1000);
-
-    ecs_fini(world);
-}
-
-void World_entity_range_set_limit_to_lower(void) {
-    ecs_world_t *world = ecs_mini();
-
-    const ecs_world_info_t *info = ecs_get_world_info(world);
-    test_assert(info != NULL);
-
-    ecs_set_entity_range(world, 0, 2000);
-
-    test_uint(info->max_id, 2000);
-
-    ecs_set_entity_range(world, 0, 1000);
-
-    test_uint(info->max_id, 1000);
-
-    ecs_fini(world);
-}
-
-void World_entity_range_set_limit_to_lower_than_offset(void) {
-    ecs_world_t *world = ecs_mini();
-
-    const ecs_world_info_t *info = ecs_get_world_info(world);
-    test_assert(info != NULL);
-
-    ecs_set_entity_range(world, 2000, 3000);
-
-    test_uint(info->max_id, 3000);
-
-    ecs_set_entity_range(world, 0, 1000);
-
-    test_uint(info->max_id, 1000);
-
-    ecs_fini(world);
-}
-
-void World_entity_range_overlapping_new_id(void) {
-    install_test_abort();
-
-    ecs_world_t *world = ecs_mini();
-
-    const ecs_world_info_t *info = ecs_get_world_info(world);
-    test_assert(info != NULL);
-
-    ecs_set_entity_range(world, 2000, 3000);
-    test_uint(info->max_id, 3000);
+    const ecs_entity_range_t *range = ecs_entity_range_new(world, 5000, 10000);
+    ecs_entity_range_set(world, range);
 
     ecs_entity_t e1 = ecs_new(world);
-    test_assert(e1 == 2000);
-
-    ecs_set_entity_range(world, 1999, 0);
+    test_uint((uint32_t)e1, 5000);
 
     ecs_entity_t e2 = ecs_new(world);
-    test_assert(e2 == 1999);
+    test_uint((uint32_t)e2, 5001);
+
+    ecs_delete(world, e1);
+
+    ecs_entity_t e3 = ecs_new(world);
+    test_uint((uint32_t)e3, 5000);
+    test_assert(e3 != e1);
+
+    ecs_fini(world);
+}
+
+void World_range_switch_preserves_recycled(void) {
+    ecs_world_t *world = ecs_mini();
+
+    const ecs_entity_range_t *range_a = ecs_entity_range_new(world, 1000, 2000);
+    const ecs_entity_range_t *range_b = ecs_entity_range_new(world, 3000, 4000);
+
+    ecs_entity_range_set(world, range_a);
+    ecs_entity_t e1 = ecs_new(world);
+    test_uint((uint32_t)e1, 1000);
+    ecs_delete(world, e1);
+
+    ecs_entity_range_set(world, range_b);
+    ecs_entity_t e2 = ecs_new(world);
+    test_uint((uint32_t)e2, 3000);
+
+    ecs_entity_range_set(world, range_a);
+    ecs_entity_t e3 = ecs_new(world);
+    test_uint((uint32_t)e3, 1000);
+    test_assert(e3 != e1);
+
+    ecs_fini(world);
+}
+
+void World_range_no_cross_recycle(void) {
+    ecs_world_t *world = ecs_mini();
+
+    const ecs_entity_range_t *range_a = ecs_entity_range_new(world, 1000, 2000);
+    const ecs_entity_range_t *range_b = ecs_entity_range_new(world, 3000, 4000);
+
+    ecs_entity_range_set(world, range_a);
+    ecs_entity_t e1 = ecs_new(world);
+    test_uint((uint32_t)e1, 1000);
+    ecs_delete(world, e1);
+
+    ecs_entity_range_set(world, range_b);
+    ecs_entity_t e2 = ecs_new(world);
+    test_uint((uint32_t)e2, 3000);
+
+    ecs_fini(world);
+}
+
+void World_range_delete_outside_range(void) {
+    ecs_world_t *world = ecs_mini();
+
+    const ecs_entity_range_t *range_a = ecs_entity_range_new(world, 1000, 2000);
+    const ecs_entity_range_t *range_b = ecs_entity_range_new(world, 3000, 4000);
+
+    ecs_entity_range_set(world, range_a);
+    ecs_entity_t e_a = ecs_new(world);
+    test_uint((uint32_t)e_a, 1000);
+
+    ecs_entity_range_set(world, range_b);
+    ecs_entity_t e_b = ecs_new(world);
+    test_uint((uint32_t)e_b, 3000);
+
+    ecs_delete(world, e_a);
+
+    ecs_entity_range_set(world, range_a);
+    ecs_entity_t e_a2 = ecs_new(world);
+    test_uint((uint32_t)e_a2, 1000);
+    test_assert(e_a2 != e_a);
+
+    ecs_fini(world);
+}
+
+void World_range_multiple_switches(void) {
+    ecs_world_t *world = ecs_mini();
+
+    const ecs_entity_range_t *range_a = ecs_entity_range_new(world, 1000, 2000);
+    const ecs_entity_range_t *range_b = ecs_entity_range_new(world, 3000, 4000);
+
+    ecs_entity_range_set(world, range_a);
+    ecs_entity_t a1 = ecs_new(world);
+    ecs_entity_t a2 = ecs_new(world);
+    test_uint((uint32_t)a1, 1000);
+    test_uint((uint32_t)a2, 1001);
+    ecs_delete(world, a1);
+    ecs_delete(world, a2);
+
+    ecs_entity_range_set(world, range_b);
+    ecs_entity_t b1 = ecs_new(world);
+    ecs_entity_t b2 = ecs_new(world);
+    test_uint((uint32_t)b1, 3000);
+    test_uint((uint32_t)b2, 3001);
+    ecs_delete(world, b1);
+
+    ecs_entity_range_set(world, range_a);
+    ecs_entity_t a3 = ecs_new(world);
+    ecs_entity_t a4 = ecs_new(world);
+    test_assert((uint32_t)a3 >= 1000 && (uint32_t)a3 <= 1001);
+    test_assert((uint32_t)a4 >= 1000 && (uint32_t)a4 <= 1001);
+    test_assert((uint32_t)a3 != (uint32_t)a4);
+
+    ecs_entity_range_set(world, range_b);
+    ecs_entity_t b3 = ecs_new(world);
+    test_uint((uint32_t)b3, 3000);
+    test_assert(b3 != b1);
+
+    ecs_entity_t b4 = ecs_new(world);
+    test_uint((uint32_t)b4, 3002);
+
+    ecs_fini(world);
+}
+
+void World_range_unbounded(void) {
+    ecs_world_t *world = ecs_mini();
+
+    const ecs_entity_range_t *range = ecs_entity_range_new(world, 1000, 0);
+    ecs_entity_range_set(world, range);
+
+    ecs_entity_t e1 = ecs_new(world);
+    test_uint((uint32_t)e1, 1000);
+    ecs_entity_t e2 = ecs_new(world);
+    test_uint((uint32_t)e2, 1001);
+
+    ecs_delete(world, e1);
+
+    ecs_entity_t e3 = ecs_new(world);
+    test_uint((uint32_t)e3, 1000);
+    test_assert(e3 != e1);
+
+    ecs_entity_t e4 = ecs_new(world);
+    test_uint((uint32_t)e4, 1002);
+
+    ecs_fini(world);
+}
+
+void World_range_delete_outside_all_ranges(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ecs_entity_t pre = ecs_new(world);
+    test_assert(pre != 0);
+
+    const ecs_entity_range_t *range = ecs_entity_range_new(world, 5000, 6000);
+    ecs_entity_range_set(world, range);
+
+    ecs_delete(world, pre);
+
+    ecs_entity_t e = ecs_new(world);
+    test_uint((uint32_t)e, 5000);
+
+    ecs_fini(world);
+}
+
+void World_range_set_clears_pre_existing_not_alive(void) {
+    ecs_world_t *world = ecs_mini();
+
+    const ecs_entity_range_t *range = ecs_entity_range_new(world, 5000, 6000);
+
+    ecs_entity_t e1 = ecs_new(world);
+    ecs_entity_t e2 = ecs_new(world);
+    ecs_delete(world, e1);
+    ecs_delete(world, e2);
+
+    ecs_entity_range_set(world, range);
+
+    ecs_entity_t e3 = ecs_new(world);
+    test_uint((uint32_t)e3, 5000);
+
+    ecs_fini(world);
+}
+
+void World_range_three_ranges_binary_search(void) {
+    ecs_world_t *world = ecs_mini();
+
+    const ecs_entity_range_t *range_a = ecs_entity_range_new(world, 1000, 2000);
+    const ecs_entity_range_t *range_b = ecs_entity_range_new(world, 3000, 4000);
+    const ecs_entity_range_t *range_c = ecs_entity_range_new(world, 5000, 6000);
+
+    ecs_entity_range_set(world, range_a);
+    ecs_entity_t ea = ecs_new(world);
+    test_uint((uint32_t)ea, 1000);
+
+    ecs_entity_range_set(world, range_b);
+    ecs_entity_t eb = ecs_new(world);
+    test_uint((uint32_t)eb, 3000);
+
+    ecs_entity_range_set(world, range_c);
+    ecs_entity_t ec = ecs_new(world);
+    test_uint((uint32_t)ec, 5000);
+
+    ecs_delete(world, ea);
+    ecs_delete(world, eb);
+
+    ecs_entity_range_set(world, range_a);
+    ecs_entity_t ea2 = ecs_new(world);
+    test_uint((uint32_t)ea2, 1000);
+    test_assert(ea2 != ea);
+
+    ecs_entity_range_set(world, range_b);
+    ecs_entity_t eb2 = ecs_new(world);
+    test_uint((uint32_t)eb2, 3000);
+    test_assert(eb2 != eb);
+
+    ecs_entity_range_set(world, range_c);
+    ecs_entity_t ec2 = ecs_new(world);
+    test_uint((uint32_t)ec2, 5001);
+
+    ecs_fini(world);
+}
+
+void World_range_set_same_range(void) {
+    ecs_world_t *world = ecs_mini();
+
+    const ecs_entity_range_t *range = ecs_entity_range_new(world, 1000, 2000);
+    ecs_entity_range_set(world, range);
+
+    ecs_entity_t e1 = ecs_new(world);
+    test_uint((uint32_t)e1, 1000);
+    ecs_delete(world, e1);
+
+    ecs_entity_range_set(world, range);
+
+    ecs_entity_t e2 = ecs_new(world);
+    test_uint((uint32_t)e2, 1000);
+    test_assert(e2 != e1);
+
+    ecs_fini(world);
+}
+
+void World_range_bulk_new(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_COMPONENT(world, Position);
+
+    const ecs_entity_range_t *range_a = ecs_entity_range_new(world, 1000, 2000);
+    const ecs_entity_range_t *range_b = ecs_entity_range_new(world, 3000, 4000);
+
+    ecs_entity_range_set(world, range_a);
+    ecs_entity_t e1 = ecs_new(world);
+    ecs_entity_t e2 = ecs_new(world);
+    ecs_entity_t e3 = ecs_new(world);
+    test_uint((uint32_t)e1, 1000);
+    test_uint((uint32_t)e2, 1001);
+    test_uint((uint32_t)e3, 1002);
+    ecs_delete(world, e1);
+    ecs_delete(world, e2);
+
+    ecs_entity_range_set(world, range_b);
+    const ecs_entity_t *bulk = ecs_bulk_new(world, Position, 3);
+    test_assert(bulk != NULL);
+    test_uint((uint32_t)bulk[0], 3000);
+    test_uint((uint32_t)bulk[1], 3001);
+    test_uint((uint32_t)bulk[2], 3002);
+
+    ecs_fini(world);
+}
+
+void World_range_delete_w_components(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_COMPONENT(world, Position);
+    ECS_COMPONENT(world, Velocity);
+
+    const ecs_entity_range_t *range_a = ecs_entity_range_new(world, 1000, 2000);
+    const ecs_entity_range_t *range_b = ecs_entity_range_new(world, 3000, 4000);
+
+    ecs_entity_range_set(world, range_a);
+    ecs_entity_t ea = ecs_insert(world, ecs_value(Position, {1, 2}));
+    test_uint((uint32_t)ea, 1000);
+    ecs_add(world, ea, Velocity);
+
+    ecs_entity_range_set(world, range_b);
+    ecs_entity_t eb = ecs_insert(world, ecs_value(Position, {3, 4}));
+    test_uint((uint32_t)eb, 3000);
+
+    ecs_delete(world, ea);
+    test_assert(!ecs_is_alive(world, ea));
+
+    ecs_entity_range_set(world, range_a);
+    ecs_entity_t ea2 = ecs_new(world);
+    test_uint((uint32_t)ea2, 1000);
+    test_assert(ea2 != ea);
+
+    test_assert(!ecs_has(world, ea2, Position));
+    test_assert(!ecs_has(world, ea2, Velocity));
+
+    ecs_fini(world);
+}
+
+void World_range_recycle_then_fresh(void) {
+    ecs_world_t *world = ecs_mini();
+
+    const ecs_entity_range_t *range = ecs_entity_range_new(world, 1000, 2000);
+    ecs_entity_range_set(world, range);
+
+    ecs_entity_t e1 = ecs_new(world);
+    test_uint((uint32_t)e1, 1000);
+    ecs_delete(world, e1);
+
+    ecs_entity_t e2 = ecs_new(world);
+    test_uint((uint32_t)e2, 1000);
+    test_assert(e2 != e1);
+
+    ecs_entity_t e3 = ecs_new(world);
+    test_uint((uint32_t)e3, 1001);
+
+    ecs_entity_t e4 = ecs_new(world);
+    test_uint((uint32_t)e4, 1002);
+
+    ecs_fini(world);
+}
+
+void World_range_delete_recycled_same_range(void) {
+    ecs_world_t *world = ecs_mini();
+
+    const ecs_entity_range_t *range = ecs_entity_range_new(world, 1000, 2000);
+    ecs_entity_range_set(world, range);
+
+    ecs_entity_t e1 = ecs_new(world);
+    test_uint((uint32_t)e1, 1000);
+    ecs_delete(world, e1);
+
+    ecs_entity_t e2 = ecs_new(world);
+    test_uint((uint32_t)e2, 1000);
+    test_assert(e2 != e1);
+
+    ecs_delete(world, e2);
+
+    ecs_entity_t e3 = ecs_new(world);
+    test_uint((uint32_t)e3, 1000);
+    test_assert(e3 != e2);
+    test_assert(e3 != e1);
+
+    ecs_delete(world, e3);
+    ecs_entity_t e4 = ecs_new(world);
+    test_uint((uint32_t)e4, 1000);
+    test_assert(e4 != e3);
+
+    ecs_fini(world);
+}
+
+void World_range_invalid_max_lt_min(void) {
+    install_test_abort();
+
+    ecs_world_t *world = ecs_mini();
+
+    test_expect_abort();
+    ecs_entity_range_new(world, 2000, 1000);
+}
+
+void World_range_set_unknown_range(void) {
+    install_test_abort();
+
+    ecs_world_t *world = ecs_mini();
+
+    ecs_entity_range_t fake_range = { .min = 1000, .max = 2000 };
+
+    test_expect_abort();
+    ecs_entity_range_set(world, &fake_range);
+}
+
+void World_range_overlapping_assert(void) {
+    install_test_abort();
+
+    ecs_world_t *world = ecs_mini();
+
+    ecs_entity_range_new(world, 1000, 2000);
+
+    test_expect_abort();
+    ecs_entity_range_new(world, 1500, 2500);
+}
+
+void World_range_overlapping_at_boundary_assert(void) {
+    install_test_abort();
+
+    ecs_world_t *world = ecs_mini();
+
+    ecs_entity_range_new(world, 1000, 2000);
+
+    test_expect_abort();
+    ecs_entity_range_new(world, 2000, 3000);
+}
+
+void World_range_new_after_delete_assert(void) {
+    install_test_abort();
+
+    ecs_world_t *world = ecs_mini();
+
+    ecs_entity_t e = ecs_new(world);
+    ecs_delete(world, e);
+
+    test_expect_abort();
+    ecs_entity_range_new(world, 1000, 2000);
+}
+
+void World_range_adjacent_no_overlap(void) {
+    ecs_world_t *world = ecs_mini();
+
+    const ecs_entity_range_t *a = ecs_entity_range_new(world, 1000, 1999);
+    const ecs_entity_range_t *b = ecs_entity_range_new(world, 2000, 3000);
+    test_assert(a != NULL);
+    test_assert(b != NULL);
+
+    ecs_entity_range_set(world, a);
+    ecs_entity_t ea = ecs_new(world);
+    test_uint((uint32_t)ea, 1000);
+
+    ecs_entity_range_set(world, b);
+    ecs_entity_t eb = ecs_new(world);
+    test_uint((uint32_t)eb, 2000);
+
+    ecs_fini(world);
+}
+
+void World_range_recycle_last_id_n_times(void) {
+    ecs_world_t *world = ecs_mini();
+
+    const ecs_entity_range_t *range = ecs_entity_range_new(world, 1000, 1000);
+    ecs_entity_range_set(world, range);
+
+    ecs_entity_t prev = 0;
+    int32_t i;
+    for (i = 0; i < 3; i ++) {
+        ecs_entity_t e = ecs_new(world);
+        test_uint((uint32_t)e, 1000);
+        if (prev) {
+            test_assert(e != prev);
+        }
+        prev = e;
+        ecs_delete(world, e);
+    }
+
+    ecs_entity_t last = ecs_new(world);
+    test_uint((uint32_t)last, 1000);
+    test_assert(last != prev);
+
+    ecs_fini(world);
+}
+
+void World_range_cascade_delete_across_ranges(void) {
+    ecs_world_t *world = ecs_mini();
+
+    const ecs_entity_range_t *range_a = ecs_entity_range_new(world, 1000, 2000);
+    const ecs_entity_range_t *range_b = ecs_entity_range_new(world, 3000, 4000);
+
+    ecs_entity_range_set(world, range_a);
+    ecs_entity_t parent = ecs_new(world);
+    test_uint((uint32_t)parent, 1000);
+
+    ecs_entity_range_set(world, range_b);
+    ecs_entity_t c1 = ecs_new_w_pair(world, EcsChildOf, parent);
+    ecs_entity_t c2 = ecs_new_w_pair(world, EcsChildOf, parent);
+    test_uint((uint32_t)c1, 3000);
+    test_uint((uint32_t)c2, 3001);
+
+    ecs_delete(world, parent);
+    test_assert(!ecs_is_alive(world, parent));
+    test_assert(!ecs_is_alive(world, c1));
+    test_assert(!ecs_is_alive(world, c2));
+
+    ecs_entity_t c3 = ecs_new(world);
+    ecs_entity_t c4 = ecs_new(world);
+    test_assert((uint32_t)c3 >= 3000 && (uint32_t)c3 <= 3001);
+    test_assert((uint32_t)c4 >= 3000 && (uint32_t)c4 <= 3001);
+    test_assert((uint32_t)c3 != (uint32_t)c4);
+
+    ecs_entity_range_set(world, range_a);
+    ecs_entity_t p2 = ecs_new(world);
+    test_uint((uint32_t)p2, 1000);
+    test_assert(p2 != parent);
+
+    ecs_fini(world);
+}
+
+void World_range_deferred_delete_across_ranges(void) {
+    ecs_world_t *world = ecs_mini();
+
+    const ecs_entity_range_t *range_a = ecs_entity_range_new(world, 1000, 2000);
+    const ecs_entity_range_t *range_b = ecs_entity_range_new(world, 3000, 4000);
+
+    ecs_entity_range_set(world, range_a);
+    ecs_entity_t ea = ecs_new(world);
+    test_uint((uint32_t)ea, 1000);
+
+    ecs_entity_range_set(world, range_b);
+    ecs_entity_t eb = ecs_new(world);
+    test_uint((uint32_t)eb, 3000);
+
+    ecs_defer_begin(world);
+    ecs_delete(world, ea);
+    test_assert(ecs_is_alive(world, ea));
+    ecs_defer_end(world);
+
+    test_assert(!ecs_is_alive(world, ea));
+
+    ecs_entity_t eb2 = ecs_new(world);
+    test_uint((uint32_t)eb2, 3001);
+
+    ecs_entity_range_set(world, range_a);
+    ecs_entity_t ea2 = ecs_new(world);
+    test_uint((uint32_t)ea2, 1000);
+    test_assert(ea2 != ea);
+
+    ecs_fini(world);
+}
+
+void World_range_randomized_10_ranges(void) {
+    ecs_world_t *world = ecs_mini();
+
+    const ecs_entity_range_t *ranges[10];
+    ecs_vec_t alive[10];
+    int32_t r;
+    for (r = 0; r < 10; r ++) {
+        ecs_entity_t min = (ecs_entity_t)((r + 1) * 1000000);
+        ranges[r] = ecs_entity_range_new(world, min, min + 99999);
+        ecs_vec_init_t(NULL, &alive[r], ecs_entity_t, 0);
+    }
+
+    int32_t active = 0;
+    ecs_entity_range_set(world, ranges[0]);
+    srand(42);
+
+    int32_t i;
+    for (i = 0; i < 5000; i ++) {
+        switch (rand() % 3) {
+        case 0:
+            active = rand() % 10;
+            ecs_entity_range_set(world, ranges[active]);
+            break;
+        case 1: {
+            ecs_entity_t e = ecs_new(world);
+            test_assert((uint32_t)e >= (uint32_t)ranges[active]->min);
+            test_assert((uint32_t)e <= (uint32_t)ranges[active]->max);
+            ecs_vec_append_t(NULL, &alive[active], ecs_entity_t)[0] = e;
+            break;
+        }
+        case 2: {
+            int32_t dr = rand() % 10;
+            int32_t count = ecs_vec_count(&alive[dr]);
+            if (count > 0) {
+                int32_t slot = rand() % count;
+                ecs_entity_t *arr = ecs_vec_first_t(&alive[dr], ecs_entity_t);
+                ecs_delete(world, arr[slot]);
+                arr[slot] = arr[count - 1];
+                ecs_vec_set_count_t(NULL, &alive[dr], ecs_entity_t, count - 1);
+            }
+            break;
+        }
+        }
+    }
+
+    for (r = 0; r < 10; r ++) {
+        ecs_vec_fini_t(NULL, &alive[r], ecs_entity_t);
+    }
+
+    ecs_fini(world);
+}
+
+void World_range_exhausted(void) {
+    install_test_abort();
+
+    ecs_world_t *world = ecs_mini();
+
+    const ecs_entity_range_t *range = ecs_entity_range_new(world, 1000, 1002);
+    ecs_entity_range_set(world, range);
+
+    ecs_entity_t e1 = ecs_new(world);
+    test_uint((uint32_t)e1, 1000);
+    ecs_entity_t e2 = ecs_new(world);
+    test_uint((uint32_t)e2, 1001);
+    ecs_entity_t e3 = ecs_new(world);
+    test_uint((uint32_t)e3, 1002);
 
     test_expect_abort();
     ecs_new(world);
 }
 
-void World_entity_range_overlapping_new_bulk_id(void) {
+void World_range_delete_recycled_to_correct_range(void) {
+    ecs_world_t *world = ecs_mini();
+
+    const ecs_entity_range_t *range_a = ecs_entity_range_new(world, 1000, 2000);
+    const ecs_entity_range_t *range_b = ecs_entity_range_new(world, 3000, 4000);
+
+    ecs_entity_range_set(world, range_a);
+    ecs_entity_t e1 = ecs_new(world);
+    test_uint((uint32_t)e1, 1000);
+    ecs_delete(world, e1);
+
+    ecs_entity_t e2 = ecs_new(world);
+    test_uint((uint32_t)e2, 1000);
+    test_assert(e2 != e1);
+
+    ecs_entity_range_set(world, range_b);
+    ecs_delete(world, e2);
+    test_assert(!ecs_is_alive(world, e2));
+
+    ecs_entity_t eb = ecs_new(world);
+    test_uint((uint32_t)eb, 3000);
+
+    ecs_entity_range_set(world, range_a);
+    ecs_entity_t e3 = ecs_new(world);
+    test_uint((uint32_t)e3, 1000);
+    test_assert(e3 != e2);
+    test_assert(e3 != e1);
+
+    ecs_fini(world);
+}
+
+void World_range_create_small_range_from_1(void) {
     install_test_abort();
 
     ecs_world_t *world = ecs_mini();
 
-    ECS_COMPONENT(world, Position);
+    test_expect_abort();
+    // range cannot be below last alive entity id.
+    ecs_entity_range_new(world, 1, 10);
+}
 
-    const ecs_world_info_t *info = ecs_get_world_info(world);
-    test_assert(info != NULL);
-
-    ecs_set_entity_range(world, 2000, 3000);
-    test_uint(info->max_id, 3000);
+void World_range_create_large_range_from_1(void) {
+    ecs_world_t *world = ecs_mini();
 
     ecs_entity_t e1 = ecs_new(world);
-    test_assert(e1 == 2000);
 
-    ecs_set_entity_range(world, 1999, 0);
+    const ecs_entity_range_t *range = ecs_entity_range_new(world, 1, 1000);
+    // first range and starts from 1
+    test_assert(ecs_entity_range_get(world) == range);
 
-    test_expect_abort();
-    ecs_bulk_new(world, Position, 2);
+    ecs_delete(world, e1);
+    ecs_entity_t e2 = ecs_new(world);
+    test_uint(e1, (uint32_t)e2);
+
+    ecs_fini(world);
 }
 
 void World_get_tick(void) {
@@ -1154,21 +1610,20 @@ void World_delete_empty_tables_after_mini(void) {
 
     empty_table_count --; // correct for root table
 
-    int32_t deleted;
-    deleted = ecs_delete_empty_tables(world, 
+    ecs_delete_empty_tables(world,
         &(ecs_delete_empty_tables_desc_t){ .delete_generation = 1}); /* Increase to 1 */
-    test_int(deleted, 0);
 
-    deleted = ecs_delete_empty_tables(world, 
+    ecs_delete_empty_tables(world,
         &(ecs_delete_empty_tables_desc_t){ .delete_generation = 1}); /* Delete */
-    test_assert(deleted == empty_table_count);
-    test_int(info->table_count + deleted, old_table_count);
+    test_int(info->table_count, old_table_count - empty_table_count);
 
     ecs_fini(world);
 }
 
 void World_delete_empty_tables_after_init(void) {
     ecs_world_t *world = ecs_init();
+
+    const ecs_world_info_t *info = ecs_get_world_info(world);
 
     ecs_query_t *q = ecs_query(world, {
         .terms = {{ .id = EcsAny }},
@@ -1187,15 +1642,14 @@ void World_delete_empty_tables_after_init(void) {
     ecs_query_fini(q);
 
     empty_table_count --; // correct for root table
+    int32_t old_table_count = info->table_count;
 
-    int32_t deleted;
-    deleted = ecs_delete_empty_tables(world, 
+    ecs_delete_empty_tables(world,
         &(ecs_delete_empty_tables_desc_t){ .delete_generation = 1 }); /* Increase to 1 */
-    test_int(deleted, 0);
 
-    deleted = ecs_delete_empty_tables(world, 
+    ecs_delete_empty_tables(world,
         &(ecs_delete_empty_tables_desc_t){ .delete_generation = 1 }); /* Delete */
-    test_assert(deleted == empty_table_count);
+    test_int(info->table_count, old_table_count - empty_table_count);
 
     ecs_fini(world);
 }
@@ -1838,15 +2292,11 @@ void World_delete_1000_empty_tables(void) {
 
     ecs_delete(world, e);
 
-    int32_t deleted;
-    deleted = ecs_delete_empty_tables(world, 
+    ecs_delete_empty_tables(world,
         &(ecs_delete_empty_tables_desc_t){ .delete_generation = 1 }); /* Increase to 1 */
-    test_int(deleted, 0);
 
-    deleted = ecs_delete_empty_tables(world, 
+    ecs_delete_empty_tables(world,
         &(ecs_delete_empty_tables_desc_t){ .delete_generation = 1 }); /* Delete */
-    test_assert(deleted != 0);
-    test_assert(deleted >= 1000);
 
     test_assert(info->table_count <= old_table_count);
 
@@ -1864,13 +2314,10 @@ void World_use_after_delete_empty(void) {
     ecs_add(world, e, TagB);
 
     ecs_remove(world, e, TagA);
-    int32_t deleted;
-    deleted = ecs_delete_empty_tables(world, 
+    ecs_delete_empty_tables(world,
         &(ecs_delete_empty_tables_desc_t){ .delete_generation = 1 });
-    test_assert(deleted == 0);
-    deleted = ecs_delete_empty_tables(world, 
+    ecs_delete_empty_tables(world,
         &(ecs_delete_empty_tables_desc_t){ .delete_generation = 1 });
-    test_assert(deleted != 0);
     ecs_add(world, e, TagA);
 
     test_assert( ecs_has(world, e, TagA));
@@ -1890,13 +2337,10 @@ void World_use_after_clear_empty(void) {
     ecs_add(world, e, TagB);
 
     ecs_remove(world, e, TagA);
-    int32_t deleted;
-    deleted = ecs_delete_empty_tables(world, 
+    ecs_delete_empty_tables(world,
         &(ecs_delete_empty_tables_desc_t){ .clear_generation = 1 });
-    test_assert(deleted == 0);
-    deleted = ecs_delete_empty_tables(world, 
+    ecs_delete_empty_tables(world,
         &(ecs_delete_empty_tables_desc_t){ .clear_generation = 1 });
-    test_assert(deleted == 0);
     ecs_add(world, e, TagA);
 
     test_assert( ecs_has(world, e, TagA));
@@ -1921,21 +2365,18 @@ void World_use_after_delete_empty_w_component(void) {
     test_assert( ecs_has(world, e, Position));
     test_assert( !ecs_has(world, e, Velocity));
 
-    int32_t deleted;
-    deleted = ecs_delete_empty_tables(world, 
+    ecs_delete_empty_tables(world,
         &(ecs_delete_empty_tables_desc_t){ .delete_generation = 1 });
-    test_assert(deleted == 0);
     test_bool(true, ecs_is_alive(world, ecs_id(Position)));
     test_bool(true, ecs_is_alive(world, ecs_id(Velocity)));
     test_assert( ecs_has(world, e, Position));
 
-    deleted = ecs_delete_empty_tables(world, 
+    ecs_delete_empty_tables(world,
         &(ecs_delete_empty_tables_desc_t){ .delete_generation = 1 });
-    test_assert(deleted != 0);
     test_bool(true, ecs_is_alive(world, ecs_id(Position)));
     test_bool(true, ecs_is_alive(world, ecs_id(Velocity)));
     test_assert( ecs_has(world, e, Position));
-    
+
     ecs_add(world, e, Velocity);
 
     test_assert( ecs_has(world, e, Position));
@@ -1960,21 +2401,18 @@ void World_use_after_clear_empty_w_component(void) {
     test_assert( ecs_has(world, e, Position));
     test_assert( !ecs_has(world, e, Velocity));
 
-    int32_t deleted;
-    deleted = ecs_delete_empty_tables(world, 
+    ecs_delete_empty_tables(world,
         &(ecs_delete_empty_tables_desc_t){ .clear_generation = 1 });
-    test_assert(deleted == 0);
     test_bool(true, ecs_is_alive(world, ecs_id(Position)));
     test_bool(true, ecs_is_alive(world, ecs_id(Velocity)));
     test_assert( ecs_has(world, e, Position));
 
-    deleted = ecs_delete_empty_tables(world, 
+    ecs_delete_empty_tables(world,
         &(ecs_delete_empty_tables_desc_t){ .clear_generation = 1 });
-    test_assert(deleted == 0);
     test_bool(true, ecs_is_alive(world, ecs_id(Position)));
     test_bool(true, ecs_is_alive(world, ecs_id(Velocity)));
     test_assert( ecs_has(world, e, Position));
-    
+
     ecs_add(world, e, Velocity);
 
     test_assert( ecs_has(world, e, Position));
@@ -2006,21 +2444,18 @@ void World_use_after_clear_empty_w_component_w_lifecycle(void) {
     test_assert( ecs_has(world, e, Position));
     test_assert( !ecs_has(world, e, Velocity));
 
-    int32_t deleted;
-    deleted = ecs_delete_empty_tables(world, 
+    ecs_delete_empty_tables(world,
         &(ecs_delete_empty_tables_desc_t){ .clear_generation = 1 });
-    test_assert(deleted == 0);
     test_bool(true, ecs_is_alive(world, ecs_id(Position)));
     test_bool(true, ecs_is_alive(world, ecs_id(Velocity)));
     test_assert( ecs_has(world, e, Position));
 
-    deleted = ecs_delete_empty_tables(world, 
+    ecs_delete_empty_tables(world,
         &(ecs_delete_empty_tables_desc_t){ .clear_generation = 1 });
-    test_assert(deleted == 0);
     test_bool(true, ecs_is_alive(world, ecs_id(Position)));
     test_bool(true, ecs_is_alive(world, ecs_id(Velocity)));
     test_assert( ecs_has(world, e, Position));
-    
+
     ecs_add(world, e, Velocity);
 
     test_assert( ecs_has(world, e, Position));
@@ -2035,13 +2470,10 @@ void World_use_after_clear_unused(void) {
     ECS_TAG(world, TagA);
     ECS_TAG(world, TagB);
 
-    int32_t deleted;
-    deleted = ecs_delete_empty_tables(world, 
+    ecs_delete_empty_tables(world,
         &(ecs_delete_empty_tables_desc_t){ .clear_generation = 1 });
-    test_assert(deleted == 0);
-    deleted = ecs_delete_empty_tables(world, 
+    ecs_delete_empty_tables(world,
         &(ecs_delete_empty_tables_desc_t){ .clear_generation = 1 });
-    test_assert(deleted == 0);
 
     ecs_entity_t e = ecs_new(world);
     ecs_add(world, e, TagA);
@@ -3842,6 +4274,161 @@ void World_set_component_after_in_use(void) {
 
     test_assert(flecs_component_get_type_info(cr_c_wc) == NULL);
     test_assert(flecs_component_get_type_info(cr_wc_c) == NULL);
+
+    ecs_fini(world);
+}
+
+void World_delete_empty_tables_w_offset(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_TAG(world, Tag);
+    ecs_run_aperiodic(world, 0);
+
+    const ecs_world_info_t *info = ecs_get_world_info(world);
+    int32_t old_table_count = info->table_count;
+
+    ecs_entity_t e = ecs_new_w(world, Tag);
+    for (int i = 0; i < 100; i ++) {
+        ecs_add_id(world, e, ecs_new(world));
+    }
+
+    test_int(info->table_count, old_table_count + 100 + 1);
+
+    ecs_delete(world, e);
+
+    /* First call increases generation to 1 */
+    int32_t result;
+    result = ecs_delete_empty_tables(world, &(ecs_delete_empty_tables_desc_t){
+        .delete_generation = 1,
+        .offset = 5
+    });
+    test_int(result, 0); /* Full scan completed */
+
+    /* Second call deletes the tables */
+    result = ecs_delete_empty_tables(world, &(ecs_delete_empty_tables_desc_t){
+        .delete_generation = 1,
+        .offset = 5
+    });
+    test_int(result, 0); /* Full scan completed */
+
+    test_assert(info->table_count <= old_table_count);
+
+    ecs_fini(world);
+}
+
+void World_delete_empty_tables_w_offset_out_of_range(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_TAG(world, TagA);
+    ECS_TAG(world, TagB);
+
+    ecs_entity_t e = ecs_new(world);
+    ecs_add(world, e, TagA);
+    ecs_add(world, e, TagB);
+    ecs_remove(world, e, TagA);
+
+    const ecs_world_info_t *info = ecs_get_world_info(world);
+    int32_t table_count = info->table_count;
+
+    /* Offset way out of range, should clamp to 0 */
+    ecs_delete_empty_tables(world, &(ecs_delete_empty_tables_desc_t){
+        .delete_generation = 1,
+        .offset = 999999
+    });
+
+    ecs_delete_empty_tables(world, &(ecs_delete_empty_tables_desc_t){
+        .delete_generation = 1,
+        .offset = 999999
+    });
+
+    /* Table should still be deleted despite out of range offset */
+    test_assert(info->table_count < table_count);
+
+    /* Negative offset, should clamp to 0 */
+    ecs_add(world, e, TagA);
+    ecs_remove(world, e, TagA);
+
+    ecs_delete_empty_tables(world, &(ecs_delete_empty_tables_desc_t){
+        .delete_generation = 1,
+        .offset = -1
+    });
+    ecs_delete_empty_tables(world, &(ecs_delete_empty_tables_desc_t){
+        .delete_generation = 1,
+        .offset = -1
+    });
+
+    ecs_fini(world);
+}
+
+void World_delete_empty_tables_w_offset_wrap_around(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_TAG(world, Tag);
+    ecs_run_aperiodic(world, 0);
+
+    const ecs_world_info_t *info = ecs_get_world_info(world);
+    int32_t old_table_count = info->table_count;
+
+    /* Create empty tables by adding unique components and removing them */
+    ecs_entity_t e = ecs_new_w(world, Tag);
+    for (int i = 0; i < 50; i ++) {
+        ecs_add_id(world, e, ecs_new(world));
+    }
+
+    test_int(info->table_count, old_table_count + 50 + 1);
+
+    ecs_delete(world, e);
+
+    /* Use offset in the middle of the table range */
+    int32_t offset = info->table_count / 2;
+
+    /* First call increases generation */
+    int32_t result;
+    result = ecs_delete_empty_tables(world, &(ecs_delete_empty_tables_desc_t){
+        .delete_generation = 1,
+        .offset = offset
+    });
+    test_int(result, 0);
+
+    /* Second call deletes tables */
+    result = ecs_delete_empty_tables(world, &(ecs_delete_empty_tables_desc_t){
+        .delete_generation = 1,
+        .offset = offset
+    });
+    test_int(result, 0);
+
+    /* Verify all empty tables were cleaned up */
+    test_assert(info->table_count <= old_table_count);
+
+    ecs_fini(world);
+}
+
+void World_delete_empty_tables_return_value(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_TAG(world, TagA);
+    ECS_TAG(world, TagB);
+
+    /* Without time budget, should return 0 (full scan) */
+    int32_t result;
+    result = ecs_delete_empty_tables(world, &(ecs_delete_empty_tables_desc_t){
+        .delete_generation = 1
+    });
+    test_int(result, 0);
+
+    /* With offset, should also return 0 for full scan */
+    result = ecs_delete_empty_tables(world, &(ecs_delete_empty_tables_desc_t){
+        .delete_generation = 1,
+        .offset = 1
+    });
+    test_int(result, 0);
+
+    /* With offset=0, should return 0 */
+    result = ecs_delete_empty_tables(world, &(ecs_delete_empty_tables_desc_t){
+        .delete_generation = 1,
+        .offset = 0
+    });
+    test_int(result, 0);
 
     ecs_fini(world);
 }

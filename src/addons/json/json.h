@@ -42,6 +42,8 @@ typedef struct ecs_json_ser_ctx_t {
     ecs_component_record_t *cr_doc_color;
     ecs_json_value_ser_ctx_t value_ctx[64];
     ecs_map_t serialized;
+    ecs_strbuf_t *type_info_buf;
+    ecs_map_t type_info_seen;
 } ecs_json_ser_ctx_t;
 
 typedef struct ecs_json_this_data_t {
@@ -89,11 +91,6 @@ const char* flecs_json_expect_member(
     char *token,
     const ecs_from_json_desc_t *desc);
 
-const char* flecs_json_expect_next_member(
-    const char *json,
-    char *token,
-    const ecs_from_json_desc_t *desc);
-
 const char* flecs_json_expect_member_name(
     const char *json,
     char *token,
@@ -101,11 +98,6 @@ const char* flecs_json_expect_member_name(
     const ecs_from_json_desc_t *desc);
 
 const char* flecs_json_skip_object(
-    const char *json,
-    char *token,
-    const ecs_from_json_desc_t *desc);
-
-const char* flecs_json_skip_array(
     const char *json,
     char *token,
     const ecs_from_json_desc_t *desc);
@@ -155,6 +147,10 @@ void flecs_json_string_escape(
     ecs_strbuf_t *buf,
     const char *value);
 
+void flecs_json_string_escape_ctrl(
+    ecs_strbuf_t *buf,
+    const char *value);
+
 void flecs_json_member(
     ecs_strbuf_t *buf,
     const char *name);
@@ -182,11 +178,6 @@ void flecs_json_path_or_label(
     const ecs_world_t *world,
     ecs_entity_t e,
     bool path);
-
-void flecs_json_color(
-    ecs_strbuf_t *buf,
-    const ecs_world_t *world,
-    ecs_entity_t e);
 
 void flecs_json_id(
     ecs_strbuf_t *buf,
@@ -227,14 +218,6 @@ int flecs_json_ser_type(
     const ecs_vec_t *ser,
     const void *base,
     ecs_strbuf_t *str);
-
-int flecs_json_serialize_iter_result_fields(
-    const ecs_world_t *world, 
-    const ecs_iter_t *it,
-    int32_t i,
-    ecs_strbuf_t *buf,
-    const ecs_iter_to_json_desc_t *desc,
-    ecs_json_ser_ctx_t *ser_ctx);
 
 bool flecs_json_serialize_get_value_ctx(
     const ecs_world_t *world,
@@ -295,9 +278,6 @@ int flecs_json_serialize_alerts(
     ecs_strbuf_t *buf,
     ecs_entity_t entity);
 
-bool flecs_json_is_builtin(
-    ecs_id_t id);
-
 int flecs_entity_to_json_buf(
     const ecs_world_t *world,
     ecs_entity_t entity,
@@ -313,6 +293,25 @@ bool flecs_json_should_serialize(
 void flecs_json_mark_serialized(
     ecs_entity_t entity,
     ecs_json_ser_ctx_t *ser_ctx);
+
+void flecs_json_accum_type_info(
+    const ecs_world_t *world,
+    ecs_entity_t typeid,
+    ecs_json_ser_ctx_t *ser_ctx);
+
+void flecs_json_type_info_accum_init(
+    ecs_json_ser_ctx_t *ser_ctx,
+    ecs_strbuf_t *type_info_buf,
+    const ecs_world_t *world);
+
+void flecs_json_type_info_accum_fini(
+    ecs_json_ser_ctx_t *ser_ctx,
+    ecs_strbuf_t *type_info_buf);
+
+void flecs_json_assemble_output(
+    ecs_strbuf_t *out,
+    ecs_strbuf_t *type_info_buf,
+    ecs_strbuf_t *body_buf);
 
 #endif
 

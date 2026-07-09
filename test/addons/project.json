@@ -43,6 +43,9 @@
                 "merge_after_not_out",
                 "no_merge_after_main_out",
                 "merge_after_staged_in_out",
+                "merge_after_singleton_out",
+                "merge_after_singleton_out_set",
+                "no_merge_after_singleton_out_no_read",
                 "merge_after_staged_inout_main_implicit_inout",
                 "merge_after_staged_inout_main_inout",
                 "merge_after_staged_out_before_owned",
@@ -115,7 +118,11 @@
                 "run_w_empty_query",
                 "run_w_0_src_query",
                 "inout_none_after_write",
-                "empty_pipeline_after_disable_phase"
+                "empty_pipeline_after_disable_phase",
+                "set_time_scale_w_stage",
+                "set_time_scale_w_readonly",
+                "init_failure_preserves_user_entity",
+                "update_pipeline_replaces_existing"
             ]
         }, {
             "id": "SystemMisc",
@@ -137,6 +144,7 @@
                 "invalid_empty_string",
                 "invalid_empty_string_w_space",
                 "redefine_row_system",
+                "update_row_system",
                 "system_w_or_prefab",
                 "system_w_or_disabled",
                 "system_w_or_disabled_and_prefab",
@@ -155,6 +163,11 @@
                 "redeclare_system_explicit_id",
                 "redeclare_system_explicit_id_null_expr",
                 "redeclare_system_explicit_id_no_name",
+                "update_null_signature",
+                "update_0_signature",
+                "update_system_explicit_id",
+                "update_system_explicit_id_null_expr",
+                "update_system_explicit_id_no_name",
                 "declare_different_id_same_name",
                 "declare_different_id_same_name_w_scope",
                 "rw_in_implicit_any",
@@ -174,6 +187,7 @@
                 "delete_pipeline_system",
                 "delete_system_w_ctx",
                 "update_ctx",
+                "partial_update_preserves_ctx",
                 "run_custom_run_action",
                 "pipeline_custom_run_action",
                 "change_custom_run_action",
@@ -189,6 +203,7 @@
                 "register_run_after_callback",
                 "register_callback_after_run_ctx",
                 "register_run_after_callback_ctx",
+                "set_group",
                 "run_w_query_next",
                 "missing_callback"
             ]
@@ -484,7 +499,8 @@
                 "import_monitor_after_mini",
                 "import_2_worlds",
                 "component_parent_becomes_module",
-                "module_has_singleton"
+                "module_has_singleton",
+                "import_w_uppercase_name"
             ]
         }, {
             "id": "App",
@@ -516,6 +532,10 @@
                 "named_query",
                 "tables",
                 "components",
+                "type_info_non_existing_entity",
+                "type_info_not_component",
+                "type_info_component_without_reflection",
+                "type_info_component_with_reflection",
                 "request_commands",
                 "request_commands_2_syncs",
                 "request_commands_no_frames",
@@ -533,7 +553,12 @@
                 "request_ending_in_2_pct",
                 "request_ending_in_pct_single_digit",
                 "request_ending_in_pct_invalid_code",
-                "world_has_build_info"
+                "world_has_build_info",
+                "world_default",
+                "world_builtin",
+                "world_modules",
+                "world_builtin_and_modules",
+                "world_explicit_false"
             ]
         }, {
             "id": "Metrics",

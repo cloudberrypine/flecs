@@ -62,6 +62,9 @@ typedef enum ecs_token_kind_t {
     EcsTokKeywordMatch = 133,
     EcsTokKeywordNew = 134,
     EcsTokKeywordExport = 135,
+    EcsTokKeywordInclude = 138,
+    EcsTokKeywordFn = 139,
+    EcsTokArrow = 140,
     EcsTokAddAssign = 136,
     EcsTokMulAssign = 137,
 } ecs_token_kind_t;
@@ -107,5 +110,9 @@ const char* flecs_tokenizer_identifier(
     ecs_parser_t *parser,
     const char *pos,
     ecs_token_t *out);
+
+int64_t flecs_parser_errpos(
+    const ecs_parser_t *parser,
+    const char *pos);
 
 #endif

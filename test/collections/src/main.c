@@ -39,6 +39,7 @@ void Map_randomized_remove(void);
 void Map_randomized_insert_large(void);
 void Map_randomized_remove_large(void);
 void Map_randomized_after_clear(void);
+void Map_hashmap_iter_terminates(void);
 
 // Testsuite 'Sparse'
 void Sparse_setup(void);
@@ -65,6 +66,8 @@ void Sparse_is_alive_low_after_ensure_high(void);
 void Sparse_remove_low_after_ensure_high(void);
 void Sparse_recreate_pages_after_shrink(void);
 void Sparse_create_low_page_after_high(void);
+void Sparse_bitset_negative_index(void);
+void Sparse_vec_set_min_size_w_type_info(void);
 
 // Testsuite 'Strbuf'
 void Strbuf_setup(void);
@@ -79,6 +82,7 @@ void Strbuf_empty_str(void);
 void Strbuf_reset(void);
 void Strbuf_merge(void);
 void Strbuf_merge_empty(void);
+void Strbuf_merge_heap_unterminated(void);
 void Strbuf_append_char(void);
 void Strbuf_append_511_chars(void);
 void Strbuf_append_512_chars(void);
@@ -103,6 +107,8 @@ void Strbuf_append_nan(void);
 void Strbuf_append_inf(void);
 void Strbuf_append_nan_delim(void);
 void Strbuf_append_inf_delim(void);
+void Strbuf_append_int64_min(void);
+void Strbuf_append_flt_2_pow_63(void);
 
 // Testsuite 'Allocator'
 void Allocator_setup(void);
@@ -224,6 +230,10 @@ bake_test_case Map_testcases[] = {
     {
         "randomized_after_clear",
         Map_randomized_after_clear
+    },
+    {
+        "hashmap_iter_terminates",
+        Map_hashmap_iter_terminates
     }
 };
 
@@ -319,6 +329,14 @@ bake_test_case Sparse_testcases[] = {
     {
         "create_low_page_after_high",
         Sparse_create_low_page_after_high
+    },
+    {
+        "bitset_negative_index",
+        Sparse_bitset_negative_index
+    },
+    {
+        "vec_set_min_size_w_type_info",
+        Sparse_vec_set_min_size_w_type_info
     }
 };
 
@@ -366,6 +384,10 @@ bake_test_case Strbuf_testcases[] = {
     {
         "merge_empty",
         Strbuf_merge_empty
+    },
+    {
+        "merge_heap_unterminated",
+        Strbuf_merge_heap_unterminated
     },
     {
         "append_char",
@@ -462,6 +484,14 @@ bake_test_case Strbuf_testcases[] = {
     {
         "append_inf_delim",
         Strbuf_append_inf_delim
+    },
+    {
+        "append_int64_min",
+        Strbuf_append_int64_min
+    },
+    {
+        "append_flt_2_pow_63",
+        Strbuf_append_flt_2_pow_63
     }
 };
 
@@ -472,27 +502,26 @@ bake_test_case Allocator_testcases[] = {
     }
 };
 
-
 static bake_test_suite suites[] = {
     {
         "Map",
         Map_setup,
         NULL,
-        29,
+        30,
         Map_testcases
     },
     {
         "Sparse",
         Sparse_setup,
         NULL,
-        23,
+        25,
         Sparse_testcases
     },
     {
         "Strbuf",
         Strbuf_setup,
         NULL,
-        35,
+        38,
         Strbuf_testcases
     },
     {

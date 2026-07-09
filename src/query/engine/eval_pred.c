@@ -16,6 +16,31 @@ const char* flecs_query_name_arg(
 }
 
 static
+bool flecs_query_match_substr_i(
+    const char *name,
+    const char *match)
+{
+    if (!match[0]) {
+        return true;
+    }
+
+    for (; *name; name ++) {
+        const char *n = name, *m = match;
+        while (*n && *m && (tolower((unsigned char)*n) ==
+            tolower((unsigned char)*m)))
+        {
+            n ++;
+            m ++;
+        }
+        if (!*m) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static
 bool flecs_query_compare_range(
     const ecs_table_range_t *l,
     const ecs_table_range_t *r)
@@ -106,6 +131,7 @@ bool flecs_query_pred_eq_name(
     return flecs_query_pred_eq_w_range(op, redo, ctx, r);
 }
 
+static
 bool flecs_query_pred_neq_w_range(
     const ecs_query_op_t *op,
     bool redo,
@@ -135,6 +161,7 @@ bool flecs_query_pred_neq_w_range(
 
         /* Cache old value */
         op_ctx->range = l;
+        op_ctx->redo = false;
     } else {
         l_offset = op_ctx->range.offset;
         l_count = op_ctx->range.count;
@@ -147,8 +174,8 @@ bool flecs_query_pred_neq_w_range(
     ecs_var_t *var = &ctx->vars[src_var];
     if (!redo && r.offset > l_offset) {
         int32_t end = r.offset;
-        if (end > l_count) {
-            end = l_count;
+        if (end > (l_offset + l_count)) {
+            end = l_offset + l_count;
         }
 
         /* Return first slice */
@@ -168,12 +195,19 @@ bool flecs_query_pred_neq_w_range(
             return false;
         }
 
-        /* Return second slice */
-        var->range.table = l.table;
-        var->range.offset = r_end;
-        var->range.count = l_end - r_end;
+        /* Return second slice. Clamp the start to the source range in case the
+         * excluded range starts before it, so rows outside the source range are
+         * not returned. */
+        int32_t r_start = r_end;
+        if (r_start < l_offset) {
+            r_start = l_offset;
+        }
 
-        /* Flag so we know we're done the next redo */
+        var->range.table = l.table;
+        var->range.offset = r_start;
+        var->range.count = l_end - r_start;
+
+        /* Flag so we know we're done on the next redo */
         op_ctx->redo = true;
         return true;
     } else {
@@ -234,7 +268,7 @@ bool flecs_query_pred_match(
     int32_t count = l.offset + l.count, offset = -1;
     for (; op_ctx->index < count; op_ctx->index ++) {
         const char *name = names[op_ctx->index].value;
-        bool result = strstr(name, match);
+        bool result = flecs_query_match_substr_i(name, match);
         if (is_neq) {
             result = !result;
         }

@@ -1,5 +1,5 @@
 /**
- * @file addons/script/expr_fold.c
+ * @file addons/script/expr/visit_fold.c
  * @brief Script expression constant folding.
  */
 
@@ -44,8 +44,9 @@ int flecs_expr_unary_visit_fold(
 
     if (node->expr->type != ecs_id(ecs_bool_t)) {
         char *type_str = ecs_get_path(script->world, node->node.type);
-        flecs_expr_visit_error(script, node, 
-            "! operator cannot be applied to value of type '%s' (must be bool)");
+        flecs_expr_visit_error(script, node,
+            "! operator cannot be applied to value of type '%s' (must be bool)",
+            type_str);
         ecs_os_free(type_str);
         goto error;
     }
@@ -347,6 +348,10 @@ int flecs_expr_initializer_visit_fold(
     void *value = NULL;
 
     ecs_expr_initializer_t *node = (ecs_expr_initializer_t*)*node_ptr;
+
+    if (node->is_partial) {
+        can_fold = false;
+    }
 
     if (flecs_expr_initializer_pre_fold(script, node, desc, &can_fold)) {
         goto error;

@@ -2468,8 +2468,7 @@ void Commands_update_observer_while_deferred(void) {
     test_int(system_2_invoked, 0);
 
     ecs_defer_begin(world);
-    ecs_observer_init(world, &(ecs_observer_desc_t){
-        .entity = observer,
+    ecs_observer_update(world, observer, &(ecs_observer_desc_t){
         .callback = System2
     });
     ecs_defer_end(world);
@@ -5359,6 +5358,157 @@ void Commands_set_existing_after_remove_2_stages(void) {
     test_assert(ptr != NULL);
     test_int(ptr->x, 30);
     test_int(ptr->y, 40);
+
+    ecs_fini(world);
+}
+
+
+static int on_replace_grow_table_invoked = 0;
+static ecs_entity_t on_replace_grow_table_tag = 0;
+static ecs_id_t on_replace_grow_table_pos = 0;
+
+static void OnReplaceGrowTable(ecs_iter_t *it) {
+    if (on_replace_grow_table_invoked++) {
+        return;
+    }
+    int i;
+    for (i = 0; i < 100; i++) {
+        ecs_entity_t x = ecs_new(it->world);
+        ecs_add_id(it->world, x, on_replace_grow_table_tag);
+        ecs_add_id(it->world, x, on_replace_grow_table_pos);
+    }
+}
+
+void Commands_on_replace_w_set_batched_grow_table_in_hook(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_COMPONENT(world, Position);
+    ECS_TAG(world, Tag);
+
+    ecs_set_hooks(world, Position, {
+        .ctor = flecs_default_ctor,
+        .on_replace = OnReplaceGrowTable,
+    });
+
+    on_replace_grow_table_invoked = 0;
+    on_replace_grow_table_tag = Tag;
+    on_replace_grow_table_pos = ecs_id(Position);
+
+    ecs_entity_t e = ecs_new(world);
+
+    ecs_defer_begin(world);
+    ecs_add(world, e, Tag);
+    ecs_set(world, e, Position, {10, 20});
+    test_int(on_replace_grow_table_invoked, 0);
+    ecs_defer_end(world);
+    test_int(on_replace_grow_table_invoked, 1);
+
+    const Position *p = ecs_get(world, e, Position);
+    test_assert(p != NULL);
+    test_int(p->x, 10);
+    test_int(p->y, 20);
+
+    ecs_fini(world);
+}
+
+static int defer_batched_add_after_delete_invoked = 0;
+
+static
+void DeferBatchedAddAfterDeleteObserver(ecs_iter_t *it) {
+    defer_batched_add_after_delete_invoked ++;
+}
+
+void Commands_defer_batched_add_after_delete(void) {
+    ecs_world_t *world = ecs_mini();
+
+    ECS_TAG(world, TagA);
+    ECS_TAG(world, TagB);
+
+    ecs_observer(world, {
+        .query.terms = {{ TagB }},
+        .events = { EcsOnAdd },
+        .callback = DeferBatchedAddAfterDeleteObserver
+    });
+
+    ecs_entity_t e = ecs_new(world);
+
+    ecs_defer_begin(world);
+    ecs_add(world, e, TagA);
+    ecs_delete(world, e);
+    ecs_add(world, e, TagB);
+    ecs_defer_end(world);
+
+    test_assert(!ecs_is_alive(world, e));
+    test_int(defer_batched_add_after_delete_invoked, 0);
+
+    ecs_fini(world);
+}
+
+void Commands_defer_ensure_dont_fragment_w_set(void) {
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT(world, Position);
+    ECS_COMPONENT(world, Velocity);
+    ecs_add_id(world, ecs_id(Velocity), EcsDontFragment);
+
+    ecs_entity_t e = ecs_new(world);
+
+    ecs_defer_begin(world);
+    ecs_set(world, e, Position, {1, 2});
+    Velocity *v = ecs_ensure_id(world, e, ecs_id(Velocity), sizeof(Velocity));
+    v->x = 10;
+    v->y = 20;
+    ecs_defer_end(world);
+
+    test_assert(ecs_has(world, e, Position));
+    test_assert(ecs_has_id(world, e, ecs_id(Velocity)));
+
+    const Velocity *vp = ecs_get_id(world, e, ecs_id(Velocity));
+    test_assert(vp != NULL);
+    test_int(vp->x, 10);
+    test_int(vp->y, 20);
+
+    ecs_fini(world);
+}
+
+void Commands_defer_add_remove_childof_w_dont_fragment(void) {
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT(world, Velocity);
+    ecs_add_id(world, ecs_id(Velocity), EcsDontFragment);
+
+    ecs_entity_t p = ecs_new(world);
+    ecs_entity_t c = ecs_new(world);
+    ecs_add_id(world, c, ecs_id(Velocity));
+
+    ecs_defer_begin(world);
+    ecs_add_pair(world, c, EcsChildOf, p);
+    ecs_remove_pair(world, c, EcsChildOf, EcsWildcard);
+    ecs_defer_end(world);
+
+    test_assert(!ecs_has_pair(world, c, EcsChildOf, EcsWildcard));
+
+    ecs_fini(world);
+}
+
+void Commands_defer_remove_dont_fragment_on_cascade_deleted_child(void) {
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT(world, Velocity);
+    ecs_add_id(world, ecs_id(Velocity), EcsDontFragment);
+
+    ecs_entity_t del = ecs_new(world);
+    ecs_entity_t child = ecs_new(world);
+    ecs_entity_t other = ecs_new(world);
+
+    ecs_defer_begin(world);
+    ecs_delete(world, del);
+    ecs_add_id(world, other, ecs_id(Velocity));
+    ecs_remove_id(world, child, ecs_id(Velocity));
+    ecs_add_pair(world, child, EcsChildOf, del);
+    ecs_defer_end(world);
+
+    test_assert(!ecs_is_alive(world, child));
 
     ecs_fini(world);
 }
