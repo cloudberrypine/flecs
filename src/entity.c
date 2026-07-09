@@ -2895,10 +2895,9 @@ ecs_entity_t ecs_new_w_parent(
         }
     }
 
-    ecs_id_t type_ids[] = {
-        ecs_id(EcsParent), ecs_value_pair(EcsParentDepth, pr->depth)};
+    ecs_id_t type_ids[] = { ecs_id(EcsParent) };
 
-    ecs_type_t type = { .count = 2, .array = type_ids };
+    ecs_type_t type = { .count = 1, .array = type_ids };
     ecs_table_t *table = flecs_table_find_or_create(world, &type);
 
     ecs_assert(table != NULL, ECS_INTERNAL_ERROR, NULL);

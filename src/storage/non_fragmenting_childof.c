@@ -254,8 +254,6 @@ void flecs_on_replace_parent(ecs_iter_t *it) {
          * is the same, the pair doesn't have to be updated and neither do the
          * cached depths for the entity's children. */
         if (!cr_old || cr_old->pair->depth != depth) {
-            ecs_add_id(world, e, ecs_value_pair(EcsParentDepth, depth));
-
             ecs_component_record_t *cr = flecs_components_get(
                 world, ecs_childof(e));
             if (cr) {

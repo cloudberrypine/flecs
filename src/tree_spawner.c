@@ -52,6 +52,8 @@ ecs_type_t flecs_prefab_spawner_build_type(
     ecs_type_t dst = {0};
     ecs_type_t *src = &table->type;
 
+    (void)depth;
+
     flecs_type_add(world, &dst, ecs_id(EcsParent));
 
     int32_t i, count = src->count;
@@ -86,8 +88,8 @@ ecs_type_t flecs_prefab_spawner_build_type(
         }
 
         if (rel == EcsParentDepth) {
-            /* Replace depth value with the normalized depth for spawner. */
-            id = ecs_value_pair(EcsParentDepth, depth);
+            /* Entities no longer carry per-entity depth pairs. */
+            continue;
         }
 
         flecs_type_add(world, &dst, id);
@@ -147,43 +149,6 @@ void flecs_prefab_spawner_build_from_cr(
 
         flecs_prefab_spawner_build_from_cr(
             world, child_cr, spawner, ecs_vec_count(spawner), depth + 1);
-    }
-}
-
-static
-void flecs_spawner_transpose_depth(
-    ecs_world_t *world,
-    EcsTreeSpawner *spawner,
-    ecs_vec_t *dst,
-    int32_t depth)
-{
-    ecs_vec_t *src = &spawner->data[0].children;
-
-    int32_t i, count = ecs_vec_count(src);
-    ecs_vec_set_count_t(NULL, dst, ecs_tree_spawner_child_t, count);
-
-    for (i = 0; i < count; i ++) {
-        ecs_tree_spawner_child_t *src_elem = ecs_vec_get_t(
-            src, ecs_tree_spawner_child_t, i);
-        ecs_tree_spawner_child_t *dst_elem = ecs_vec_get_t(
-            dst, ecs_tree_spawner_child_t, i);
-
-        dst_elem->child_name = src_elem->child_name;
-        dst_elem->parent_index = src_elem->parent_index;
-        dst_elem->child = src_elem->child;
-        
-        /* Get depth for source element at depth 0 */
-        int32_t src_depth = flecs_relation_depth(
-            world, EcsChildOf, src_elem->table);
-
-        /* Get table for correct depth */
-        ecs_id_t depth_pair = ecs_value_pair(EcsParentDepth, src_depth + depth);
-        ecs_table_diff_t diff = ECS_TABLE_DIFF_INIT;
-
-        dst_elem->table = flecs_table_traverse_add(
-            world, src_elem->table, &depth_pair, &diff);
-        
-        flecs_table_keep(dst_elem->table);
     }
 }
 
@@ -269,7 +234,6 @@ void flecs_spawner_instantiate(
     const ecs_instantiate_ctx_t *ctx)
 {
     ecs_record_t *r_instance = flecs_entities_get(world, instance);
-    int32_t depth = flecs_relation_depth(world, EcsChildOf, r_instance->table);
     int32_t i, child_count = ecs_vec_count(&spawner->data[0].children);
 
     bool is_prefab = r_instance->table->flags & EcsTableIsPrefab;
@@ -279,19 +243,9 @@ void flecs_spawner_instantiate(
         ctx_cur = *ctx;
     }
 
-    /* Use cached spawner for depth if available. */
-    ecs_vec_t *vec, tmp_vec;
-    if (depth < FLECS_TREE_SPAWNER_DEPTH_CACHE_SIZE) {
-        vec = &spawner->data[depth].children;
-    } else {
-        vec = &tmp_vec;
-        ecs_vec_init_t(NULL, vec, ecs_tree_spawner_child_t, 0);
-    }
-
-    if (depth && ecs_vec_count(vec) != child_count) {
-        /* Vector for depth is not yet initialized, create it. */
-        flecs_spawner_transpose_depth(world, spawner, vec, depth);
-    }
+    /* Without per-entity depth pairs, spawn tables don't depend on the depth
+     * of the instance, so the depth-0 vector works for every instantiation. */
+    ecs_vec_t *vec = &spawner->data[0].children;
 
     ecs_tree_spawner_child_t *spawn_children = ecs_vec_first(vec);
     ecs_vec_set_min_count_t(&world->allocator, &world->allocators.tree_spawner,
@@ -379,10 +333,6 @@ void flecs_spawner_instantiate(
             flecs_instantiate_dont_fragment(
                 world, spawn_child->child, entity);
         }
-    }
-
-    if (vec == &tmp_vec) {
-        ecs_vec_fini_t(NULL, vec, ecs_tree_spawner_child_t);
     }
 }
 

@@ -1163,12 +1163,6 @@ void flecs_entities_update_childof_depth(
             if (!r) {
                 continue;
             }
-            ecs_table_t *table = r->table;
-
-            if (table->flags & EcsTableHasParent) {
-                ecs_add_id(world, tgt, 
-                    ecs_value_pair(EcsParentDepth, cr->pair->depth));
-            }
 
             if (!(r->row & EcsEntityIsTraversable)) {
                 continue;
