@@ -199,6 +199,16 @@ bool flecs_is_childof_tgt_only(
         return false;
     }
 
+    /* The fast path only deletes the Parent children in ordered_children. A
+     * parent that also has fragmenting (ChildOf, parent) tables, empty ones
+     * included, must go through the regular path, which deletes those tables.
+     * Otherwise they outlive the parent with a dangling ChildOf pair, and
+     * freeing them later forwards OnTableDelete to the dead parent.
+     * (Upstream f6b2ca1f.) */
+    if (flecs_table_cache_count(&cr->cache)) {
+        return false;
+    }
+
     return true;
 }
 
@@ -227,7 +237,8 @@ void flecs_component_delete_non_fragmenting_childof(
         ecs_record_t *r = flecs_entities_get_any(world, e);
         ecs_assert(r != NULL, ECS_INTERNAL_ERROR, NULL);
 
-        if ((r->row & EcsEntityIsTarget)) {
+        bool is_target = (r->row & EcsEntityIsTarget) != 0;
+        if (is_target) {
             ecs_component_record_t *tgt_cr = flecs_components_get(
                 world, ecs_pair(EcsWildcard, e));
             if (tgt_cr) {
@@ -256,6 +267,22 @@ void flecs_component_delete_non_fragmenting_childof(
         }
 
         flecs_simple_delete(world, e, r);
+
+        if (is_target) {
+            /* A child left to the regular cleanup above is deleted here, ahead
+             * of its fragmenting children, which are deleted when the marked
+             * ids are cleared. Marking it runs the fast path on its own Parent
+             * children, whose OnRemove events walk up through it and can
+             * revalidate the reachable-id cache of (ChildOf, e) with e's
+             * record. Invalidate again now that e is gone: otherwise events
+             * of the remaining children forward through that cache to a
+             * record without a table. */
+            ecs_component_record_t *tgt_cr = flecs_components_get(
+                world, ecs_pair(EcsWildcard, e));
+            if (tgt_cr) {
+                flecs_emit_propagate_invalidate_tables(world, tgt_cr);
+            }
+        }
     }
 
     ecs_vec_fini_t(&world->allocator, &children_vec, ecs_entity_t);
@@ -293,13 +320,11 @@ bool flecs_component_mark_non_fragmenting_childof(
 
     ecs_pair_record_t *pr = childof_cr->pair;
 
-    if (!pr->second.next) {
-        if (ECS_PAIR_FIRST(pr->second.prev->id) == EcsWildcard) {
-            /* Entity is only used as ChildOf target */
-            flecs_component_delete_non_fragmenting_childof(
-                world, childof_cr, force_delete);
-            return true;
-        }
+    if (flecs_is_childof_tgt_only(childof_cr)) {
+        /* Entity is only used as ChildOf target */
+        flecs_component_delete_non_fragmenting_childof(
+            world, childof_cr, force_delete);
+        return true;
     }
 
     flecs_marked_id_push(world, childof_cr, EcsDelete, true);
