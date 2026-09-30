@@ -109,6 +109,35 @@ void ecs_strbuf_appendflt(
     double v,
     char nan_delim);
 
+/** Writes a finite number so that parsing it gives the same value back:
+ * the shortest such text of the float (single_precision) or the double.
+ * Returns the characters written (at most 40), or 0 to fall back. */
+typedef int (*ecs_strbuf_exact_flt_writer_t)(
+    char *out,
+    double v,
+    bool single_precision);
+
+/** Installs the writer ecs_strbuf_appendflt_exact uses (NULL: snprintf). */
+FLECS_API
+void ecs_strbuf_set_exact_flt_writer(
+    ecs_strbuf_exact_flt_writer_t writer);
+
+/** Append a float or double to a buffer so that it parses back to the same
+ * value (ecs_strbuf_appendflt keeps 10 digits): what JSON serialization of
+ * f32 and f64 members writes.
+ *
+ * @param buffer The buffer to append to.
+ * @param v The value to append.
+ * @param single_precision The value is an f32.
+ * @param nan_delim The delimiter to use for NaN values.
+ */
+FLECS_API
+void ecs_strbuf_appendflt_exact(
+    ecs_strbuf_t *buffer,
+    double v,
+    bool single_precision,
+    char nan_delim);
+
 /** Append a boolean to a buffer.
  *
  * @param buffer The buffer to append to.

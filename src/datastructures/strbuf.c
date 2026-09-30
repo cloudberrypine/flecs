@@ -14,6 +14,7 @@
 #include "../private_api.h"
 
 #include <math.h> // isnan, isinf
+#include <stdio.h> // snprintf
 
 /**
  *  stm32tpl --  STM32 C++ Template Peripheral Library
@@ -391,6 +392,35 @@ void ecs_strbuf_appendflt(
 {
     ecs_assert(b != NULL, ECS_INVALID_PARAMETER, NULL); 
     flecs_strbuf_ftoa(b, flt, 10, nan_delim);
+}
+
+static ecs_strbuf_exact_flt_writer_t flecs_exact_flt_writer = NULL;
+
+void ecs_strbuf_set_exact_flt_writer(
+    ecs_strbuf_exact_flt_writer_t writer)
+{
+    flecs_exact_flt_writer = writer;
+}
+
+void ecs_strbuf_appendflt_exact(
+    ecs_strbuf_t *b,
+    double flt,
+    bool single_precision,
+    char nan_delim)
+{
+    ecs_assert(b != NULL, ECS_INVALID_PARAMETER, NULL);
+    if (ecs_os_isnan(flt) || ecs_os_isinf(flt)) {
+        flecs_strbuf_ftoa(b, flt, 10, nan_delim);
+        return;
+    }
+    char buf[48];
+    int len = flecs_exact_flt_writer
+        ? flecs_exact_flt_writer(buf, flt, single_precision)
+        : 0;
+    if (len <= 0) {
+        len = snprintf(buf, sizeof(buf), single_precision ? "%.9g" : "%.17g", flt);
+    }
+    ecs_strbuf_appendstrn(b, buf, len);
 }
 
 void ecs_strbuf_appendbool(

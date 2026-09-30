@@ -119,6 +119,10 @@ error:
 typedef struct json_serializer_ctx_t {
     ecs_strbuf_t *str;
     bool is_collection;
+    /* The last element type's serializer: an opaque collection serializes
+     * every element with the same type, which is looked up once. */
+    ecs_entity_t cached_type;
+    const EcsTypeSerializer *cached_ser;
 } json_serializer_ctx_t;
 
 static
@@ -131,7 +135,15 @@ int flecs_json_ser_opaque_value(
     if (json_ser->is_collection) {
         ecs_strbuf_list_next(json_ser->str);
     }
-    return ecs_ptr_to_json_buf(ser->world, type, value, json_ser->str);
+    if (type != json_ser->cached_type || !json_ser->cached_ser) {
+        json_ser->cached_type = type;
+        json_ser->cached_ser = ecs_has(ser->world, type, EcsComponent)
+            ? ecs_get(ser->world, type, EcsTypeSerializer) : NULL;
+    }
+    if (!json_ser->cached_ser) {
+        return ecs_ptr_to_json_buf(ser->world, type, value, json_ser->str);
+    }
+    return flecs_json_ser_type(ser->world, &json_ser->cached_ser->ops, value, json_ser->str);
 }
 
 static
@@ -315,11 +327,11 @@ int flecs_json_ser_type_slice(
             break;
         }
         case EcsOpF32:
-            ecs_strbuf_appendflt(str, 
-                (ecs_f64_t)*(const ecs_f32_t*)ptr, '"');
+            ecs_strbuf_appendflt_exact(str, 
+                (ecs_f64_t)*(const ecs_f32_t*)ptr, true, '"');
             break;
         case EcsOpF64:
-            ecs_strbuf_appendflt(str, *(const ecs_f64_t*)ptr, '"');
+            ecs_strbuf_appendflt_exact(str, *(const ecs_f64_t*)ptr, false, '"');
             break;
         case EcsOpEnum:
             if (flecs_json_ser_enum(world, op, ptr, str)) {
