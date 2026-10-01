@@ -198,6 +198,18 @@ void* flecs_sparse_get_dense(
 #define flecs_sparse_get_dense_t(sparse, T, index)\
     ECS_CAST(T*, flecs_sparse_get_dense(sparse, ECS_SIZEOF(T), index))
 
+/** Swap two alive elements in the dense array, changing iteration order only.
+ *
+ * @param sparse The sparse set.
+ * @param index_a Dense index (as for flecs_sparse_get_dense) of the first element.
+ * @param index_b Dense index of the second element.
+ */
+FLECS_DBG_API
+void flecs_sparse_swap_alive(
+    ecs_sparse_t *sparse,
+    int32_t index_a,
+    int32_t index_b);
+
 /** Get the number of alive elements in the sparse set.
  *
  * @param sparse The sparse set.

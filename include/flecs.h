@@ -6285,6 +6285,50 @@ void ecs_table_swap_rows(
     int32_t row_1,
     int32_t row_2);
 
+/** Iteration order fuzzing: what ecs_fuzz_iteration_order() perturbs.
+ * Everything it perturbs is an order Flecs does not promise, and that another
+ * history of the same world (another order of creation and deletion, or the
+ * world loaded from a save) can have. Code whose results depend on it is
+ * order-dependent. */
+#define EcsFuzzQueryCacheTables     (1u << 0u) /**< Table order within each group of every cached query (not order_by queries). */
+#define EcsFuzzComponentIndexTables (1u << 1u) /**< Table order of every component record (uncached queries, each). */
+#define EcsFuzzTableRows            (1u << 2u) /**< Row order within every table (not prefab, module or builtin tables). */
+#define EcsFuzzOrderedChildren      (1u << 3u) /**< Order of a parent's ordered children (not prefab children). */
+#define EcsFuzzSparseSets           (1u << 4u) /**< Dense order of sparse and DontFragment component storage. */
+#define EcsFuzzAll                  (0x1fu)
+
+/** Perturb iteration order now, deterministically from the seed. Must be
+ * called outside of iteration, outside of deferred mode and from the thread
+ * that owns the world. It changes no component values and no structure: only
+ * the order queries, each() and children iteration meet tables and entities
+ * in. Row swaps mark the tables dirty, so refs and change detection see them.
+ *
+ * @param world The world.
+ * @param seed Seed for the permutation.
+ * @param flags What to perturb (EcsFuzz* flags).
+ * @return The number of lists (of tables, rows, children or sparse entries)
+ *     of two or more that were shuffled.
+ */
+FLECS_API
+int32_t ecs_fuzz_iteration_order(
+    ecs_world_t *world,
+    uint64_t seed,
+    ecs_flags32_t flags);
+
+/** Perturb iteration order at the start of every ecs_progress() call, with a
+ * seed mixed from the given seed and the number of progress calls since this
+ * was set. Flags 0 turns it off; off, it costs one branch per frame.
+ *
+ * @param world The world.
+ * @param seed Seed for the permutations.
+ * @param flags What to perturb (EcsFuzz* flags), 0 for nothing.
+ */
+FLECS_API
+void ecs_set_iteration_order_fuzz(
+    ecs_world_t *world,
+    uint64_t seed,
+    ecs_flags32_t flags);
+
 /** Commit (move) an entity to a table.
  * This operation moves an entity from its current table to the specified
  * table. This may cause the following actions:

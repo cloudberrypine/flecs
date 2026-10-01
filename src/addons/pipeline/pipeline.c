@@ -749,6 +749,11 @@ bool ecs_progress(
     ecs_world_t *world,
     ecs_ftime_t user_delta_time)
 {
+    if (world->iteration_fuzz_flags) {
+        /* Before the frame: nothing iterates and nothing is deferred. */
+        flecs_fuzz_iteration_order_frame(world);
+    }
+
     ecs_ftime_t delta_time = ecs_frame_begin(world, user_delta_time);
     
     /* If this is the first frame, run startup systems */

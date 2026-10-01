@@ -189,6 +189,11 @@ struct ecs_world_t {
     /* -- Default query flags -- */
     ecs_flags32_t default_query_flags;
 
+    /* -- Iteration order fuzzing (ecs_set_iteration_order_fuzz) -- */
+    ecs_flags32_t iteration_fuzz_flags;
+    uint64_t iteration_fuzz_seed;
+    uint64_t iteration_fuzz_count;
+
     /* Count that increases when component monitors change */
     int32_t monitor_generation;
 
@@ -278,6 +283,10 @@ uint32_t flecs_get_table_version_fast(
 void flecs_throw_invalid_delete(
     ecs_world_t *world,
     ecs_id_t id);
+
+/* Perturb iteration order for this progress call (ecs_set_iteration_order_fuzz). */
+void flecs_fuzz_iteration_order_frame(
+    ecs_world_t *world);
 
 #ifdef FLECS_DEBUG
 void flecs_component_lock(
