@@ -40,6 +40,57 @@ int32_t flecs_fuzz_below(
     return (int32_t)(flecs_fuzz_next(rng) % (uint64_t)bound);
 }
 
+/* Whether a table holds definitions rather than data: components and types
+ * (an enum's constants are its ordered children, in declaration order),
+ * systems, queries and observers, modules and what they scope, builtins and
+ * prefabs. Their order is fixed by the application's code, not by the
+ * world's history, so it is left alone. (EcsTableHasModule is no test: a
+ * table with any internal component has it, the Parent component's too.) */
+static
+bool flecs_fuzz_table_is_definition(
+    ecs_world_t *world,
+    const ecs_table_t *table)
+{
+    if (table->flags & (EcsTableHasBuiltins | EcsTableIsPrefab | EcsTableNotQueryable)) {
+        return true;
+    }
+    if (ecs_table_has_id(world, table, ecs_id(EcsComponent)) ||
+        ecs_table_has_id(world, table, EcsModule) ||
+        ecs_search(world, table, ecs_pair(ecs_id(EcsPoly), EcsWildcard), NULL) != -1)
+    {
+        return true;
+    }
+#ifdef FLECS_META
+    if (ecs_table_has_id(world, table, ecs_id(EcsEnum)) ||
+        ecs_table_has_id(world, table, ecs_id(EcsBitmask)))
+    {
+        return true;
+    }
+#endif
+    if ((table->flags & EcsTableHasChildOf) && table->childof_index >= 0) {
+        ecs_entity_t parent = ecs_get_alive(world,
+            ECS_PAIR_SECOND(table->type.array[table->childof_index]));
+        if (parent && ecs_has_id(world, parent, EcsModule)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/* Whether an entity is a definition (flecs_fuzz_table_is_definition). */
+static
+bool flecs_fuzz_is_definition(
+    ecs_world_t *world,
+    ecs_entity_t entity)
+{
+    ecs_entity_t alive = ecs_get_alive(world, entity);
+    if (!alive) {
+        return true;
+    }
+    const ecs_table_t *table = ecs_get_table(world, alive);
+    return table && flecs_fuzz_table_is_definition(world, table);
+}
+
 /* Table order within each group of a cached query. A query that sorts
  * (order_by, which pipelines use) is left alone, and so is the group order
  * (group_by and cascade decide it). The cache finds a table's match by index,
@@ -153,23 +204,38 @@ void flecs_fuzz_component_index(
     ecs_vec_t scratch;
     ecs_vec_init_t(NULL, &scratch, ecs_table_cache_hdr_t*, 0);
     FLECS_EACH_COMPONENT_RECORD(cr, {
-        flecs_fuzz_table_cache(&cr->cache, rng, &scratch);
+        /* The tables of a definition's children (an enum's constants) keep
+         * their order, as the children do (flecs_fuzz_children). */
+        if (!(ECS_IS_PAIR(cr->id) && ECS_PAIR_FIRST(cr->id) == EcsChildOf &&
+            flecs_fuzz_is_definition(world, ECS_PAIR_SECOND(cr->id))))
+        {
+            flecs_fuzz_table_cache(&cr->cache, rng, &scratch);
+        }
     })
     ecs_vec_fini_t(NULL, &scratch, ecs_table_cache_hdr_t*);
 }
 
-/* Row order within a table. Prefab, module and builtin tables (components,
- * systems, queries, observers) keep theirs. */
+/* Row order within a table. Definitions (flecs_fuzz_table_is_definition)
+ * and their children keep theirs. */
 static
 void flecs_fuzz_table_rows(
     ecs_world_t *world,
     ecs_table_t *table,
     ecs_fuzz_rng_t *rng)
 {
-    if (table->flags & (EcsTableHasBuiltins | EcsTableHasModule |
-        EcsTableIsPrefab | EcsTableNotQueryable))
-    {
+    if (ecs_table_count(table) < 2) {
         return;
+    }
+    /* Definitions and their children (an enum's constants) keep their rows:
+     * their order is the code's. */
+    if (flecs_fuzz_table_is_definition(world, table)) {
+        return;
+    }
+    if ((table->flags & EcsTableHasChildOf) && table->childof_index >= 0) {
+        const ecs_id_t childof = table->type.array[table->childof_index];
+        if (flecs_fuzz_is_definition(world, ECS_PAIR_SECOND(childof))) {
+            return;
+        }
     }
 
     int32_t i, count = ecs_table_count(table);
@@ -197,7 +263,8 @@ void flecs_fuzz_rows(
 
 /* A parent's ordered children (the Parent component's children, and those of
  * a parent with the OrderedChildren trait). A prefab's children keep their
- * order: instances find their children by it. */
+ * order (instances find their children by it), and so do the children of a
+ * definition (flecs_fuzz_is_definition). */
 static
 void flecs_fuzz_children(
     ecs_world_t *world,
@@ -206,7 +273,8 @@ void flecs_fuzz_children(
     FLECS_EACH_COMPONENT_RECORD(cr, {
         ecs_pair_record_t *pr = cr->pair;
         if (pr && !(cr->flags & EcsIdPrefabChildren) &&
-            ECS_IS_PAIR(cr->id) && ECS_PAIR_FIRST(cr->id) == EcsChildOf)
+            ECS_IS_PAIR(cr->id) && ECS_PAIR_FIRST(cr->id) == EcsChildOf &&
+            !flecs_fuzz_is_definition(world, ECS_PAIR_SECOND(cr->id)))
         {
             int32_t i, count = ecs_vec_count(&pr->ordered_children);
             rng->lists += count > 1;
