@@ -605,11 +605,19 @@ bool flecs_on_delete_clear_entities(
                 int32_t c, count = ecs_vec_count(&cr->pair->ordered_children);
                 ecs_entity_t *children = ecs_vec_first(&cr->pair->ordered_children);
                 
-                ecs_defer_suspend(world);
+                /* Cleanup can be entered with deferring already suspended.
+                 * Only resume a suspension started here: toggling the caller's
+                 * suspension would re-enable the queue during child deletion. */
+                bool was_deferred = ecs_is_deferred(world);
+                if (was_deferred) {
+                    ecs_defer_suspend(world);
+                }
                 for (c = count - 1; c >= 0; c --) {
                     ecs_delete(world, children[c]);
                 }
-                ecs_defer_resume(world);
+                if (was_deferred) {
+                    ecs_defer_resume(world);
+                }
             }
 
             /* User code (from observers) could have enqueued more ids to delete,
