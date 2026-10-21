@@ -3901,6 +3901,42 @@ void Commands_on_remove_after_deferred_clear_and_add(void) {
     test_assert(ecs_has(world, e, TagC));
 
     ecs_fini(world);
+
+    /* Removing and re-adding a tag in one batch keeps the same table. A
+     * DontFragment id previously added to that table leaves a sticky flag;
+     * it must not cause a cancelled fragmenting removal to emit OnRemove. */
+    world = ecs_mini();
+    {
+        ECS_TAG(world, Ready);
+        ECS_TAG(world, Provenance);
+        ecs_add_id(world, Provenance, EcsDontFragment);
+        ecs_entity_t actor = ecs_new_w_id(world, Ready);
+        ecs_add_id(world, actor, Provenance);
+        ecs_remove_id(world, actor, Provenance);
+        ecs_observer(world, {
+            .query.terms[0].id = Ready,
+            .events = { EcsOnRemove },
+            .callback = remove_tag
+        });
+        remove_tag_invoked = 0;
+        const ecs_table_t *table = ecs_get_table(world, actor);
+        ecs_defer_begin(world);
+        ecs_remove_id(world, actor, Ready);
+        ecs_add_id(world, actor, Ready);
+        ecs_defer_end(world);
+        test_assert(ecs_get_table(world, actor) == table);
+        test_assert(ecs_has_id(world, actor, Ready));
+        test_int(remove_tag_invoked, 0);
+
+        ecs_defer_begin(world);
+        ecs_clear(world, actor);
+        ecs_add_id(world, actor, Ready);
+        ecs_defer_end(world);
+        test_assert(ecs_get_table(world, actor) == table);
+        test_assert(ecs_has_id(world, actor, Ready));
+        test_int(remove_tag_invoked, 0);
+    }
+    ecs_fini(world);
 }
 
 static void Recycle(ecs_iter_t *it) {

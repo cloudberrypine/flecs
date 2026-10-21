@@ -975,6 +975,13 @@ void flecs_cmd_batch_for_entity(
 
     /* Move entity to destination table in single operation */
     flecs_table_diff_build_noalloc(diff, &table_diff);
+    if (table == start_table) {
+        /* A batched remove followed by an add kept the fragmenting ids.
+         * DontFragment commands are handled separately, so none of the
+         * removals in this batch applies. Do not let a table's sticky
+         * DontFragment flag make flecs_commit emit spurious OnRemove events. */
+        table_diff.removed.count = 0;
+    }
     flecs_defer_begin(world, world->stages[0]);
     flecs_commit(world, entity, r, table, &table_diff, 0, 0);
     flecs_defer_end(world, world->stages[0]);
