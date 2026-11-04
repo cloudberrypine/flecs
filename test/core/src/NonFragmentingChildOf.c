@@ -3,6 +3,8 @@
 
 static ECS_COMPONENT_DECLARE(Position);
 
+static void mixed_branch_deletion(bool delete_tree, int deferred);
+
 void NonFragmentingChildOf_delete_parent_w_child_used_as_tag(void) {
     ecs_world_t *world = ecs_mini();
 
@@ -2242,6 +2244,13 @@ void NonFragmentingChildOf_defer_delete_parent_and_base(void) {
 }
 
 void NonFragmentingChildOf_defer_delete_parent_and_tag(void) {
+    /* 4.2 replaces nested/suspended deferral with explicit stage queues.
+     * Both deferred deletion and immediate deletion through the real world
+     * must preserve work queued on the stage. */
+    mixed_branch_deletion(true, 1);
+    mixed_branch_deletion(false, 1);
+    mixed_branch_deletion(true, 2);
+    mixed_branch_deletion(false, 2);
     ecs_world_t *world = ecs_mini();
 
     ECS_TAG(world, Bar);
