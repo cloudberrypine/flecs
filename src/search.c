@@ -533,9 +533,12 @@ int32_t flecs_relation_depth(
         } else if (table->flags & EcsTableHasParent) {
             /* A non-fragmenting Parent table can contain several depths.
              * Entity depth is available through ecs_get_depth instead. */
-            ecs_abort(ECS_INVALID_OPERATION,
-                "table depth and ChildOf cascade require fragmenting ChildOf "
-                "storage, use ecs_get_depth for a Parent entity");
+            if (!(world->flags & EcsWorldWarnedParentDepth)) {
+                ECS_CONST_CAST(ecs_world_t*, world)->flags |= EcsWorldWarnedParentDepth;
+                ecs_warn("ChildOf cascade and table depth are not ordered for "
+                    "non-fragmenting Parent hierarchies, use fragmenting "
+                    "ChildOf where order matters");
+            }
             return 0;
         } else {
             return 0;

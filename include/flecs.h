@@ -5839,9 +5839,11 @@ ecs_entity_t ecs_table_get_target(
     int32_t index);
 
 /** Return the depth for a table in the tree for the specified relationship.
- * Non-fragmenting Parent tables can contain multiple depths and do not support
- * ChildOf table depth or ChildOf cascade ordering. Use ecs_get_depth() for an
- * individual Parent entity, or fragmenting ChildOf for ordered hierarchies.
+ * Non-fragmenting Parent tables can contain multiple depths, so their ChildOf
+ * table depth is zero. ChildOf cascade over these tables has no depth ordering
+ * guarantee. The first such table-depth lookup logs a warning per world.
+ * Use ecs_get_depth() for an individual Parent entity, or fragmenting ChildOf
+ * where depth ordering matters.
  * Depth is determined by counting the number of targets encountered while
  * traversing up the relationship tree. Only acyclic relationships are
  * supported.

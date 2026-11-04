@@ -1832,6 +1832,18 @@ static void assert_parent_depth(ecs_world_t *world, ecs_entity_t entity, int dep
     test_int(ecs_get_depth(world, entity, EcsChildOf), depth);
 }
 
+static int parent_depth_warnings;
+
+static void count_parent_depth_warning(
+    int32_t level, const char *file, int32_t line, const char *message)
+{
+    (void)file;
+    (void)line;
+    if (level == -2 && strstr(message, "ChildOf cascade and table depth")) {
+        parent_depth_warnings ++;
+    }
+}
+
 void NonFragmentingChildOf_depth_after_parent_set(void) {
     ecs_world_t *world = ecs_mini();
 
@@ -1845,6 +1857,27 @@ void NonFragmentingChildOf_depth_after_parent_set(void) {
     assert_parent_depth(world, gc, 2);
     /* Relationship search must still resolve the correct per-entity parent. */
     test_uint(ecs_get_parent(world, gc), c);
+
+    ecs_os_api_log_t previous_log = ecs_os_api.log_;
+    int previous_level = ecs_log_set_level(-2);
+    ecs_os_api.log_ = count_parent_depth_warning;
+    parent_depth_warnings = 0;
+    int first = ecs_table_get_depth(world, ecs_get_table(world, c), EcsChildOf);
+    int second = ecs_table_get_depth(world, ecs_get_table(world, gc), EcsChildOf);
+    ecs_world_t *other_world = ecs_mini();
+    ecs_entity_t other_parent = ecs_new(other_world);
+    ecs_entity_t other_child = ecs_new_w_parent(other_world, other_parent, NULL);
+    int other = ecs_table_get_depth(other_world,
+        ecs_get_table(other_world, other_child), EcsChildOf);
+    ecs_fini(other_world);
+    ecs_os_api.log_ = previous_log;
+    ecs_log_set_level(previous_level);
+    test_int(first, 0);
+    test_int(second, 0);
+    test_int(other, 0);
+    test_int(parent_depth_warnings, 2);
+    assert_parent_depth(world, c, 1);
+    assert_parent_depth(world, gc, 2);
 
     ecs_fini(world);
 }
