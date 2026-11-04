@@ -1285,9 +1285,17 @@ void GroupBy_recreate_after_remove_all(void) {
     ecs_fini(world);
 }
 
+static uint64_t group_by_childof_table_depth(
+    ecs_world_t *world, ecs_table_t *table, ecs_id_t id, void *ctx)
+{
+    (void)ctx;
+    return (uint64_t)ecs_table_get_depth(world, table, id);
+}
+
 void GroupBy_group_by_parent_depth(void) {
     ecs_world_t *world = ecs_mini();
 
+    ECS_TAG(world, OtherTable);
     ecs_entity_t root = ecs_new(world), cur = root;
 
     ecs_entity_t *entities = ecs_os_malloc_n(ecs_entity_t, FLECS_DAG_DEPTH_MAX);
@@ -1295,25 +1303,41 @@ void GroupBy_group_by_parent_depth(void) {
     for (int i = 0; i < FLECS_DAG_DEPTH_MAX; i ++) {
         cur = ecs_new_w_parent(world, cur, NULL);
         entities[i] = cur;
+        if (i % 2) {
+            ecs_add_id(world, cur, OtherTable);
+        }
     }
 
-    ecs_query_t *q = ecs_query(world, {
-        .terms = {{ .id = ecs_id(EcsParent) }},
-        .group_by = EcsParentDepth
-    });
+    /* Both grouping routes preserve the full set without depth ordering. */
+    for (int by_childof_depth = 0; by_childof_depth < 2; by_childof_depth ++) {
+        ecs_query_t *q = ecs_query(world, {
+            .terms = {{ .id = ecs_id(EcsParent) }},
+            .group_by = by_childof_depth ? EcsChildOf : EcsParentDepth,
+            .group_by_callback = by_childof_depth ? group_by_childof_table_depth : NULL,
+        });
+        test_assert(q != NULL);
 
-    test_assert(q != NULL);
-
-    ecs_iter_t it = ecs_query_iter(world, q);
-    test_bool(true, ecs_query_next(&it));
-    test_uint(0, ecs_iter_get_group(&it));
-    test_int(FLECS_DAG_DEPTH_MAX, it.count);
-    for (int i = 0; i < it.count; i ++) {
-        test_uint(entities[i], it.entities[i]);
-        test_int(i + 1, ecs_get_depth(world, it.entities[i], EcsChildOf));
-        test_assert(!ecs_has_pair(world, it.entities[i], EcsParentDepth, EcsWildcard));
+        bool seen[FLECS_DAG_DEPTH_MAX] = {false};
+        ecs_iter_t it = ecs_query_iter(world, q);
+        while (ecs_query_next(&it)) {
+            test_uint(0, ecs_iter_get_group(&it));
+            for (int row = 0; row < it.count; row ++) {
+                int index = 0;
+                while (index < FLECS_DAG_DEPTH_MAX && entities[index] != it.entities[row]) {
+                    index ++;
+                }
+                test_assert(index < FLECS_DAG_DEPTH_MAX);
+                test_assert(!seen[index]);
+                seen[index] = true;
+                test_int(index + 1, ecs_get_depth(world, it.entities[row], EcsChildOf));
+                test_assert(!ecs_has_pair(world, it.entities[row], EcsParentDepth, EcsWildcard));
+            }
+        }
+        for (int i = 0; i < FLECS_DAG_DEPTH_MAX; i ++) {
+            test_assert(seen[i]);
+        }
+        ecs_query_fini(q);
     }
-    test_bool(false, ecs_query_next(&it));
 
     ecs_os_free(entities);
 
@@ -2120,6 +2144,7 @@ void GroupBy_recreate_after_remove_all_ordered(void) {
 void GroupBy_group_by_parent_depth_ordered(void) {
     ecs_world_t *world = ecs_mini();
 
+    ECS_TAG(world, OtherTable);
     ecs_entity_t root = ecs_new(world), cur = root;
 
     ecs_entity_t *entities = ecs_os_malloc_n(ecs_entity_t, FLECS_DAG_DEPTH_MAX);
@@ -2127,26 +2152,42 @@ void GroupBy_group_by_parent_depth_ordered(void) {
     for (int i = 0; i < FLECS_DAG_DEPTH_MAX; i ++) {
         cur = ecs_new_w_parent(world, cur, NULL);
         entities[i] = cur;
+        if (i % 2) {
+            ecs_add_id(world, cur, OtherTable);
+        }
     }
 
-    ecs_query_t *q = ecs_query(world, {
-        .terms = {{ .id = ecs_id(EcsParent) }},
-        .group_by = EcsParentDepth,
-        .flags = EcsQueryGroupByOrdered
-    });
+    /* Both grouping routes preserve the full set without depth ordering. */
+    for (int by_childof_depth = 0; by_childof_depth < 2; by_childof_depth ++) {
+        ecs_query_t *q = ecs_query(world, {
+            .terms = {{ .id = ecs_id(EcsParent) }},
+            .group_by = by_childof_depth ? EcsChildOf : EcsParentDepth,
+            .group_by_callback = by_childof_depth ? group_by_childof_table_depth : NULL,
+            .flags = EcsQueryGroupByOrdered,
+        });
+        test_assert(q != NULL);
 
-    test_assert(q != NULL);
-
-    ecs_iter_t it = ecs_query_iter(world, q);
-    test_bool(true, ecs_query_next(&it));
-    test_uint(0, ecs_iter_get_group(&it));
-    test_int(FLECS_DAG_DEPTH_MAX, it.count);
-    for (int i = 0; i < it.count; i ++) {
-        test_uint(entities[i], it.entities[i]);
-        test_int(i + 1, ecs_get_depth(world, it.entities[i], EcsChildOf));
-        test_assert(!ecs_has_pair(world, it.entities[i], EcsParentDepth, EcsWildcard));
+        bool seen[FLECS_DAG_DEPTH_MAX] = {false};
+        ecs_iter_t it = ecs_query_iter(world, q);
+        while (ecs_query_next(&it)) {
+            test_uint(0, ecs_iter_get_group(&it));
+            for (int row = 0; row < it.count; row ++) {
+                int index = 0;
+                while (index < FLECS_DAG_DEPTH_MAX && entities[index] != it.entities[row]) {
+                    index ++;
+                }
+                test_assert(index < FLECS_DAG_DEPTH_MAX);
+                test_assert(!seen[index]);
+                seen[index] = true;
+                test_int(index + 1, ecs_get_depth(world, it.entities[row], EcsChildOf));
+                test_assert(!ecs_has_pair(world, it.entities[row], EcsParentDepth, EcsWildcard));
+            }
+        }
+        for (int i = 0; i < FLECS_DAG_DEPTH_MAX; i ++) {
+            test_assert(seen[i]);
+        }
+        ecs_query_fini(q);
     }
-    test_bool(false, ecs_query_next(&it));
 
     ecs_os_free(entities);
 

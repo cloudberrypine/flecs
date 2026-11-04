@@ -34,14 +34,16 @@ are unchanged. No distribution sources or generated test registries were edited.
    - `ecs_get_depth(entity, ChildOf)` reads the cached parent record depth and
      remains correct. Prefab spawn tables no longer depend on instance depth.
 
-   **Deliberate restriction:** `ecs_table_get_depth(table, ChildOf)` and cached
-   ChildOf cascade ordering cannot describe a mixed-depth Parent table. They
-   fail explicitly instead of returning a misleading zero or stale depth.
-   Use fragmenting ChildOf for a hierarchy requiring table depth or cascade.
-   The six upstream Parent cascade tests now assert this diagnostic. Explicit
-   grouping by the absent ParentDepth pair puts all Parent rows in group zero.
-   The game has no ChildOf cascade, table-depth, entity-depth or ParentDepth
-   usages. Its cascade calls use DependsOn, which is unaffected.
+   **Depth-ordering trade-off:** a non-fragmenting Parent table can contain
+   several depths. `ecs_table_get_depth(table, ChildOf)` therefore returns zero,
+   and ChildOf cascade has no depth-ordering guarantee among Parent tables.
+   The first such lookup warns once per world, without allocating per call.
+   This keeps arbitrary explorer and script-shell queries safe to execute.
+   Use fragmenting ChildOf where depth order matters. The six Parent cascade
+   tests check the complete entity set, sources and values without asserting
+   an order. Both grouping tests check all entities across several tables,
+   using the absent ParentDepth pair and explicit ChildOf table-depth grouping.
+   These groups are zero. The game's DependsOn cascade remains unaffected.
 
    The no-fragmentation and per-entity-depth regression in
    `NonFragmentingChildOf.depth_after_parent_set` fails on plain 4.2 and passes
@@ -105,9 +107,10 @@ macOS arm64, AppleClang 17, CMake Debug, static Flecs. Bake dependency:
 | query, all cache parameter variants | 4806 / 0 | 4806 / 0 |
 
 The framework's existing quarantines remain in place. The six Parent cascade
-cases now expect the documented diagnostic and the two ParentDepth grouping
-cases assert group zero. These are deliberate contract changes, not upstream
-failures. There were no pre-existing upstream failures in the three runs.
+cases and two grouping cases check complete, unordered entity sets. Table depth
+and groups are zero for Parent tables. A focused core regression checks zero
+results and one warning per world, while entity depths remain correct. There
+were no pre-existing upstream failures in the three baseline runs.
 
 Also built shared Flecs with `CMAKE_C_VISIBILITY_PRESET=hidden`. Linking core
 and meta tests succeeded, proving internal symbols remain exported. Shared

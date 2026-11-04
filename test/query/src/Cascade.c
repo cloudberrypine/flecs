@@ -1310,7 +1310,6 @@ void Cascade_nested_target_deletion(void) {
 }
 
 void Cascade_parent_component(void) {
-    install_test_abort();
     ecs_world_t *world = ecs_mini();
 
     ECS_COMPONENT(world, Position);
@@ -1326,71 +1325,42 @@ void Cascade_parent_component(void) {
     ecs_entity_t c1 = ecs_insert(world, ecs_value(EcsParent, {p1}));
     ecs_entity_t c2 = ecs_insert(world, ecs_value(EcsParent, {p2}));
 
-    /* Mixed-depth Parent tables cannot be grouped by table depth. */
-    test_expect_abort();
     ecs_query_t *q = ecs_query(world, {
         .terms = {{ ecs_id(Position), .src.id = EcsCascade }}
     });
 
     test_assert(q != NULL);
 
+    /* Parent table depth is zero, so cascade must preserve every match
+     * without imposing an order between tables or their parent ranges. */
+    const ecs_entity_t expected[] = { c0, p1, c1, p2, c2 };
+    const ecs_entity_t sources[] = { p0, p0, p1, p1, p2 };
+    bool seen[5] = {false};
     ecs_iter_t it = ecs_query_iter(world, q);
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(c0, it.entities[0]);
-    test_uint(p0, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 10); test_int(p->y, 20);
+    while (ecs_query_next(&it)) {
+        test_uint(ecs_id(Position), ecs_field_id(&it, 0));
+        const Position *value = ecs_field(&it, Position, 0);
+        test_assert(value != NULL);
+        for (int row = 0; row < it.count; row ++) {
+            int index = 0;
+            while (index < 5 && expected[index] != it.entities[row]) {
+                index ++;
+            }
+            test_assert(index < 5);
+            test_assert(!seen[index]);
+            seen[index] = true;
+            test_uint(sources[index], ecs_field_src(&it, 0));
+            const Position *parent_value = ecs_get(world, sources[index], Position);
+            test_assert(parent_value != NULL);
+            test_int(parent_value->x, value->x);
+            test_int(parent_value->y, value->y);
+            test_int(0, ecs_table_get_depth(world,
+                ecs_get_table(world, it.entities[row]), EcsChildOf));
+        }
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(p1, it.entities[0]);
-    test_uint(p0, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 10); test_int(p->y, 20);
+    for (int i = 0; i < 5; i ++) {
+        test_assert(seen[i]);
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(c1, it.entities[0]);
-    test_uint(p1, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 11); test_int(p->y, 21);
-    }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(p2, it.entities[0]);
-    test_uint(p1, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 11); test_int(p->y, 21);
-    }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(c2, it.entities[0]);
-    test_uint(p2, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 12); test_int(p->y, 22);
-    }
-
-    test_bool(false, ecs_query_next(&it));
 
     ecs_query_fini(q);
 
@@ -1398,7 +1368,6 @@ void Cascade_parent_component(void) {
 }
 
 void Cascade_parent_component_n_children(void) {
-    install_test_abort();
     ecs_world_t *world = ecs_mini();
 
     ECS_COMPONENT(world, Position);
@@ -1417,74 +1386,42 @@ void Cascade_parent_component_n_children(void) {
     ecs_entity_t c2_1 = ecs_insert(world, ecs_value(EcsParent, {p2}));
     ecs_entity_t c2_2 = ecs_insert(world, ecs_value(EcsParent, {p2}));
 
-    /* Mixed-depth Parent tables cannot be grouped by table depth. */
-    test_expect_abort();
     ecs_query_t *q = ecs_query(world, {
         .terms = {{ ecs_id(Position), .src.id = EcsCascade }}
     });
 
     test_assert(q != NULL);
 
+    /* Parent table depth is zero, so cascade must preserve every match
+     * without imposing an order between tables or their parent ranges. */
+    const ecs_entity_t expected[] = { c0_1, c0_2, p1, c1_1, c1_2, p2, c2_1, c2_2 };
+    const ecs_entity_t sources[] = { p0, p0, p0, p1, p1, p1, p2, p2 };
+    bool seen[8] = {false};
     ecs_iter_t it = ecs_query_iter(world, q);
-    test_bool(true, ecs_query_next(&it));
-    test_int(2, it.count);
-    test_uint(c0_1, it.entities[0]);
-    test_uint(c0_2, it.entities[1]);
-    test_uint(p0, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 10); test_int(p->y, 20);
+    while (ecs_query_next(&it)) {
+        test_uint(ecs_id(Position), ecs_field_id(&it, 0));
+        const Position *value = ecs_field(&it, Position, 0);
+        test_assert(value != NULL);
+        for (int row = 0; row < it.count; row ++) {
+            int index = 0;
+            while (index < 8 && expected[index] != it.entities[row]) {
+                index ++;
+            }
+            test_assert(index < 8);
+            test_assert(!seen[index]);
+            seen[index] = true;
+            test_uint(sources[index], ecs_field_src(&it, 0));
+            const Position *parent_value = ecs_get(world, sources[index], Position);
+            test_assert(parent_value != NULL);
+            test_int(parent_value->x, value->x);
+            test_int(parent_value->y, value->y);
+            test_int(0, ecs_table_get_depth(world,
+                ecs_get_table(world, it.entities[row]), EcsChildOf));
+        }
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(p1, it.entities[0]);
-    test_uint(p0, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 10); test_int(p->y, 20);
+    for (int i = 0; i < 8; i ++) {
+        test_assert(seen[i]);
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(2, it.count);
-    test_uint(c1_1, it.entities[0]);
-    test_uint(c1_2, it.entities[1]);
-    test_uint(p1, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 11); test_int(p->y, 21);
-    }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(p2, it.entities[0]);
-    test_uint(p1, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 11); test_int(p->y, 21);
-    }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(2, it.count);
-    test_uint(c2_1, it.entities[0]);
-    test_uint(c2_2, it.entities[1]);
-    test_uint(p2, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 12); test_int(p->y, 22);
-    }
-
-    test_bool(false, ecs_query_next(&it));
 
     ecs_query_fini(q);
 
@@ -1492,7 +1429,6 @@ void Cascade_parent_component_n_children(void) {
 }
 
 void Cascade_parent_component_n_parents_for_depth(void) {
-    install_test_abort();
     ecs_world_t *world = ecs_mini();
 
     ECS_COMPONENT(world, Position);
@@ -1515,106 +1451,42 @@ void Cascade_parent_component_n_parents_for_depth(void) {
     ecs_entity_t c2_1 = ecs_insert(world, ecs_value(EcsParent, {p2_1}));
     ecs_entity_t c2_2 = ecs_insert(world, ecs_value(EcsParent, {p2_2}));
 
-    /* Mixed-depth Parent tables cannot be grouped by table depth. */
-    test_expect_abort();
     ecs_query_t *q = ecs_query(world, {
         .terms = {{ ecs_id(Position), .src.id = EcsCascade }}
     });
 
     test_assert(q != NULL);
 
+    /* Parent table depth is zero, so cascade must preserve every match
+     * without imposing an order between tables or their parent ranges. */
+    const ecs_entity_t expected[] = { c0_1, c0_2, p1_1, p1_2, c1_1, c1_2, p2_1, p2_2, c2_1, c2_2 };
+    const ecs_entity_t sources[] = { p0, p0, p0, p0, p1_1, p1_2, p1_1, p1_2, p2_1, p2_2 };
+    bool seen[10] = {false};
     ecs_iter_t it = ecs_query_iter(world, q);
-    test_bool(true, ecs_query_next(&it));
-    test_int(2, it.count);
-    test_uint(c0_1, it.entities[0]);
-    test_uint(c0_2, it.entities[1]);
-    test_uint(p0, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 10); test_int(p->y, 21);
+    while (ecs_query_next(&it)) {
+        test_uint(ecs_id(Position), ecs_field_id(&it, 0));
+        const Position *value = ecs_field(&it, Position, 0);
+        test_assert(value != NULL);
+        for (int row = 0; row < it.count; row ++) {
+            int index = 0;
+            while (index < 10 && expected[index] != it.entities[row]) {
+                index ++;
+            }
+            test_assert(index < 10);
+            test_assert(!seen[index]);
+            seen[index] = true;
+            test_uint(sources[index], ecs_field_src(&it, 0));
+            const Position *parent_value = ecs_get(world, sources[index], Position);
+            test_assert(parent_value != NULL);
+            test_int(parent_value->x, value->x);
+            test_int(parent_value->y, value->y);
+            test_int(0, ecs_table_get_depth(world,
+                ecs_get_table(world, it.entities[row]), EcsChildOf));
+        }
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(2, it.count);
-    test_uint(p1_1, it.entities[0]);
-    test_uint(p1_2, it.entities[1]);
-    test_uint(p0, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 10); test_int(p->y, 21);
+    for (int i = 0; i < 10; i ++) {
+        test_assert(seen[i]);
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(c1_1, it.entities[0]);
-    test_uint(p1_1, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 11); test_int(p->y, 21);
-    }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(c1_2, it.entities[0]);
-    test_uint(p1_2, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 11); test_int(p->y, 22);
-    }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(p2_1, it.entities[0]);
-    test_uint(p1_1, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 11); test_int(p->y, 21);
-    }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(p2_2, it.entities[0]);
-    test_uint(p1_2, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 11); test_int(p->y, 22);
-    }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(c2_1, it.entities[0]);
-    test_uint(p2_1, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 12); test_int(p->y, 21);
-    }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(c2_2, it.entities[0]);
-    test_uint(p2_2, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 12); test_int(p->y, 22);
-    }
-
-    test_bool(false, ecs_query_next(&it));
 
     ecs_query_fini(q);
 
@@ -1622,13 +1494,10 @@ void Cascade_parent_component_n_parents_for_depth(void) {
 }
 
 void Cascade_parent_component_after_query(void) {
-    install_test_abort();
     ecs_world_t *world = ecs_mini();
 
     ECS_COMPONENT(world, Position);
 
-    /* Mixed-depth Parent tables cannot be grouped by table depth. */
-    test_expect_abort();
     ecs_query_t *q = ecs_query(world, {
         .terms = {{ ecs_id(Position), .src.id = EcsCascade }}
     });
@@ -1646,41 +1515,36 @@ void Cascade_parent_component_after_query(void) {
     ecs_entity_t c1 = ecs_insert(world, ecs_value(EcsParent, {p1}));
     ecs_entity_t c2 = ecs_insert(world, ecs_value(EcsParent, {p2}));
 
+    /* Parent table depth is zero, so cascade must preserve every match
+     * without imposing an order between tables or their parent ranges. */
+    const ecs_entity_t expected[] = { c0, c1, c2 };
+    const ecs_entity_t sources[] = { p0, p1, p2 };
+    bool seen[3] = {false};
     ecs_iter_t it = ecs_query_iter(world, q);
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(c0, it.entities[0]);
-    test_uint(p0, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 10); test_int(p->y, 20);
+    while (ecs_query_next(&it)) {
+        test_uint(ecs_id(Position), ecs_field_id(&it, 0));
+        const Position *value = ecs_field(&it, Position, 0);
+        test_assert(value != NULL);
+        for (int row = 0; row < it.count; row ++) {
+            int index = 0;
+            while (index < 3 && expected[index] != it.entities[row]) {
+                index ++;
+            }
+            test_assert(index < 3);
+            test_assert(!seen[index]);
+            seen[index] = true;
+            test_uint(sources[index], ecs_field_src(&it, 0));
+            const Position *parent_value = ecs_get(world, sources[index], Position);
+            test_assert(parent_value != NULL);
+            test_int(parent_value->x, value->x);
+            test_int(parent_value->y, value->y);
+            test_int(0, ecs_table_get_depth(world,
+                ecs_get_table(world, it.entities[row]), EcsChildOf));
+        }
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(c1, it.entities[0]);
-    test_uint(p1, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 11); test_int(p->y, 21);
+    for (int i = 0; i < 3; i ++) {
+        test_assert(seen[i]);
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(c2, it.entities[0]);
-    test_uint(p2, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 12); test_int(p->y, 22);
-    }
-
-    test_bool(false, ecs_query_next(&it));
 
     ecs_query_fini(q);
 
@@ -1688,13 +1552,10 @@ void Cascade_parent_component_after_query(void) {
 }
 
 void Cascade_parent_component_n_children_after_query(void) {
-    install_test_abort();
     ecs_world_t *world = ecs_mini();
 
     ECS_COMPONENT(world, Position);
 
-    /* Mixed-depth Parent tables cannot be grouped by table depth. */
-    test_expect_abort();
     ecs_query_t *q = ecs_query(world, {
         .terms = {{ ecs_id(Position), .src.id = EcsCascade }}
     });
@@ -1715,44 +1576,36 @@ void Cascade_parent_component_n_children_after_query(void) {
     ecs_entity_t c2_1 = ecs_insert(world, ecs_value(EcsParent, {p2}));
     ecs_entity_t c2_2 = ecs_insert(world, ecs_value(EcsParent, {p2}));
 
+    /* Parent table depth is zero, so cascade must preserve every match
+     * without imposing an order between tables or their parent ranges. */
+    const ecs_entity_t expected[] = { c0_1, c0_2, c1_1, c1_2, c2_1, c2_2 };
+    const ecs_entity_t sources[] = { p0, p0, p1, p1, p2, p2 };
+    bool seen[6] = {false};
     ecs_iter_t it = ecs_query_iter(world, q);
-    test_bool(true, ecs_query_next(&it));
-    test_int(2, it.count);
-    test_uint(c0_1, it.entities[0]);
-    test_uint(c0_2, it.entities[1]);
-    test_uint(p0, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 10); test_int(p->y, 20);
+    while (ecs_query_next(&it)) {
+        test_uint(ecs_id(Position), ecs_field_id(&it, 0));
+        const Position *value = ecs_field(&it, Position, 0);
+        test_assert(value != NULL);
+        for (int row = 0; row < it.count; row ++) {
+            int index = 0;
+            while (index < 6 && expected[index] != it.entities[row]) {
+                index ++;
+            }
+            test_assert(index < 6);
+            test_assert(!seen[index]);
+            seen[index] = true;
+            test_uint(sources[index], ecs_field_src(&it, 0));
+            const Position *parent_value = ecs_get(world, sources[index], Position);
+            test_assert(parent_value != NULL);
+            test_int(parent_value->x, value->x);
+            test_int(parent_value->y, value->y);
+            test_int(0, ecs_table_get_depth(world,
+                ecs_get_table(world, it.entities[row]), EcsChildOf));
+        }
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(2, it.count);
-    test_uint(c1_1, it.entities[0]);
-    test_uint(c1_2, it.entities[1]);
-    test_uint(p1, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 11); test_int(p->y, 21);
+    for (int i = 0; i < 6; i ++) {
+        test_assert(seen[i]);
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(2, it.count);
-    test_uint(c2_1, it.entities[0]);
-    test_uint(c2_2, it.entities[1]);
-    test_uint(p2, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 12); test_int(p->y, 22);
-    }
-
-    test_bool(false, ecs_query_next(&it));
 
     ecs_query_fini(q);
 
@@ -1760,13 +1613,10 @@ void Cascade_parent_component_n_children_after_query(void) {
 }
 
 void Cascade_parent_component_n_parents_for_depth_after_query(void) {
-    install_test_abort();
     ecs_world_t *world = ecs_mini();
 
     ECS_COMPONENT(world, Position);
 
-    /* Mixed-depth Parent tables cannot be grouped by table depth. */
-    test_expect_abort();
     ecs_query_t *q = ecs_query(world, {
         .terms = {{ ecs_id(Position), .src.id = EcsCascade }}
     });
@@ -1793,74 +1643,36 @@ void Cascade_parent_component_n_parents_for_depth_after_query(void) {
     ecs_entity_t c2_1 = ecs_insert(world, ecs_value(EcsParent, {p2_1}));
     ecs_entity_t c2_2 = ecs_insert(world, ecs_value(EcsParent, {p2_2}));
 
+    /* Parent table depth is zero, so cascade must preserve every match
+     * without imposing an order between tables or their parent ranges. */
+    const ecs_entity_t expected[] = { c0_1, c0_2, c1_1, c1_2, c2_1, c2_2 };
+    const ecs_entity_t sources[] = { p0_1, p0_2, p1_1, p1_2, p2_1, p2_2 };
+    bool seen[6] = {false};
     ecs_iter_t it = ecs_query_iter(world, q);
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(c0_1, it.entities[0]);
-    test_uint(p0_1, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 10); test_int(p->y, 21);
+    while (ecs_query_next(&it)) {
+        test_uint(ecs_id(Position), ecs_field_id(&it, 0));
+        const Position *value = ecs_field(&it, Position, 0);
+        test_assert(value != NULL);
+        for (int row = 0; row < it.count; row ++) {
+            int index = 0;
+            while (index < 6 && expected[index] != it.entities[row]) {
+                index ++;
+            }
+            test_assert(index < 6);
+            test_assert(!seen[index]);
+            seen[index] = true;
+            test_uint(sources[index], ecs_field_src(&it, 0));
+            const Position *parent_value = ecs_get(world, sources[index], Position);
+            test_assert(parent_value != NULL);
+            test_int(parent_value->x, value->x);
+            test_int(parent_value->y, value->y);
+            test_int(0, ecs_table_get_depth(world,
+                ecs_get_table(world, it.entities[row]), EcsChildOf));
+        }
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(c0_2, it.entities[0]);
-    test_uint(p0_2, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 10); test_int(p->y, 22);
+    for (int i = 0; i < 6; i ++) {
+        test_assert(seen[i]);
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(c1_1, it.entities[0]);
-    test_uint(p1_1, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 11); test_int(p->y, 21);
-    }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(c1_2, it.entities[0]);
-    test_uint(p1_2, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 11); test_int(p->y, 22);
-    }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(c2_1, it.entities[0]);
-    test_uint(p2_1, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 12); test_int(p->y, 21);
-    }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(c2_2, it.entities[0]);
-    test_uint(p2_2, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 12); test_int(p->y, 22);
-    }
-
-    test_bool(false, ecs_query_next(&it));
 
     ecs_query_fini(q);
 
