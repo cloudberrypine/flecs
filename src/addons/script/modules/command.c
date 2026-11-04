@@ -77,6 +77,9 @@ static ECS_CTOR(EcsScriptShell, ptr, {
     ptr->check_command = NULL;
     ptr->enter_scope = NULL;
     ptr->leave_scope = NULL;
+    ptr->alloc_session = NULL;
+    ptr->free_session = NULL;
+    ptr->query_cache_kind = EcsQueryCacheDefault;
 })
 
 static ECS_COPY(EcsScriptShell, dst, src, {
@@ -86,6 +89,9 @@ static ECS_COPY(EcsScriptShell, dst, src, {
     dst->check_command = src->check_command;
     dst->enter_scope = src->enter_scope;
     dst->leave_scope = src->leave_scope;
+    dst->alloc_session = src->alloc_session;
+    dst->free_session = src->free_session;
+    dst->query_cache_kind = src->query_cache_kind;
 })
 
 static ECS_MOVE(EcsScriptShell, dst, src, {
@@ -1099,8 +1105,16 @@ ecs_entity_t ecs_shell_session_init(
 
     ecs_entity_t session = desc->entity;
     if (!session) {
-        ecs_entity_t parent = ecs_lookup(world, "flecs.script.shell.sessions");
-        session = ecs_new_w_pair(world, EcsChildOf, parent);
+        const EcsScriptShell *shell = ecs_singleton_get(world, EcsScriptShell);
+        if (shell && shell->alloc_session) {
+            session = shell->alloc_session(world);
+            if (!session) {
+                return 0;
+            }
+        } else {
+            ecs_entity_t parent = ecs_lookup(world, "flecs.script.shell.sessions");
+            session = ecs_new_w_pair(world, EcsChildOf, parent);
+        }
     }
 
     EcsCommandSession *s = ecs_ensure(world, session, EcsCommandSession);

@@ -860,6 +860,11 @@ static bool flecs_rest_command_new_session(
 {
     flecs_rest_command_import(world);
     ecs_entity_t session = ecs_shell_session_init(world, NULL);
+    if (!session) {
+        flecs_reply_error(reply, "No shell session slots available. Close an explorer session and retry.");
+        reply->code = 503;
+        return true;
+    }
     ecs_strbuf_append(&reply->body, "{\"session\":%llu}", (unsigned long long)session);
     return true;
 }
@@ -874,7 +879,12 @@ static bool flecs_rest_command_delete_session(
     ecs_entity_t session = flecs_rest_command_session(
         world, reply, path, &remainder);
     if (session) {
-        ecs_delete(world, session);
+        const EcsScriptShell *shell = ecs_singleton_get(world, EcsScriptShell);
+        if (shell && shell->free_session) {
+            shell->free_session(world, session);
+        } else {
+            ecs_delete(world, session);
+        }
         ecs_strbuf_appendlit(&reply->body, "{}");
     }
 

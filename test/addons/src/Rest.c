@@ -1477,6 +1477,18 @@ void Rest_readonly(void) {
     ecs_fini(world);
 }
 
+static ecs_entity_t rest_pooled_session;
+
+static ecs_entity_t rest_alloc_session(ecs_world_t *world) {
+    return ecs_has(world, rest_pooled_session, EcsCommandSession)
+        ? 0 : rest_pooled_session;
+}
+
+static void rest_free_session(ecs_world_t *world, ecs_entity_t session) {
+    test_uint(session, rest_pooled_session);
+    ecs_remove(world, session, EcsCommandSession);
+}
+
 void Rest_command_new_session(void) {
     ecs_world_t *world = ecs_init();
 
@@ -1494,6 +1506,56 @@ void Rest_command_new_session(void) {
 
     test_assert(ecs_is_alive(world, (ecs_entity_t)session));
     test_assert(ecs_has(world, (ecs_entity_t)session, EcsCommandSession));
+
+    /* A pooled application must be able to refuse without falling back to
+     * ecs_new, and REST must report exhaustion rather than session zero. */
+    rest_pooled_session = ecs_new(world);
+    EcsScriptShell *shell = ecs_singleton_get_mut(world, EcsScriptShell);
+    shell->alloc_session = rest_alloc_session;
+    shell->free_session = rest_free_session;
+    shell->query_cache_kind = EcsQueryCacheNone;
+    EcsScriptShell *copy = ecs_ptr_new(world, ecs_id(EcsScriptShell));
+    test_int(ecs_ptr_copy(world, ecs_id(EcsScriptShell), copy, shell), 0);
+    test_assert(copy->alloc_session == rest_alloc_session);
+    test_assert(copy->free_session == rest_free_session);
+    test_int(copy->query_cache_kind, EcsQueryCacheNone);
+    ecs_ptr_free(world, ecs_id(EcsScriptShell), copy);
+
+    ecs_entity_t unused = ecs_new(world);
+    ecs_delete(world, unused);
+    ecs_entities_t before = ecs_get_entities(world);
+    int32_t alive = before.alive_count, count = before.count;
+    ecs_entity_t next = before.ids[alive];
+    reply = ECS_HTTP_REPLY_INIT;
+    test_int(ecs_http_server_request(srv, "PUT", "/shell/session", NULL, &reply), 0);
+    test_int(reply.code, 200);
+    reply_str = ecs_strbuf_get(&reply.body);
+    test_int(sscanf(reply_str, "{\"session\":%llu}", &session), 1);
+    ecs_os_free(reply_str);
+    test_uint(session, rest_pooled_session);
+    reply = ECS_HTTP_REPLY_INIT;
+    test_int(ecs_http_server_request(srv, "PUT", "/shell/session", NULL, &reply), -1);
+    test_int(reply.code, 503);
+    ecs_strbuf_reset(&reply.body);
+    test_uint(ecs_shell_session_init(world, NULL), 0);
+
+    char path[128];
+    ecs_os_snprintf(path, 128, "/shell/session/%llu", session);
+    reply = ECS_HTTP_REPLY_INIT;
+    test_int(ecs_http_server_request(srv, "PUT", path, "query Prefab(cascade)", &reply), -1);
+    reply_str = ecs_strbuf_get(&reply.body);
+    test_assert(strstr(reply_str, "cannot create uncached query") != NULL);
+    ecs_os_free(reply_str);
+    reply = ECS_HTTP_REPLY_INIT;
+    test_int(ecs_http_server_request(srv, "DELETE", path, NULL, &reply), 0);
+    ecs_strbuf_reset(&reply.body);
+    test_assert(ecs_is_alive(world, rest_pooled_session));
+    test_assert(!ecs_has(world, rest_pooled_session, EcsCommandSession));
+    test_uint(ecs_shell_session_init(world, NULL), rest_pooled_session);
+    before = ecs_get_entities(world);
+    test_int(before.alive_count, alive);
+    test_int(before.count, count);
+    test_uint(ecs_new(world), next);
 
     ecs_rest_server_fini(srv);
     ecs_fini(world);

@@ -146,6 +146,17 @@ typedef struct EcsScriptShell {
      * Scopes can nest. enter_scope returns the token passed to leave_scope. */
     void *(*enter_scope)(ecs_world_t *world);
     void (*leave_scope)(ecs_world_t *world, void *scope);
+    /** Optional application allocator for sessions without desc.entity.
+     * Return an existing entity or 0 when no session is available. A zero
+     * result never falls back to allocating an entity. Not reflected. */
+    ecs_entity_t (*alloc_session)(ecs_world_t *world);
+    /** Optional REST session release, replacing ecs_delete. Applications can
+     * return pooled entities without changing the world ID allocator. Remove
+     * EcsCommandSession to invalidate the released REST session. Not reflected. */
+    void (*free_session)(ecs_world_t *world, ecs_entity_t session);
+    /** Cache policy for the builtin query command. EcsQueryCacheNone refuses
+     * queries that need a cache instead of allocating query entities. */
+    ecs_query_cache_kind_t query_cache_kind;
 } EcsScriptShell;
 
 /** Used with ecs_shell_session_init(). */

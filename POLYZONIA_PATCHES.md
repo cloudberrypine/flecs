@@ -186,3 +186,25 @@ read dense and sparse values through validated owners instead of table columns.
 The Debug probe also checks comment-obscured wildcard sources and nested scope
 coverage during REST serialization. Game regressions cover passive backing
 files in both transports and recovery after a serializer throws.
+
+### Shell allocation isolation
+
+`EcsScriptShell.alloc_session` optionally supplies an existing session entity.
+Returning zero refuses the session without a fallback allocation. REST reports
+HTTP 503 on exhaustion. `free_session` replaces REST's entity deletion so an
+application can dispose of the component and return a preallocated slot. The
+default session allocation/deletion behavior is unchanged for other embedders.
+Both callbacks and `query_cache_kind` survive copying the shell singleton.
+
+The builtin query command honors `query_cache_kind`. Polyzonia sets
+`EcsQueryCacheNone`: cascade queries and other queries requiring caches fail
+before allocating a query/observer entity. Other embedders retain the default
+query policy.
+
+The existing `Rest.command_new_session` case now checks callback copying,
+pool exhaustion through REST and direct session initialization, uncached
+cascade refusal, pooled release/reuse, unchanged alive/total ID counts and
+the next recycled generation-bearing ID. Debug validation on M1:
+`test_addons_flecs_static Rest` passed all 71 cases through the repository's
+machine slots (`/tmp/shellfix-fork-rest.log`). No distribution sources or
+generated test registries were edited.

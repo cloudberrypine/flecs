@@ -595,7 +595,11 @@ static void flecs_command_query(
     (void)argc;
     ecs_world_t *world = ctx->world;
     const char *expr = flecs_command_arg(argv, 0, char*);
-    ecs_query_t *q = ecs_query(world, { .expr = expr });
+    const EcsScriptShell *shell = ecs_singleton_get(world, EcsScriptShell);
+    ecs_query_t *q = ecs_query(world, {
+        .expr = expr,
+        .cache_kind = shell ? shell->query_cache_kind : EcsQueryCacheDefault
+    });
     if (!q) {
         flecs_command_fail(ctx);
         return;
