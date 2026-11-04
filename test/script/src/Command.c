@@ -159,12 +159,12 @@ void Command_session_init(void) {
     ecs_entity_t session = ecs_shell_session_init(world, NULL);
     test_assert(session != 0);
 
-    ecs_entity_t sessions = ecs_lookup(world, "script.shell.sessions");
+    ecs_entity_t sessions = ecs_lookup(world, "flecs.script.shell.sessions");
     test_assert(sessions != 0);
     test_uint(ecs_get_parent(world, ecs_get_parent(world,
-        ecs_get_parent(world, sessions))), 0);
+        ecs_get_parent(world, sessions))), EcsFlecs);
     test_assert(!ecs_has_id(world, sessions, EcsModule));
-    test_assert(ecs_lookup(world, "flecs.script.shell.sessions") == 0);
+    test_assert(ecs_lookup(world, "script.shell.sessions") == 0);
     test_uint(ecs_get_parent(world, session), sessions);
 
     const EcsCommandSession *s = ecs_get(world, session, EcsCommandSession);

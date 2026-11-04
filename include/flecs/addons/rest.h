@@ -46,6 +46,9 @@ extern "C" {
 /** Component that instantiates the REST API. */
 FLECS_API extern const ecs_entity_t ecs_id(EcsRest);
 
+/** Dispatched requests outside shell endpoints, for embedders tracking edits. */
+FLECS_API extern int64_t ecs_rest_other_request_count;
+
 /** Private REST data. */
 typedef struct {
     ecs_world_t *world;            /**< The world. */

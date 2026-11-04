@@ -8,6 +8,7 @@
 #include "json/json.h"
 
 #ifdef FLECS_REST
+int64_t ecs_rest_other_request_count = 0;
 
 /* Retain captured commands for one minute at 60 FPS */
 #define FLECS_REST_COMMAND_RETAIN_COUNT (60 * 60)
@@ -2433,6 +2434,12 @@ static bool flecs_rest_reply(
 {
     ecs_rest_ctx_t *impl = ctx;
     ecs_world_t *world = impl->world;
+
+    if (!req->path || (ecs_os_strcmp(req->path, "shell/session") &&
+        ecs_os_strncmp(req->path, "shell/session/", 14)))
+    {
+        ecs_rest_other_request_count ++;
+    }
 
     if (req->path == NULL) {
         ecs_dbg("rest: bad request (missing path)");

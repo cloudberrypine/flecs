@@ -314,7 +314,8 @@ static bool flecs_command_check_id(
     const ecs_function_ctx_t *ctx,
     ecs_id_t id)
 {
-    if (!id || !ecs_id_is_valid(ctx->world, id)) {
+    if (!id || ecs_id_is_wildcard(id) ||
+        (id & ECS_ID_FLAGS_MASK & ~ECS_PAIR) || !ecs_id_is_valid(ctx->world, id)) {
         flecs_command_err(ctx, "invalid component '%s'",
             flecs_errstr(ecs_id_str(ctx->world, id)));
         return false;
@@ -337,7 +338,7 @@ static void flecs_command_get(
         return;
     }
 
-    ecs_entity_t type = ecs_get_typeid(world, id);
+    ecs_entity_t type = flecs_command_value_type(world, id);
     const void *ptr = type ? ecs_get_id(world, e, id) : NULL;
     if (!ptr) {
         if (!type) {
@@ -603,6 +604,9 @@ static void flecs_command_query(
             int8_t f;
             for (f = 0; f < it.field_count; f ++) {
                 ecs_id_t id = ecs_field_id(&it, f);
+                if (ecs_id_is_wildcard(id)) {
+                    continue;
+                }
                 ecs_entity_t type = flecs_command_value_type(world, id);
                 ecs_size_t size = it.sizes[f];
                 if (!size || !ecs_field_is_set(&it, f) || !type) {
@@ -611,8 +615,15 @@ static void flecs_command_query(
 
                 const void *ptr;
                 if (it.row_fields & (1llu << f)) {
-                    /* Sparse fields are read per row */
-                    ptr = ecs_field_at_w_size(&it, (size_t)size, f, i);
+                    /* Sparse fixed/variable sources need not have a $this
+                     * row or a table. Read through the resolved owner. */
+                    ecs_entity_t owner = ecs_field_src(&it, f);
+                    if (!owner && it.count) {
+                        owner = it.entities[i];
+                    }
+                    ptr = owner && !ecs_id_is_wildcard(owner) &&
+                        ecs_is_alive(world, owner) ?
+                        ecs_get_id(world, owner, id) : NULL;
                     if (!ptr) {
                         continue;
                     }
@@ -633,6 +644,7 @@ static void flecs_command_query(
                 cv->value = ecs_value_init(world, type, ptr);
             }
         }
+        ecs_iter_skip(&it);
     }
 
     ecs_query_fini(q);

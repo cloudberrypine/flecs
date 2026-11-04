@@ -74,12 +74,14 @@ static void flecs_command_resources_fini(
 
 static ECS_CTOR(EcsScriptShell, ptr, {
     ecs_vec_init_t(NULL, &ptr->command_paths, ecs_entity_t, 0);
+    ptr->check_command = NULL;
 })
 
 static ECS_COPY(EcsScriptShell, dst, src, {
     ecs_vec_fini_t(NULL, &dst->command_paths, ecs_entity_t);
     dst->command_paths = ecs_vec_copy_t(
         NULL, &src->command_paths, ecs_entity_t);
+    dst->check_command = src->check_command;
 })
 
 static ECS_MOVE(EcsScriptShell, dst, src, {
@@ -180,6 +182,10 @@ ecs_entity_t flecs_command_lookup(
         result = ecs_lookup(world, name);
     }
 
+    if (!result) {
+        result = flecs_command_resolve(world, name);
+    }
+
     return result;
 }
 
@@ -228,11 +234,16 @@ void flecs_command_fail(
     flecs_script_runtime_get(ctx->world)->error = true;
 }
 
+void ecs_shell_error(ecs_world_t *world) {
+    flecs_script_runtime_get(world)->error = true;
+}
+
 bool flecs_command_check_alive(
     const ecs_function_ctx_t *ctx,
     ecs_entity_t entity)
 {
-    if (!entity || !ecs_is_alive(ctx->world, entity)) {
+    if (!entity || (entity & ECS_ID_FLAGS_MASK) ||
+        !ecs_is_alive(ctx->world, entity) || ecs_id_is_wildcard(entity)) {
         flecs_command_err(ctx, "entity #%u is not alive", (uint32_t)entity);
         return false;
     }
@@ -695,6 +706,24 @@ static int flecs_command_parse_args(
             continue;
         }
 
+        /* Shell tools hand full, generation-bearing ids to other debuggers.
+         * ecs_lookup's # notation intentionally accepts only the low 32 bits.
+         * Accept full ids here without losing their generation. */
+        if ((type == ecs_id(ecs_entity_t) || type == ecs_id(ecs_id_t)) &&
+            text[0] == '#')
+        {
+            char *end = NULL;
+            unsigned long long id = strtoull(text + 1, &end, 10);
+            if (end == text + 1 || end[0] || !id ||
+                (id & ECS_ID_FLAGS_MASK) || !ecs_is_alive(world, id))
+            {
+                ecs_err("invalid or dead entity id '%s'", text);
+                return -1;
+            }
+            *(ecs_entity_t*)argv[i].ptr = id;
+            continue;
+        }
+
         if (type == ecs_id(ecs_entity_t) && flecs_command_is_relative(text)) {
             if (flecs_command_parse_relative(world, text, argv[i].ptr)) {
                 ecs_err("invalid argument '%s' for parameter '%s' of "
@@ -892,6 +921,14 @@ static int flecs_command_invoke(
         goto done;
     }
 
+    const EcsScriptShell *shell = ecs_singleton_get(world, EcsScriptShell);
+    if (shell && shell->check_command &&
+        !shell->check_command(world, function, argc, (const char *const*)&t[1]))
+    {
+        argc = 0;
+        goto done;
+    }
+
     if (flecs_command_parse_args(world, name, f, &t[1], argc, argv)) {
         goto done;
     }
@@ -1046,7 +1083,7 @@ ecs_entity_t ecs_shell_session_init(
 
     ecs_entity_t session = desc->entity;
     if (!session) {
-        ecs_entity_t parent = ecs_lookup(world, "script.shell.sessions");
+        ecs_entity_t parent = ecs_lookup(world, "flecs.script.shell.sessions");
         session = ecs_new_w_pair(world, EcsChildOf, parent);
     }
 
@@ -1436,7 +1473,7 @@ void FlecsScriptShellImport(
         flecs_command_path_init(world, "commands.script"));
 
     ecs_entity_t prev_scope = ecs_set_scope(world, 0);
-    ecs_entity(world, { .name = "script.shell.sessions" });
+    ecs_entity(world, { .name = "flecs.script.shell.sessions" });
     ecs_set_scope(world, prev_scope);
 
     ecs_singleton_add(world, EcsCommandState);

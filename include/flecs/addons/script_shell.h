@@ -136,6 +136,11 @@ typedef struct EcsCommandSession {
 /** Shell singleton. */
 typedef struct EcsScriptShell {
     ecs_vec_t command_paths; /**< Scopes that contain commands, searched in order (vec<ecs_entity_t>). */
+    /** Optional application admission check, before argument expressions are
+     * evaluated. Return false (and optionally ecs_err) to refuse a command.
+     * Applies equally to ecs_shell_run and REST/explorer sessions. Not reflected. */
+    bool (*check_command)(ecs_world_t *world, ecs_entity_t function,
+        int32_t argc, const char *const *argv);
 } EcsScriptShell;
 
 /** Used with ecs_shell_session_init(). */
@@ -311,6 +316,10 @@ void ecs_shell_result_fini(
 FLECS_API
 ecs_entity_t ecs_shell_get_session(
     const ecs_world_t *world);
+
+/** Mark the current shell/function callback as failed after logging its error. */
+FLECS_API
+void ecs_shell_error(ecs_world_t *world);
 
 /** Create a resource in a session.
  * Writes the data to a new file in the resource directory of the session, and

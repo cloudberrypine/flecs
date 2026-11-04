@@ -137,3 +137,41 @@ regressions. The v4.1.6 deletion regression used `/tmp/flecs42-core-416` and
 `/tmp/flecs42-core-416-build`. Logs use `/tmp/flecs42-core-{base,final}-*.log`.
 No game binary was built or run. The game submodule pointer remains at
 `89c136e0f`. The parent upgrade hub owns review and game integration.
+
+## Agent shell integration
+
+The shell piece builds on `172ca307d` and keeps the default shell available
+for other embedders. Polyzonia installs its policy when importing the addon.
+
+- `EcsScriptShell.check_command` is an optional, unreflected admission callback
+  that runs before argument expressions. It applies equally to terminal and
+  REST/explorer sessions. `ecs_shell_error` lets an application's callback
+  report failure without unwinding through the C runtime. The copy hook keeps
+  the policy callback when copying the shell singleton.
+- Sessions are children of `flecs.script.shell.sessions`. The former root
+  `script.shell.sessions` tree was ordinary runtime data and leaked into game
+  saves. The session-init regression now checks the module-owned hierarchy.
+- Entity arguments accept full generation-bearing `#ids`, validate lifetime
+  and reject role flags before reaching entity APIs. `get` rejects wildcard
+  ids and types whose copy hook is illegal or whose value lacks reflection.
+- Typed query results read sparse fields through their resolved owner, for
+  both fixed and variable sources and queries without `$this`. Wildcard field
+  ids are skipped. Inspecting a batch calls `ecs_iter_skip` so even explicit
+  output terms do not dirty tables. The game's admission policy additionally
+  refuses wildcard sources and scope blocks.
+- Unqualified command names resolve in `man`, so application command briefs
+  are reachable without spelling the module path.
+- `ecs_rest_other_request_count` counts dispatched requests outside shell
+  session endpoints. The game uses it to retain its existing general REST
+  taint tracking while its guarded read-only shell stays unrecorded. Other
+  REST endpoints and their mutation behavior are unchanged.
+
+Validation on M1: the game's focused Flecs Shell tests check unchanged saves,
+state hashes, save schemas and identity counters, sparse fixed/variable queries,
+REST inspection and write refusal, protected edits, literal validation and
+exact replay of recorded component/time edits. The standalone Debug probe
+(`/tmp/flecs_shell_probe.cpp`, `/tmp/pz-flecs-shell-debug`) passes invalid ids,
+wildcards, illegal-copy values, sparse and cascade queries, generation-bearing
+ids, admission before expressions, callback errors and policy copying. The
+probe uses the repository's build/test machine slots. No generated test
+registry or distribution source was edited.
