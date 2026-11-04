@@ -260,6 +260,8 @@ typedef struct flecs_meta_writer_t {
     ecs_strbuf_t *str;
     bool is_collection;
     flecs_meta_format_t format;
+    ecs_entity_t cached_type;
+    const EcsTypeSerializer *cached_ser;
 } flecs_meta_writer_t;
 
 static int flecs_meta_write_opaque_value(
@@ -272,8 +274,20 @@ static int flecs_meta_write_opaque_value(
         ecs_strbuf_list_next(writer->str);
     }
 
-    return flecs_meta_write_forward(
-        ser->world, type, value, writer->str, writer->format);
+    /* Opaque collections normally serialize every element with the same type.
+     * Keep the lookup local to this writer so nested collections are safe. */
+    if (writer->cached_type != type || !writer->cached_ser) {
+        writer->cached_type = type;
+        writer->cached_ser = ecs_get(ser->world, type, EcsTypeSerializer);
+    }
+    if (!writer->cached_ser) {
+        return flecs_meta_write_forward(
+            ser->world, type, value, writer->str, writer->format);
+    }
+    return flecs_meta_write_type_ops(ser->world,
+        ecs_vec_first(&writer->cached_ser->ops),
+        ecs_vec_count(&writer->cached_ser->ops), value,
+        writer->str, writer->format);
 }
 
 static int flecs_meta_write_opaque_member(
@@ -358,8 +372,9 @@ static int flecs_meta_write_primitive(
             return 0;
         case EcsOpF32:
         case EcsOpF64:
-            ecs_strbuf_appendflt(str, kind == EcsOpF32
-                ? (double)*(const float*)ptr : *(const double*)ptr, '"');
+            ecs_strbuf_appendflt_exact(str, kind == EcsOpF32
+                ? (double)*(const float*)ptr : *(const double*)ptr,
+                kind == EcsOpF32, '"');
             return 0;
         default:
             break;

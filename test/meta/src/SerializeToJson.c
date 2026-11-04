@@ -2,6 +2,23 @@
 #include <stdio.h>
 #include <limits.h>
 #include <math.h>
+#include <float.h>
+
+static int exact_writer_calls;
+static bool exact_writer_single;
+
+static int exact_float_writer(char *out, double value, bool single) {
+    exact_writer_calls ++;
+    exact_writer_single = single;
+    return snprintf(out, 40, single ? "%.9g" : "%.17g", value);
+}
+
+static int fallback_float_writer(char *out, double value, bool single) {
+    (void)out;
+    (void)value;
+    (void)single;
+    return 0;
+}
 
 void SerializeToJson_struct_bool(void) {
     typedef struct {
@@ -350,6 +367,37 @@ void SerializeToJson_struct_float(void) {
     test_str(expr, "{\"x\":10.5}");
     ecs_os_free(expr);
 
+    /* Saving and loading preserves every bit, including the sign of zero. */
+    const float values[] = {0.1f, 1.2345678f, FLT_MAX, FLT_MIN, 1e-35f, -0.0f};
+    for (int i = 0; i < (int)(sizeof(values) / sizeof(values[0])); i ++) {
+        char *json = ecs_ptr_to_json(world, ecs_id(ecs_f32_t), &values[i]);
+        test_assert(json != NULL);
+        float restored = 0;
+        test_assert(ecs_ptr_from_json(world, ecs_id(ecs_f32_t), &restored, json, NULL) != NULL);
+        if (memcmp(&restored, &values[i], sizeof(restored))) {
+            printf("roundtrip[%d] %s -> %.17g (expected %.17g)\n", i, json, (double)restored, (double)values[i]);
+        }
+        test_assert(!memcmp(&restored, &values[i], sizeof(restored)));
+        ecs_os_free(json);
+    }
+
+    exact_writer_calls = 0;
+    ecs_strbuf_set_exact_flt_writer(exact_float_writer);
+    expr = ecs_ptr_to_json(world, t, &value);
+    ecs_strbuf_set_exact_flt_writer(NULL);
+    test_assert(expr != NULL);
+    test_str(expr, "{\"x\":10.5}");
+    test_int(exact_writer_calls, 1);
+    test_assert(exact_writer_single == true);
+    ecs_os_free(expr);
+
+    ecs_strbuf_set_exact_flt_writer(fallback_float_writer);
+    expr = ecs_ptr_to_json(world, t, &value);
+    ecs_strbuf_set_exact_flt_writer(NULL);
+    test_assert(expr != NULL);
+    test_str(expr, "{\"x\":10.5}");
+    ecs_os_free(expr);
+
     ecs_fini(world);
 }
 
@@ -424,6 +472,37 @@ void SerializeToJson_struct_double(void) {
 
     T value = {10.5};
     char *expr = ecs_ptr_to_json(world, t, &value);
+    test_assert(expr != NULL);
+    test_str(expr, "{\"x\":10.5}");
+    ecs_os_free(expr);
+
+    /* Saving and loading preserves every bit, including the sign of zero. */
+    const double values[] = {0.1, 1.2345678901234567, DBL_MAX, DBL_MIN, 1e-300, -0.0};
+    for (int i = 0; i < (int)(sizeof(values) / sizeof(values[0])); i ++) {
+        char *json = ecs_ptr_to_json(world, ecs_id(ecs_f64_t), &values[i]);
+        test_assert(json != NULL);
+        double restored = 0;
+        test_assert(ecs_ptr_from_json(world, ecs_id(ecs_f64_t), &restored, json, NULL) != NULL);
+        if (memcmp(&restored, &values[i], sizeof(restored))) {
+            printf("roundtrip[%d] %s -> %.17g (expected %.17g)\n", i, json, (double)restored, (double)values[i]);
+        }
+        test_assert(!memcmp(&restored, &values[i], sizeof(restored)));
+        ecs_os_free(json);
+    }
+
+    exact_writer_calls = 0;
+    ecs_strbuf_set_exact_flt_writer(exact_float_writer);
+    expr = ecs_ptr_to_json(world, t, &value);
+    ecs_strbuf_set_exact_flt_writer(NULL);
+    test_assert(expr != NULL);
+    test_str(expr, "{\"x\":10.5}");
+    test_int(exact_writer_calls, 1);
+    test_assert(exact_writer_single == false);
+    ecs_os_free(expr);
+
+    ecs_strbuf_set_exact_flt_writer(fallback_float_writer);
+    expr = ecs_ptr_to_json(world, t, &value);
+    ecs_strbuf_set_exact_flt_writer(NULL);
     test_assert(expr != NULL);
     test_str(expr, "{\"x\":10.5}");
     ecs_os_free(expr);
@@ -504,14 +583,14 @@ void SerializeToJson_struct_double_large(void) {
         T value = {60000};
         char *expr = ecs_ptr_to_json(world, t, &value);
         test_assert(expr != NULL);
-        test_str(expr, "{\"x\":\"6e4\"}");
+        test_str(expr, "{\"x\":60000}");
         ecs_os_free(expr);
     }
     {
         T value = {1.9885e30};
         char *expr = ecs_ptr_to_json(world, t, &value);
         test_assert(expr != NULL);
-        test_str(expr, "{\"x\":\"1.98849999999e30\"}");
+        test_str(expr, "{\"x\":1.9885e+30}");
         ecs_os_free(expr);
     }
 
@@ -535,7 +614,7 @@ void SerializeToJson_struct_double_large_e(void) {
     T value = {5.9722e24};
     char *expr = ecs_ptr_to_json(world, t, &value);
     test_assert(expr != NULL);
-    test_str(expr, "{\"x\":\"5.9722e24\"}");
+    test_str(expr, "{\"x\":5.9722000000000002e+24}");
     ecs_os_free(expr);
 
     ecs_fini(world);
