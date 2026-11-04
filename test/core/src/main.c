@@ -8,6 +8,19 @@
 
 #include <core.h>
 
+// Testsuite 'IterationFuzz'
+void IterationFuzz_query_cache(void);
+void IterationFuzz_component_index(void);
+void IterationFuzz_table_rows(void);
+void IterationFuzz_sparse(void);
+void IterationFuzz_children(void);
+void IterationFuzz_non_fragmenting_pairs(void);
+void IterationFuzz_non_fragmenting_lists(void);
+void IterationFuzz_cached_mutation(void);
+void IterationFuzz_order_by(void);
+void IterationFuzz_definitions(void);
+void IterationFuzz_progress(void);
+
 // Testsuite 'Id'
 void Id_long_entity_from_str(void);
 void Id_0_is_wildcard(void);
@@ -3751,6 +3764,53 @@ void Error_log_collect_errors_restores_level(void);
 // Testsuite 'StackAlloc'
 void StackAlloc_init_fini(void);
 void StackAlloc_multiple_overlapping_cursors(void);
+
+bake_test_case IterationFuzz_testcases[] = {
+    {
+        "query_cache",
+        IterationFuzz_query_cache
+    },
+    {
+        "component_index",
+        IterationFuzz_component_index
+    },
+    {
+        "table_rows",
+        IterationFuzz_table_rows
+    },
+    {
+        "sparse",
+        IterationFuzz_sparse
+    },
+    {
+        "children",
+        IterationFuzz_children
+    },
+    {
+        "non_fragmenting_pairs",
+        IterationFuzz_non_fragmenting_pairs
+    },
+    {
+        "non_fragmenting_lists",
+        IterationFuzz_non_fragmenting_lists
+    },
+    {
+        "cached_mutation",
+        IterationFuzz_cached_mutation
+    },
+    {
+        "order_by",
+        IterationFuzz_order_by
+    },
+    {
+        "definitions",
+        IterationFuzz_definitions
+    },
+    {
+        "progress",
+        IterationFuzz_progress
+    }
+};
 
 bake_test_case Id_testcases[] = {
     {
@@ -18431,6 +18491,13 @@ bake_test_param Sparse_params[] = {
 
 static bake_test_suite suites[] = {
     {
+        "IterationFuzz",
+        NULL,
+        NULL,
+        11,
+        IterationFuzz_testcases
+    },
+    {
         "Id",
         NULL,
         NULL,
@@ -18771,5 +18838,5 @@ static bake_test_suite suites[] = {
 };
 
 int main(int argc, char *argv[]) {
-    return bake_test_run("core", argc, argv, suites, 48);
+    return bake_test_run("core", argc, argv, suites, 49);
 }

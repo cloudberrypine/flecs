@@ -428,6 +428,31 @@ void* flecs_sparse_get_dense(
         sparse, dense_index, dense_array[dense_index]);
 }
 
+/* Swap two alive elements in the dense array (indices as for
+ * flecs_sparse_get_dense). Payloads stay where they are (pointers stay
+ * stable); only the order in which the set is iterated changes. */
+void flecs_sparse_swap_alive(
+    ecs_sparse_t *sparse,
+    int32_t index_a,
+    int32_t index_b)
+{
+    ecs_assert(sparse != NULL, ECS_INVALID_PARAMETER, NULL);
+    ecs_assert(index_a >= 0 && index_a < (sparse->count - 1), ECS_INVALID_PARAMETER, NULL);
+    ecs_assert(index_b >= 0 && index_b < (sparse->count - 1), ECS_INVALID_PARAMETER, NULL);
+    if (index_a == index_b) {
+        return;
+    }
+
+    index_a ++;
+    index_b ++;
+
+    uint64_t *dense_array = ecs_vec_first_t(&sparse->dense, uint64_t);
+    ecs_sparse_page_t *page_a = flecs_sparse_get_page(
+        sparse, FLECS_SPARSE_PAGE(dense_array[index_a]));
+    ecs_assert(page_a != NULL, ECS_INTERNAL_ERROR, NULL);
+    flecs_sparse_swap_dense(sparse, page_a, index_a, index_b);
+}
+
 bool flecs_sparse_is_alive(
     const ecs_sparse_t *sparse,
     uint64_t id)
