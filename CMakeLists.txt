@@ -31,8 +31,8 @@ foreach(child ${children})
 	endif()
 endforeach()
 
-file(GLOB_RECURSE INC include/*.h include/*.hpp)
-file(GLOB_RECURSE SRC src/*.c)
+file(GLOB_RECURSE INC CONFIGURE_DEPENDS include/*.h include/*.hpp)
+file(GLOB_RECURSE SRC CONFIGURE_DEPENDS src/*.c)
 
 set(FLECS_TARGETS "")
 
