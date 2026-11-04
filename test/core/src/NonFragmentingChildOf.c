@@ -3084,7 +3084,73 @@ void NonFragmentingChildOf_add_parent_to_prefab_after_add_parent(void) {
     ecs_fini(world);
 }
 
+/* Mirror the application's branch and attachment hierarchy: Parent branches,
+ * fragmenting ChildOf attachments, a second traversable ownership relation,
+ * leaf removal events and a cached query that traverses the attachment parent. */
+static void mixed_branch_deletion(bool delete_tree, int deferred) {
+    ecs_world_t *world = ecs_mini();
+    ECS_COMPONENT_DEFINE(world, Position);
+    ECS_TAG(world, Hole);
+    ECS_TAG(world, Leaf);
+    ECS_TAG(world, PartOf);
+    ecs_add_id(world, PartOf, EcsTraversable);
+    ecs_add_pair(world, PartOf, EcsOnDeleteTarget, EcsDelete);
+    int removed = 0;
+    ecs_observer(world, {
+        .query.terms = {{Leaf}}, .events = {EcsOnRemove},
+        .callback = CountChildOfOnRemove, .ctx = &removed
+    });
+    ecs_query_t *q = ecs_query(world, {
+        .terms = {{Hole}, {.id = ecs_id(Position),
+            .src.id = EcsUp, .trav = EcsChildOf}},
+        .cache_kind = EcsQueryCacheAuto
+    });
+    test_assert(q != NULL);
+    ecs_entity_t tree = ecs_insert(world, ecs_value(Position, {0, 0}));
+    ecs_entity_t branches[5];
+    ecs_entity_t parent = tree;
+    for (int i = 0; i < 5; i ++) {
+        branches[i] = ecs_insert(world,
+            ecs_value(Position, {0, 0}), ecs_value(EcsParent, {parent}));
+        ecs_add_pair(world, branches[i], PartOf, tree);
+        parent = branches[i];
+    }
+    ecs_add_id(world, branches[4], Leaf);
+    ecs_entity_t b = branches[2];
+    ecs_entity_t hole = ecs_new_w_pair(world, EcsChildOf, b);
+    ecs_add_id(world, hole, Hole);
+    ecs_add_pair(world, hole, PartOf, tree);
+
+    ecs_entity_t survivor = ecs_new(world);
+    ecs_world_t *stage = ecs_get_stage(world, 0);
+    if (deferred) {
+        ecs_add_id(stage, survivor, Leaf);
+    }
+    /* In 4.2 choosing world performs immediate work without changing stage's
+     * pending queue. Choosing stage performs the deferred deletion path. */
+    ecs_delete(deferred == 1 ? stage : world,
+        delete_tree ? tree : branches[1]);
+    if (deferred) {
+        test_assert(ecs_is_alive(world, b) == (deferred == 1));
+        test_assert(ecs_is_alive(world, hole) == (deferred == 1));
+        test_assert(!ecs_has_id(world, survivor, Leaf));
+        ecs_merge(stage);
+        test_assert(ecs_has_id(world, survivor, Leaf));
+    }
+    test_assert(!ecs_is_alive(world, b));
+    test_assert(!ecs_is_alive(world, hole));
+    test_assert(!ecs_id_in_use(world, ecs_childof(b)));
+    test_int(removed, 1);
+    if (!delete_tree) {
+        ecs_delete(world, tree);
+    }
+    ecs_query_fini(q);
+    ecs_fini(world);
+}
+
 void NonFragmentingChildOf_create_delete_mixed_tree(void) {
+    mixed_branch_deletion(true, 0);
+    mixed_branch_deletion(false, 0);
     ecs_world_t *world = ecs_mini();
 
     ecs_entity_t p_1 = ecs_new(world);
