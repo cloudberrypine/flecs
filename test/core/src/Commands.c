@@ -4056,6 +4056,39 @@ void Commands_on_remove_after_deferred_clear_and_add(void) {
     test_assert(ecs_has(world, e, TagC));
 
     ecs_fini(world);
+
+    /* 4.2 splits remove/add batches into real transitions. A DontFragment
+     * id that previously occupied this table must not add extra removals. */
+    world = ecs_mini();
+    {
+        ECS_TAG(world, Ready);
+        ECS_TAG(world, Provenance);
+        ecs_add_id(world, Provenance, EcsDontFragment);
+        ecs_entity_t actor = ecs_new_w_id(world, Ready);
+        ecs_add_id(world, actor, Provenance);
+        ecs_remove_id(world, actor, Provenance);
+        ecs_observer(world, {
+            .query.terms = {{Ready}}, .events = {EcsOnRemove},
+            .callback = remove_tag
+        });
+        remove_tag_invoked = 0;
+        const ecs_table_t *table = ecs_get_table(world, actor);
+        ecs_world_t *stage = ecs_get_stage(world, 0);
+        ecs_remove_id(stage, actor, Ready);
+        ecs_add_id(stage, actor, Ready);
+        ecs_merge(stage);
+        test_assert(ecs_get_table(world, actor) == table);
+        test_assert(ecs_has_id(world, actor, Ready));
+        test_int(remove_tag_invoked, 1);
+
+        ecs_clear(stage, actor);
+        ecs_add_id(stage, actor, Ready);
+        ecs_merge(stage);
+        test_assert(ecs_get_table(world, actor) == table);
+        test_assert(ecs_has_id(world, actor, Ready));
+        test_int(remove_tag_invoked, 2);
+    }
+    ecs_fini(world);
 }
 
 static void Recycle(ecs_iter_t *it) {
