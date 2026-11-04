@@ -12,6 +12,21 @@
     },
     "test": {
         "testsuites": [{
+            "id": "IterationFuzz",
+            "testcases": [
+                "query_cache",
+                "component_index",
+                "table_rows",
+                "sparse",
+                "children",
+                "non_fragmenting_pairs",
+                "non_fragmenting_lists",
+                "cached_mutation",
+                "order_by",
+                "definitions",
+                "progress"
+            ]
+        }, {
             "id": "Id",
             "testcases": [
                 "long_entity_from_str",
