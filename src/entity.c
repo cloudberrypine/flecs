@@ -2516,10 +2516,9 @@ ecs_entity_t ecs_new_w_parent(
     ecs_assert(!(world->flags & EcsWorldReadonly), ECS_INVALID_OPERATION,
         "cannot create entity while world is readonly");
 
-    ecs_id_t type_ids[] = {
-        ecs_id(EcsParent), ecs_value_pair(EcsParentDepth, pr->depth)};
+    ecs_id_t type_ids[] = { ecs_id(EcsParent) };
 
-    ecs_type_t type = { .count = 2, .array = type_ids };
+    ecs_type_t type = { .count = 1, .array = type_ids };
     ecs_table_t *table = flecs_table_find_or_create(world, &type);
 
     ecs_assert(table != NULL, ECS_INTERNAL_ERROR, NULL);
@@ -2640,6 +2639,16 @@ int32_t ecs_get_depth(
             "(add Acyclic trait to relationship)",
                 flecs_errstr(ecs_get_path(world, rel)));
 #endif
+
+    world = ecs_get_world(world);
+    if (rel == EcsChildOf) {
+        const EcsParent *parent = ecs_get(world, entity, EcsParent);
+        if (parent && parent->value) {
+            ecs_component_record_t *cr = flecs_components_get(
+                world, ecs_childof(parent->value));
+            return cr ? cr->pair->depth : 0;
+        }
+    }
 
     ecs_table_t *table = ecs_get_table(world, entity);
     if (table) {

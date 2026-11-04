@@ -264,7 +264,10 @@ static int flecs_query_discover_vars(
                 }
             }
         } else if ((src->id & EcsIsVariable) && (ECS_TERM_REF_ID(src) == EcsThis)) {
-            if (flecs_term_is_builtin_pred(term) && term->oper == EcsOr) {
+            if ((flecs_term_is_builtin_pred(term) && term->oper == EcsOr) ||
+                ((term->flags_ & EcsTermIsOr) && term->trav == EcsChildOf &&
+                    (src->id & EcsUp)))
+            {
                 flecs_query_add_var(query, EcsThisName, vars, EcsVarEntity);
             }
         }

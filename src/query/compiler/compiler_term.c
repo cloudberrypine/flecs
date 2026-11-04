@@ -1326,7 +1326,17 @@ int flecs_query_compile_term(
      * the table that match the right hand sides of the operator expressions. 
      * For this to work, the src variable needs to be resolved as entity, as an
      * Or chain would otherwise only yield the first match from a table. */
-    if (src_is_var && src_written && (builtin_pred || member_term) && term->oper == EcsOr) {
+    /* ChildOf up terms can yield several parent ranges from one table.
+     * Evaluate OR per entity so the first matching range does not consume the
+     * rest of a non-fragmenting table. Nested cache queries still match tables. */
+    bool parent_or = false;
+    if (first_or && !(q->flags & EcsQueryNested)) {
+        const ecs_term_t *cur = term;
+        do {
+            parent_or |= cur->trav == EcsChildOf && (cur->src.id & EcsUp);
+        } while ((cur++)->oper == EcsOr);
+    }
+    if (src_is_var && src_written && (builtin_pred || member_term || parent_or) && term->oper == EcsOr) {
         if (query->vars[op.src.var].kind == EcsVarTable) {
             flecs_query_compile_term_ref(world, query, &op, &term->src, 
                     &op.src, EcsQuerySrc, EcsVarEntity, ctx, true);

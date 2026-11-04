@@ -5973,39 +5973,32 @@ void Cached_this_up_w_3_levels_pcp_after_query(void) {
     ecs_entity_t e1 = ecs_insert(world, ecs_value(EcsParent, {e0}));
     ecs_entity_t e2 = ecs_new_w_pair(world, EcsChildOf, e1);
     ecs_entity_t e3 = ecs_insert(world, ecs_value(EcsParent, {e2}));
-
+    /* Match contents independently of table order and batch size. */
+    const ecs_entity_t expected[] = { (e1), (e2), (e3) };
+    const ecs_entity_t sources_0[] = { e0, e0, e0 };
+    bool seen[3] = {false};
     ecs_iter_t it = ecs_query_iter(world, q);
-    test_bool(true, ecs_query_next(&it));
-    test_uint(e1, it.entities[0]);
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    test_uint(e0, ecs_field_src(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 10); test_int(p->y, 20);
+    while (ecs_query_next(&it)) {
+        for (int row = 0; row < it.count; row ++) {
+            int index = 0;
+            while (index < 3 && expected[index] != it.entities[row]) {
+                index ++;
+            }
+            test_assert(index < 3);
+            test_assert(!seen[index]);
+            seen[index] = true;
+            test_uint(sources_0[index], ecs_field_src(&it, 0));
+            test_uint(ecs_id(Position), ecs_field_id(&it, 0));
+            {
+                    Position *p = ecs_field(&it, Position, 0);
+                    test_assert(p != NULL);
+                    test_int(p->x, 10); test_int(p->y, 20);
+                }
+        }
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_uint(e2, it.entities[0]);
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    test_uint(e0, ecs_field_src(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 10); test_int(p->y, 20);
+    for (int i = 0; i < 3; i ++) {
+        test_assert(seen[i]);
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_uint(e3, it.entities[0]);
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    test_uint(e0, ecs_field_src(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 10); test_int(p->y, 20);
-    }
-
-    test_bool(false, ecs_query_next(&it));
 
     ecs_query_fini(q);
 
@@ -6479,45 +6472,35 @@ void Cached_this_tag_w_up_w_3_levels_pcp_after_query(void) {
     ecs_add(world, e1, Foo);
     ecs_add(world, e2, Foo);
     ecs_add(world, e3, Foo);
-
+    /* Match contents independently of table order and batch size. */
+    const ecs_entity_t expected[] = { (e1), (e2), (e3) };
+    const ecs_entity_t sources_0[] = { 0, 0, 0 };
+    const ecs_entity_t sources_1[] = { e0, e0, e0 };
+    bool seen[3] = {false};
     ecs_iter_t it = ecs_query_iter(world, q);
-    test_bool(true, ecs_query_next(&it));
-    test_uint(e1, it.entities[0]);
-    test_uint(Foo, ecs_field_id(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 1));
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(e0, ecs_field_src(&it, 1));
-    {
-        Position *p = ecs_field(&it, Position, 1);
-        test_assert(p != NULL);
-        test_int(p->x, 10); test_int(p->y, 20);
+    while (ecs_query_next(&it)) {
+        for (int row = 0; row < it.count; row ++) {
+            int index = 0;
+            while (index < 3 && expected[index] != it.entities[row]) {
+                index ++;
+            }
+            test_assert(index < 3);
+            test_assert(!seen[index]);
+            seen[index] = true;
+            test_uint(sources_0[index], ecs_field_src(&it, 0));
+            test_uint(Foo, ecs_field_id(&it, 0));
+            test_uint(sources_1[index], ecs_field_src(&it, 1));
+            test_uint(ecs_id(Position), ecs_field_id(&it, 1));
+            {
+                    Position *p = ecs_field(&it, Position, 1);
+                    test_assert(p != NULL);
+                    test_int(p->x, 10); test_int(p->y, 20);
+                }
+        }
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_uint(e2, it.entities[0]);
-    test_uint(Foo, ecs_field_id(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 1));
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(e0, ecs_field_src(&it, 1));
-    {
-        Position *p = ecs_field(&it, Position, 1);
-        test_assert(p != NULL);
-        test_int(p->x, 10); test_int(p->y, 20);
+    for (int i = 0; i < 3; i ++) {
+        test_assert(seen[i]);
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_uint(e3, it.entities[0]);
-    test_uint(Foo, ecs_field_id(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 1));
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(e0, ecs_field_src(&it, 1));
-    {
-        Position *p = ecs_field(&it, Position, 1);
-        test_assert(p != NULL);
-        test_int(p->x, 10); test_int(p->y, 20);
-    }
-
-    test_bool(false, ecs_query_next(&it));
 
     ecs_query_fini(q);
 
@@ -7015,45 +6998,35 @@ void Cached_this_up_w_tag_w_3_levels_pcp_after_query(void) {
     ecs_add(world, e1, Foo);
     ecs_add(world, e2, Foo);
     ecs_add(world, e3, Foo);
-
+    /* Match contents independently of table order and batch size. */
+    const ecs_entity_t expected[] = { (e1), (e2), (e3) };
+    const ecs_entity_t sources_0[] = { e0, e0, e0 };
+    const ecs_entity_t sources_1[] = { 0, 0, 0 };
+    bool seen[3] = {false};
     ecs_iter_t it = ecs_query_iter(world, q);
-    test_bool(true, ecs_query_next(&it));
-    test_uint(e1, it.entities[0]);
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    test_uint(Foo, ecs_field_id(&it, 1));
-    test_uint(e0, ecs_field_src(&it, 0));
-    test_uint(0, ecs_field_src(&it, 1));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 10); test_int(p->y, 20);
+    while (ecs_query_next(&it)) {
+        for (int row = 0; row < it.count; row ++) {
+            int index = 0;
+            while (index < 3 && expected[index] != it.entities[row]) {
+                index ++;
+            }
+            test_assert(index < 3);
+            test_assert(!seen[index]);
+            seen[index] = true;
+            test_uint(sources_0[index], ecs_field_src(&it, 0));
+            test_uint(ecs_id(Position), ecs_field_id(&it, 0));
+            test_uint(sources_1[index], ecs_field_src(&it, 1));
+            test_uint(Foo, ecs_field_id(&it, 1));
+            {
+                    Position *p = ecs_field(&it, Position, 0);
+                    test_assert(p != NULL);
+                    test_int(p->x, 10); test_int(p->y, 20);
+                }
+        }
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_uint(e2, it.entities[0]);
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    test_uint(Foo, ecs_field_id(&it, 1));
-    test_uint(e0, ecs_field_src(&it, 0));
-    test_uint(0, ecs_field_src(&it, 1));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 10); test_int(p->y, 20);
+    for (int i = 0; i < 3; i ++) {
+        test_assert(seen[i]);
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_uint(e3, it.entities[0]);
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    test_uint(Foo, ecs_field_id(&it, 1));
-    test_uint(e0, ecs_field_src(&it, 0));
-    test_uint(0, ecs_field_src(&it, 1));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 10); test_int(p->y, 20);
-    }
-
-    test_bool(false, ecs_query_next(&it));
 
     ecs_query_fini(q);
 
@@ -7535,49 +7508,32 @@ void Cached_this_self_up_w_3_levels_pcp_after_query(void) {
     ecs_entity_t e1 = ecs_insert(world, ecs_value(EcsParent, {e0}));
     ecs_entity_t e2 = ecs_new_w_pair(world, EcsChildOf, e1);
     ecs_entity_t e3 = ecs_insert(world, ecs_value(EcsParent, {e2}));
-
+    /* Match contents independently of table order and batch size. */
+    const ecs_entity_t expected[] = { (e0), (e1), (e2), (e3) };
+    const ecs_entity_t sources_0[] = { 0, e0, e0, e0 };
+    bool seen[4] = {false};
     ecs_iter_t it = ecs_query_iter(world, q);
-    test_bool(true, ecs_query_next(&it));
-    test_uint(e0, it.entities[0]);
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    test_uint(0, ecs_field_src(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 10); test_int(p->y, 20);
+    while (ecs_query_next(&it)) {
+        for (int row = 0; row < it.count; row ++) {
+            int index = 0;
+            while (index < 4 && expected[index] != it.entities[row]) {
+                index ++;
+            }
+            test_assert(index < 4);
+            test_assert(!seen[index]);
+            seen[index] = true;
+            test_uint(sources_0[index], ecs_field_src(&it, 0));
+            test_uint(ecs_id(Position), ecs_field_id(&it, 0));
+            {
+                    Position *p = ecs_field(&it, Position, 0);
+                    test_assert(p != NULL);
+                    test_int(p->x, 10); test_int(p->y, 20);
+                }
+        }
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_uint(e1, it.entities[0]);
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    test_uint(e0, ecs_field_src(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 10); test_int(p->y, 20);
+    for (int i = 0; i < 4; i ++) {
+        test_assert(seen[i]);
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_uint(e2, it.entities[0]);
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    test_uint(e0, ecs_field_src(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 10); test_int(p->y, 20);
-    }
-
-    test_bool(true, ecs_query_next(&it));
-    test_uint(e3, it.entities[0]);
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    test_uint(e0, ecs_field_src(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_assert(p != NULL);
-        test_int(p->x, 10); test_int(p->y, 20);
-    }
-
-    test_bool(false, ecs_query_next(&it));
 
     ecs_query_fini(q);
 

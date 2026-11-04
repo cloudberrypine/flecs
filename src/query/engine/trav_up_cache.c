@@ -118,7 +118,7 @@ static void flecs_trav_table_up_w(
     }
 
     ecs_flags32_t flags = table->flags;
-    if ((flags & EcsTableHasPairs) && rel) {
+    if ((flags & (EcsTableHasPairs|EcsTableHasParent)) && rel) {
         bool is_a = cr_trav == world->cr_isa_wildcard;
         if (is_a) {
             if (!(flags & EcsTableHasIsA)) {

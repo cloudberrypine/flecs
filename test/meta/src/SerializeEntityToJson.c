@@ -2711,7 +2711,7 @@ void SerializeEntityToJson_serialize_parent_component(void) {
     ecs_entity_to_json_desc_t desc = ECS_ENTITY_TO_JSON_INIT;
     char *json = ecs_entity_to_json(world, e, &desc);
     test_assert(json != NULL);
-    test_json(json, "{\"parent\":\"p\", \"name\":\"e\", \"pairs\":{\"flecs.core.ParentDepth\":\"@1\"}, \"components\":{\"flecs.core.Parent\":{\"value\":\"p\"}}}");
+    test_json(json, "{\"parent\":\"p\", \"name\":\"e\", \"components\":{\"flecs.core.Parent\":{\"value\":\"p\"}}}");
     ecs_os_free(json);
 
     ecs_fini(world);

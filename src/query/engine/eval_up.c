@@ -553,6 +553,50 @@ bool flecs_query_self_up_with(
     ecs_query_up_ctx_t *op_ctx = flecs_op_ctx(ctx, up);
     ecs_iter_t *it = ctx->it;
 
+    ecs_id_t with = flecs_query_op_get_id(op, ctx);
+    const ecs_term_t *term = &ctx->query->pub.terms[op->term_index];
+    if (term->trav == EcsChildOf && ECS_PAIR_FIRST(with) == EcsChildOf &&
+        ECS_PAIR_SECOND(with) != EcsWildcard && ECS_PAIR_SECOND(with) != EcsAny)
+    {
+        ecs_table_range_t range = flecs_query_get_range(
+            op, &op->src, EcsQuerySrc, ctx);
+        if (range.table && (range.table->flags & EcsTableHasParent)) {
+            if (ctx->query->pub.flags & EcsQueryNested) {
+                if (redo) {
+                    return false;
+                }
+                it->sources[op->field_index] = EcsWildcard;
+                ECS_CONST_CAST(int16_t*, it->columns)[op->field_index] = -1;
+                return true;
+            }
+            /* A single table can contain both direct children that match self
+             * and deeper descendants that match up. Resolve each parent range
+             * in one context instead of consuming the table after self. */
+            if (!redo) {
+                if (!flecs_query_up_init(op, ctx, op_ctx)) {
+                    return false;
+                }
+                flecs_query_up_parent_begin(op, ctx, op_ctx, range);
+            }
+            ecs_trav_up_t up;
+            bool found;
+            while (flecs_query_up_parent_next(op, ctx, op_ctx, &up, &found)) {
+                if ((uint32_t)op_ctx->parents[op_ctx->cur].value == ECS_PAIR_SECOND(with)) {
+                    up = (ecs_trav_up_t){ .id = with };
+                    found = true;
+                }
+                if (found) {
+                    flecs_query_up_set_fields(op, ctx, op_ctx, &up);
+                    if (!up.src) {
+                        flecs_reset_source_set_flag(it, op->field_index);
+                    }
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
     if (!redo) {
         flecs_reset_source_set_flag(ctx->it, op->field_index);
         op_ctx->cur = -1;

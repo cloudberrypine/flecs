@@ -115,13 +115,6 @@ static void flecs_on_replace_parent(ecs_iter_t *it) {
     EcsParent *old = ecs_field(it, EcsParent, 0);
     EcsParent *new = ecs_field(it, EcsParent, 1);
 
-    EcsIdentifier *names = NULL;
-    if (it->table->flags & EcsTableHasName) {
-        names = ecs_table_get_pair(
-            world, it->table, EcsIdentifier, EcsName, it->offset);
-        ecs_assert(names != NULL, ECS_INTERNAL_ERROR, NULL);
-    }
-
     int32_t i, count = it->count;
     for (i = 0; i < count; i ++) {
         ecs_entity_t e = it->entities[i];
@@ -163,9 +156,14 @@ static void flecs_on_replace_parent(ecs_iter_t *it) {
         flecs_add_non_fragmenting_child_w_records(
             world, new_parent, e, cr_parent, r);
 
-        if (names) {
+        if (r->table->flags & EcsTableHasName) {
+            /* on_replace fields point at the value being replaced, but the
+             * iterator offset does not identify its row. With several depths
+             * in one table, resolve the name from the entity record. */
+            EcsIdentifier *name = ecs_table_get_pair(world, r->table,
+                EcsIdentifier, EcsName, ECS_RECORD_TO_ROW(r->row));
             flecs_on_reparent_update_name(
-                world, e, &names[i], old_parent, cr_parent);
+                world, e, name, old_parent, cr_parent);
         }
 
         /* Write new parent value to component storage before ecs_add_id, as
@@ -179,13 +177,9 @@ static void flecs_on_replace_parent(ecs_iter_t *it) {
 
         int32_t depth = cr_parent->pair->depth;
 
-        /* If the entity had a parent before, it has a ParentDepth pair that
-         * matches the depth of the old parent. If the depth of the new parent
-         * is the same, the pair doesn't have to be updated and neither do the
-         * cached depths for the entity's children. */
+        /* Only update cached descendant depths when the depth changes.
+         * Parent entities do not carry depth pairs in their table types. */
         if (!cr_old || cr_old->pair->depth != depth) {
-            ecs_add_id(it->stage, e, ecs_value_pair(EcsParentDepth, depth));
-
             ecs_component_record_t *cr = flecs_components_get(
                 world, ecs_childof(e));
             if (cr) {

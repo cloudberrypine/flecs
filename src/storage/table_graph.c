@@ -858,8 +858,6 @@ static ecs_table_t* flecs_find_table_with(
     } else if (ECS_PAIR_FIRST(with) == EcsChildOf) {
         if (node->flags & EcsTableHasParent) {
             flecs_type_remove(world, &dst_type, ecs_id(EcsParent));
-            flecs_type_remove(world, &dst_type, 
-                ecs_pair(EcsParentDepth, EcsWildcard));
         }
     }
 
@@ -876,11 +874,6 @@ static ecs_table_t* flecs_find_table_without(
     int res = flecs_type_new_without(world, &dst_type, &node->type, without);
     if (res == -1) {
         return node; /* Current table does not have id */
-    }
-
-    if (without == ecs_id(EcsParent)) {
-        flecs_type_remove(world, &dst_type, 
-            ecs_pair(EcsParentDepth, EcsWildcard));
     }
 
     return flecs_table_ensure(world, &dst_type, true, node);

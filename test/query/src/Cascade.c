@@ -1310,6 +1310,7 @@ void Cascade_nested_target_deletion(void) {
 }
 
 void Cascade_parent_component(void) {
+    install_test_abort();
     ecs_world_t *world = ecs_mini();
 
     ECS_COMPONENT(world, Position);
@@ -1325,6 +1326,8 @@ void Cascade_parent_component(void) {
     ecs_entity_t c1 = ecs_insert(world, ecs_value(EcsParent, {p1}));
     ecs_entity_t c2 = ecs_insert(world, ecs_value(EcsParent, {p2}));
 
+    /* Mixed-depth Parent tables cannot be grouped by table depth. */
+    test_expect_abort();
     ecs_query_t *q = ecs_query(world, {
         .terms = {{ ecs_id(Position), .src.id = EcsCascade }}
     });
@@ -1395,6 +1398,7 @@ void Cascade_parent_component(void) {
 }
 
 void Cascade_parent_component_n_children(void) {
+    install_test_abort();
     ecs_world_t *world = ecs_mini();
 
     ECS_COMPONENT(world, Position);
@@ -1413,6 +1417,8 @@ void Cascade_parent_component_n_children(void) {
     ecs_entity_t c2_1 = ecs_insert(world, ecs_value(EcsParent, {p2}));
     ecs_entity_t c2_2 = ecs_insert(world, ecs_value(EcsParent, {p2}));
 
+    /* Mixed-depth Parent tables cannot be grouped by table depth. */
+    test_expect_abort();
     ecs_query_t *q = ecs_query(world, {
         .terms = {{ ecs_id(Position), .src.id = EcsCascade }}
     });
@@ -1486,6 +1492,7 @@ void Cascade_parent_component_n_children(void) {
 }
 
 void Cascade_parent_component_n_parents_for_depth(void) {
+    install_test_abort();
     ecs_world_t *world = ecs_mini();
 
     ECS_COMPONENT(world, Position);
@@ -1508,6 +1515,8 @@ void Cascade_parent_component_n_parents_for_depth(void) {
     ecs_entity_t c2_1 = ecs_insert(world, ecs_value(EcsParent, {p2_1}));
     ecs_entity_t c2_2 = ecs_insert(world, ecs_value(EcsParent, {p2_2}));
 
+    /* Mixed-depth Parent tables cannot be grouped by table depth. */
+    test_expect_abort();
     ecs_query_t *q = ecs_query(world, {
         .terms = {{ ecs_id(Position), .src.id = EcsCascade }}
     });
@@ -1613,10 +1622,13 @@ void Cascade_parent_component_n_parents_for_depth(void) {
 }
 
 void Cascade_parent_component_after_query(void) {
+    install_test_abort();
     ecs_world_t *world = ecs_mini();
 
     ECS_COMPONENT(world, Position);
 
+    /* Mixed-depth Parent tables cannot be grouped by table depth. */
+    test_expect_abort();
     ecs_query_t *q = ecs_query(world, {
         .terms = {{ ecs_id(Position), .src.id = EcsCascade }}
     });
@@ -1676,10 +1688,13 @@ void Cascade_parent_component_after_query(void) {
 }
 
 void Cascade_parent_component_n_children_after_query(void) {
+    install_test_abort();
     ecs_world_t *world = ecs_mini();
 
     ECS_COMPONENT(world, Position);
 
+    /* Mixed-depth Parent tables cannot be grouped by table depth. */
+    test_expect_abort();
     ecs_query_t *q = ecs_query(world, {
         .terms = {{ ecs_id(Position), .src.id = EcsCascade }}
     });
@@ -1745,10 +1760,13 @@ void Cascade_parent_component_n_children_after_query(void) {
 }
 
 void Cascade_parent_component_n_parents_for_depth_after_query(void) {
+    install_test_abort();
     ecs_world_t *world = ecs_mini();
 
     ECS_COMPONENT(world, Position);
 
+    /* Mixed-depth Parent tables cannot be grouped by table depth. */
+    test_expect_abort();
     ecs_query_t *q = ecs_query(world, {
         .terms = {{ ecs_id(Position), .src.id = EcsCascade }}
     });

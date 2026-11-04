@@ -2976,7 +2976,7 @@ void SerializeIterToJson_serialize_children_w_parent_component_parents_before_ch
 
     ecs_iter_t it = ecs_query_iter(world, q);
     char *json = ecs_iter_to_json(&it, &desc);
-    test_json(json, "{\"results\":[{\"name\":\"p1\"}, {\"parent\":\"p1\", \"name\":\"a\", \"pairs\":{\"ParentDepth\":\"@1\"}, \"components\":{\"Parent\":null}}, {\"parent\":\"p1\", \"name\":\"b\", \"pairs\":{\"ParentDepth\":\"@1\"}, \"components\":{\"Parent\":null}}, {\"name\":\"p2\"}, {\"parent\":\"p2\", \"name\":\"c\", \"pairs\":{\"ParentDepth\":\"@1\"}, \"components\":{\"Parent\":null}}, {\"parent\":\"p2\", \"name\":\"d\", \"pairs\":{\"ParentDepth\":\"@1\"}, \"components\":{\"Parent\":null}}]}");
+    test_json(json, "{\"results\":[{\"name\":\"p1\"}, {\"parent\":\"p1\", \"name\":\"a\", \"components\":{\"Parent\":null}}, {\"parent\":\"p1\", \"name\":\"b\", \"components\":{\"Parent\":null}}, {\"name\":\"p2\"}, {\"parent\":\"p2\", \"name\":\"c\", \"components\":{\"Parent\":null}}, {\"parent\":\"p2\", \"name\":\"d\", \"components\":{\"Parent\":null}}]}");
     ecs_os_free(json);
 
     ecs_query_fini(q);
@@ -3081,7 +3081,7 @@ void SerializeIterToJson_serialize_children_w_tag_w_parent_component_table(void)
 
     ecs_iter_t it = ecs_query_iter(world, q);
     char *json = ecs_iter_to_json(&it, &desc);
-    test_json(json, "{\"results\":[{\"parent\":\"parent\", \"name\":\"child_a\", \"tags\":[\"Foo\"], \"pairs\":{\"ParentDepth\":\"@1\"}, \"components\":{\"Parent\":null}}, {\"parent\":\"parent\", \"name\":\"child_c\", \"tags\":[\"Foo\"], \"pairs\":{\"ParentDepth\":\"@1\"}, \"components\":{\"Parent\":null}}]}");
+    test_json(json, "{\"results\":[{\"parent\":\"parent\", \"name\":\"child_a\", \"tags\":[\"Foo\"], \"components\":{\"Parent\":null}}, {\"parent\":\"parent\", \"name\":\"child_c\", \"tags\":[\"Foo\"], \"components\":{\"Parent\":null}}]}");
     ecs_os_free(json);
 
     ecs_query_fini(q);

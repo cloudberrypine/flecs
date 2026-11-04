@@ -1305,14 +1305,14 @@ void GroupBy_group_by_parent_depth(void) {
     test_assert(q != NULL);
 
     ecs_iter_t it = ecs_query_iter(world, q);
-
-    for (int i = FLECS_DAG_DEPTH_MAX - 1; i >= 0; i --) {
-        test_bool(true, ecs_query_next(&it));
-        test_uint(i + 1, ecs_iter_get_group(&it));
-        test_int(1, it.count);
-        test_uint(entities[i], it.entities[0]);
+    test_bool(true, ecs_query_next(&it));
+    test_uint(0, ecs_iter_get_group(&it));
+    test_int(FLECS_DAG_DEPTH_MAX, it.count);
+    for (int i = 0; i < it.count; i ++) {
+        test_uint(entities[i], it.entities[i]);
+        test_int(i + 1, ecs_get_depth(world, it.entities[i], EcsChildOf));
+        test_assert(!ecs_has_pair(world, it.entities[i], EcsParentDepth, EcsWildcard));
     }
-
     test_bool(false, ecs_query_next(&it));
 
     ecs_os_free(entities);
@@ -2138,14 +2138,14 @@ void GroupBy_group_by_parent_depth_ordered(void) {
     test_assert(q != NULL);
 
     ecs_iter_t it = ecs_query_iter(world, q);
-
-    for (int i = 0; i < FLECS_DAG_DEPTH_MAX; i ++) {
-        test_bool(true, ecs_query_next(&it));
-        test_uint(i + 1, ecs_iter_get_group(&it));
-        test_int(1, it.count);
-        test_uint(entities[i], it.entities[0]);
+    test_bool(true, ecs_query_next(&it));
+    test_uint(0, ecs_iter_get_group(&it));
+    test_int(FLECS_DAG_DEPTH_MAX, it.count);
+    for (int i = 0; i < it.count; i ++) {
+        test_uint(entities[i], it.entities[i]);
+        test_int(i + 1, ecs_get_depth(world, it.entities[i], EcsChildOf));
+        test_assert(!ecs_has_pair(world, it.entities[i], EcsParentDepth, EcsWildcard));
     }
-
     test_bool(false, ecs_query_next(&it));
 
     ecs_os_free(entities);

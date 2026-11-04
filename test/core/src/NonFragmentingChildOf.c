@@ -1375,13 +1375,13 @@ void NonFragmentingChildOf_table_child_count_2(void) {
 
     ecs_table_t *t3 = ecs_get_table(world, c_1);
     test_assert(t3 == ecs_get_table(world, c_2));
-    test_assert(t3 != t2);
+    test_assert(t3 == t2);
 
     test_assert(count_children_in_table(world, cr, t3) != 0);
 
     test_int(count_children_in_table(world, cr, t3), 2);
     test_assert(count_children_in_table(world, cr, t1) == 0);
-    test_assert(count_children_in_table(world, cr, t2) == 0);
+    test_int(count_children_in_table(world, cr, t2), 2);
 
     ecs_entities_t entities = ecs_get_ordered_children(world, p);
     test_int(entities.count, 2);
@@ -1825,13 +1825,24 @@ void NonFragmentingChildOf_table_child_count_n_children_delete_children_reverse(
     ecs_fini(world);
 }
 
+static void assert_parent_depth(ecs_world_t *world, ecs_entity_t entity, int depth) {
+    test_assert(!ecs_has_pair(world, entity, EcsParentDepth, EcsWildcard));
+    test_int(ecs_get_depth(world, entity, EcsChildOf), depth);
+}
+
 void NonFragmentingChildOf_depth_after_parent_set(void) {
     ecs_world_t *world = ecs_mini();
 
     ecs_entity_t p = ecs_new(world);
     ecs_entity_t c = ecs_insert(world, ecs_value(EcsParent, {p}));
 
-    test_assert(ecs_has_id(world, c, ecs_value_pair(EcsParentDepth, 1)));
+    assert_parent_depth(world, c, 1);
+
+    ecs_entity_t gc = ecs_new_w_parent(world, c, NULL);
+    test_assert(ecs_get_table(world, c) == ecs_get_table(world, gc));
+    assert_parent_depth(world, gc, 2);
+    /* Relationship search must still resolve the correct per-entity parent. */
+    test_uint(ecs_get_parent(world, gc), c);
 
     ecs_fini(world);
 }
@@ -1844,8 +1855,8 @@ void NonFragmentingChildOf_depth_after_nested_parent_set(void) {
     ecs_add_id(world, c, EcsOrderedChildren);
     ecs_entity_t gc = ecs_insert(world, ecs_value(EcsParent, {c}));
 
-    test_assert(ecs_has_id(world, c, ecs_value_pair(EcsParentDepth, 1)));
-    test_assert(ecs_has_id(world, gc, ecs_value_pair(EcsParentDepth, 2)));
+    assert_parent_depth(world, c, 1);
+    assert_parent_depth(world, gc, 2);
 
     ecs_fini(world);
 }
@@ -1859,13 +1870,13 @@ void NonFragmentingChildOf_depth_after_parent_replace(void) {
     ecs_add_id(world, c, EcsOrderedChildren);
     ecs_entity_t gc = ecs_insert(world, ecs_value(EcsParent, {c}));
 
-    test_assert(ecs_has_id(world, c, ecs_value_pair(EcsParentDepth, 1)));
-    test_assert(ecs_has_id(world, gc, ecs_value_pair(EcsParentDepth, 2)));
+    assert_parent_depth(world, c, 1);
+    assert_parent_depth(world, gc, 2);
 
     ecs_set(world, c, EcsParent, {p2});
 
-    test_assert(ecs_has_id(world, c, ecs_value_pair(EcsParentDepth, 1)));
-    test_assert(ecs_has_id(world, gc, ecs_value_pair(EcsParentDepth, 2)));
+    assert_parent_depth(world, c, 1);
+    assert_parent_depth(world, gc, 2);
 
     ecs_fini(world);
 }
@@ -1881,16 +1892,16 @@ void NonFragmentingChildOf_depth_after_parent_replace_different_depth(void) {
     ecs_add_id(world, c, EcsOrderedChildren);
     ecs_entity_t gc = ecs_insert(world, ecs_value(EcsParent, {c}));
 
-    test_assert(ecs_has_id(world, c, ecs_value_pair(EcsParentDepth, 1)));
-    test_assert(ecs_has_id(world, gc, ecs_value_pair(EcsParentDepth, 2)));
+    assert_parent_depth(world, c, 1);
+    assert_parent_depth(world, gc, 2);
 
     ecs_set(world, c, EcsParent, {p2});
 
     test_assert(!ecs_has_id(world, c, ecs_value_pair(EcsParentDepth, 1)));
-    test_assert(ecs_has_id(world, c, ecs_value_pair(EcsParentDepth, 2)));
+    assert_parent_depth(world, c, 2);
 
     test_assert(!ecs_has_id(world, gc, ecs_value_pair(EcsParentDepth, 2)));
-    test_assert(ecs_has_id(world, gc, ecs_value_pair(EcsParentDepth, 3)));
+    assert_parent_depth(world, gc, 3);
 
     ecs_fini(world);
 }
@@ -1906,8 +1917,8 @@ void NonFragmentingChildOf_depth_after_parent_remove(void) {
     ecs_add_id(world, c, EcsOrderedChildren);
     ecs_entity_t gc = ecs_insert(world, ecs_value(EcsParent, {c}));
 
-    test_assert(ecs_has_id(world, c, ecs_value_pair(EcsParentDepth, 1)));
-    test_assert(ecs_has_id(world, gc, ecs_value_pair(EcsParentDepth, 2)));
+    assert_parent_depth(world, c, 1);
+    assert_parent_depth(world, gc, 2);
 
     ecs_remove(world, c, EcsParent);
 
@@ -1916,7 +1927,7 @@ void NonFragmentingChildOf_depth_after_parent_remove(void) {
     test_assert(!ecs_has_id(world, c, ecs_pair(EcsParentDepth, EcsWildcard)));
 
     test_assert(!ecs_has_id(world, gc, ecs_value_pair(EcsParentDepth, 2)));
-    test_assert(ecs_has_id(world, gc, ecs_value_pair(EcsParentDepth, 1)));
+    assert_parent_depth(world, gc, 1);
 
     ecs_fini(world);
 }
@@ -1930,16 +1941,16 @@ void NonFragmentingChildOf_depth_after_parent_set_parent(void) {
     ecs_add_id(world, c, EcsOrderedChildren);
     ecs_entity_t gc = ecs_insert(world, ecs_value(EcsParent, {c}));
 
-    test_assert(ecs_has_id(world, c, ecs_value_pair(EcsParentDepth, 1)));
-    test_assert(ecs_has_id(world, gc, ecs_value_pair(EcsParentDepth, 2)));
+    assert_parent_depth(world, c, 1);
+    assert_parent_depth(world, gc, 2);
 
     ecs_set(world, p1, EcsParent, {p2});
 
     test_assert(!ecs_has_id(world, c, ecs_value_pair(EcsParentDepth, 1)));
-    test_assert(ecs_has_id(world, c, ecs_value_pair(EcsParentDepth, 2)));
+    assert_parent_depth(world, c, 2);
 
     test_assert(!ecs_has_id(world, gc, ecs_value_pair(EcsParentDepth, 2)));
-    test_assert(ecs_has_id(world, gc, ecs_value_pair(EcsParentDepth, 3)));
+    assert_parent_depth(world, gc, 3);
 
     ecs_fini(world);
 }
@@ -1954,15 +1965,15 @@ void NonFragmentingChildOf_depth_after_parent_remove_parent(void) {
     ecs_add_id(world, c, EcsOrderedChildren);
     ecs_entity_t gc = ecs_insert(world, ecs_value(EcsParent, {c}));
 
-    test_assert(ecs_has_id(world, c, ecs_value_pair(EcsParentDepth, 2)));
-    test_assert(ecs_has_id(world, gc, ecs_value_pair(EcsParentDepth, 3)));
+    assert_parent_depth(world, c, 2);
+    assert_parent_depth(world, gc, 3);
 
     ecs_remove(world, p2, EcsParent);
 
-    test_assert(ecs_has_id(world, c, ecs_value_pair(EcsParentDepth, 1)));
+    assert_parent_depth(world, c, 1);
     test_assert(!ecs_has_id(world, c, ecs_value_pair(EcsParentDepth, 2)));
 
-    test_assert(ecs_has_id(world, gc, ecs_value_pair(EcsParentDepth, 2)));
+    assert_parent_depth(world, gc, 2);
     test_assert(!ecs_has_id(world, gc, ecs_value_pair(EcsParentDepth, 3)));
 
     ecs_fini(world);
@@ -1988,15 +1999,15 @@ void NonFragmentingChildOf_depth_after_parent_remove_other_sibling_parent(void) 
     test_int(c2_children.count, 1);
     ecs_entity_t gc2 = c2_children.ids[0];
 
-    test_assert(ecs_has_id(world, gc1, ecs_value_pair(EcsParentDepth, 2)));
-    test_assert(ecs_has_id(world, gc2, ecs_value_pair(EcsParentDepth, 2)));
+    assert_parent_depth(world, gc1, 2);
+    assert_parent_depth(world, gc2, 2);
 
     ecs_remove_pair(world, c2, EcsChildOf, EcsWildcard);
 
-    test_assert(ecs_has_id(world, gc1, ecs_value_pair(EcsParentDepth, 2)));
+    assert_parent_depth(world, gc1, 2);
     test_assert(!ecs_has_id(world, gc1, ecs_value_pair(EcsParentDepth, 1)));
 
-    test_assert(ecs_has_id(world, gc2, ecs_value_pair(EcsParentDepth, 1)));
+    assert_parent_depth(world, gc2, 1);
     test_assert(!ecs_has_id(world, gc2, ecs_value_pair(EcsParentDepth, 2)));
 
     ecs_fini(world);
@@ -2020,19 +2031,19 @@ void NonFragmentingChildOf_depth_after_parent_set_parent_sibling_traversable_no_
     test_uint(children.ids[0], c1);
     test_uint(children.ids[1], c2);
 
-    test_assert(ecs_has_id(world, c1, ecs_value_pair(EcsParentDepth, 1)));
-    test_assert(ecs_has_id(world, c2, ecs_value_pair(EcsParentDepth, 1)));
-    test_assert(ecs_has_id(world, gc2, ecs_value_pair(EcsParentDepth, 2)));
+    assert_parent_depth(world, c1, 1);
+    assert_parent_depth(world, c2, 1);
+    assert_parent_depth(world, gc2, 2);
 
     ecs_set(world, p, EcsParent, {root});
 
-    test_assert(ecs_has_id(world, c1, ecs_value_pair(EcsParentDepth, 2)));
+    assert_parent_depth(world, c1, 2);
     test_assert(!ecs_has_id(world, c1, ecs_value_pair(EcsParentDepth, 1)));
 
-    test_assert(ecs_has_id(world, c2, ecs_value_pair(EcsParentDepth, 2)));
+    assert_parent_depth(world, c2, 2);
     test_assert(!ecs_has_id(world, c2, ecs_value_pair(EcsParentDepth, 1)));
 
-    test_assert(ecs_has_id(world, gc2, ecs_value_pair(EcsParentDepth, 3)));
+    assert_parent_depth(world, gc2, 3);
     test_assert(!ecs_has_id(world, gc2, ecs_value_pair(EcsParentDepth, 2)));
 
     ecs_fini(world);
@@ -2050,13 +2061,13 @@ void NonFragmentingChildOf_depth_after_parent_reparent(void) {
     ecs_add_id(world, c, EcsOrderedChildren);
     ecs_entity_t gc = ecs_insert(world, ecs_value(EcsParent, {c}));
 
-    test_assert(ecs_has_id(world, c, ecs_value_pair(EcsParentDepth, 2)));
-    test_assert(ecs_has_id(world, gc, ecs_value_pair(EcsParentDepth, 3)));
+    assert_parent_depth(world, c, 2);
+    assert_parent_depth(world, gc, 3);
 
     ecs_set(world, p3, EcsParent, {p2});
 
-    test_assert(ecs_has_id(world, c, ecs_value_pair(EcsParentDepth, 2)));
-    test_assert(ecs_has_id(world, gc, ecs_value_pair(EcsParentDepth, 3)));
+    assert_parent_depth(world, c, 2);
+    assert_parent_depth(world, gc, 3);
 
     ecs_fini(world);
 }
@@ -2074,15 +2085,15 @@ void NonFragmentingChildOf_depth_after_parent_reparent_different_depth(void) {
     ecs_add_id(world, c, EcsOrderedChildren);
     ecs_entity_t gc = ecs_insert(world, ecs_value(EcsParent, {c}));
 
-    test_assert(ecs_has_id(world, c, ecs_value_pair(EcsParentDepth, 2)));
-    test_assert(ecs_has_id(world, gc, ecs_value_pair(EcsParentDepth, 3)));
+    assert_parent_depth(world, c, 2);
+    assert_parent_depth(world, gc, 3);
 
     ecs_set(world, p3, EcsParent, {p2});
 
-    test_assert(ecs_has_id(world, c, ecs_value_pair(EcsParentDepth, 3)));
+    assert_parent_depth(world, c, 3);
     test_assert(!ecs_has_id(world, c, ecs_value_pair(EcsParentDepth, 2)));
 
-    test_assert(ecs_has_id(world, gc, ecs_value_pair(EcsParentDepth, 4)));
+    assert_parent_depth(world, gc, 4);
     test_assert(!ecs_has_id(world, gc, ecs_value_pair(EcsParentDepth, 3)));
 
     ecs_fini(world);
@@ -2099,20 +2110,20 @@ void NonFragmentingChildOf_depth_after_parent_set_parent_nested(void) {
     ecs_add_id(world, gc, EcsOrderedChildren);
     ecs_entity_t ggc = ecs_insert(world, ecs_value(EcsParent, {gc}));
 
-    test_assert(ecs_has_id(world, c, ecs_value_pair(EcsParentDepth, 1)));
-    test_assert(ecs_has_id(world, gc, ecs_value_pair(EcsParentDepth, 2)));
-    test_assert(ecs_has_id(world, ggc, ecs_value_pair(EcsParentDepth, 3)));
+    assert_parent_depth(world, c, 1);
+    assert_parent_depth(world, gc, 2);
+    assert_parent_depth(world, ggc, 3);
 
     ecs_set(world, p1, EcsParent, {p2});
 
     test_assert(!ecs_has_id(world, c, ecs_value_pair(EcsParentDepth, 1)));
-    test_assert(ecs_has_id(world, c, ecs_value_pair(EcsParentDepth, 2)));
+    assert_parent_depth(world, c, 2);
 
     test_assert(!ecs_has_id(world, gc, ecs_value_pair(EcsParentDepth, 2)));
-    test_assert(ecs_has_id(world, gc, ecs_value_pair(EcsParentDepth, 3)));
+    assert_parent_depth(world, gc, 3);
 
     test_assert(!ecs_has_id(world, ggc, ecs_value_pair(EcsParentDepth, 3)));
-    test_assert(ecs_has_id(world, ggc, ecs_value_pair(EcsParentDepth, 4)));
+    assert_parent_depth(world, ggc, 4);
 
     ecs_fini(world);
 }
@@ -2129,19 +2140,19 @@ void NonFragmentingChildOf_depth_after_parent_remove_parent_nested(void) {
     ecs_add_id(world, gc, EcsOrderedChildren);
     ecs_entity_t ggc = ecs_insert(world, ecs_value(EcsParent, {gc}));
 
-    test_assert(ecs_has_id(world, c, ecs_value_pair(EcsParentDepth, 2)));
-    test_assert(ecs_has_id(world, gc, ecs_value_pair(EcsParentDepth, 3)));
-    test_assert(ecs_has_id(world, ggc, ecs_value_pair(EcsParentDepth, 4)));
+    assert_parent_depth(world, c, 2);
+    assert_parent_depth(world, gc, 3);
+    assert_parent_depth(world, ggc, 4);
 
     ecs_remove(world, p2, EcsParent);
 
-    test_assert(ecs_has_id(world, c, ecs_value_pair(EcsParentDepth, 1)));
+    assert_parent_depth(world, c, 1);
     test_assert(!ecs_has_id(world, c, ecs_value_pair(EcsParentDepth, 2)));
 
-    test_assert(ecs_has_id(world, gc, ecs_value_pair(EcsParentDepth, 2)));
+    assert_parent_depth(world, gc, 2);
     test_assert(!ecs_has_id(world, gc, ecs_value_pair(EcsParentDepth, 3)));
 
-    test_assert(ecs_has_id(world, ggc, ecs_value_pair(EcsParentDepth, 3)));
+    assert_parent_depth(world, ggc, 3);
     test_assert(!ecs_has_id(world, ggc, ecs_value_pair(EcsParentDepth, 4)));
 
     ecs_fini(world);
@@ -2161,15 +2172,15 @@ void NonFragmentingChildOf_depth_after_parent_reparent_nested(void) {
     ecs_add_id(world, gc, EcsOrderedChildren);
     ecs_entity_t ggc = ecs_insert(world, ecs_value(EcsParent, {gc}));
 
-    test_assert(ecs_has_id(world, c, ecs_value_pair(EcsParentDepth, 2)));
-    test_assert(ecs_has_id(world, gc, ecs_value_pair(EcsParentDepth, 3)));
-    test_assert(ecs_has_id(world, ggc, ecs_value_pair(EcsParentDepth, 4)));
+    assert_parent_depth(world, c, 2);
+    assert_parent_depth(world, gc, 3);
+    assert_parent_depth(world, ggc, 4);
 
     ecs_set(world, p3, EcsParent, {p2});
 
-    test_assert(ecs_has_id(world, c, ecs_value_pair(EcsParentDepth, 2)));
-    test_assert(ecs_has_id(world, gc, ecs_value_pair(EcsParentDepth, 3)));
-    test_assert(ecs_has_id(world, ggc, ecs_value_pair(EcsParentDepth, 4)));
+    assert_parent_depth(world, c, 2);
+    assert_parent_depth(world, gc, 3);
+    assert_parent_depth(world, ggc, 4);
 
     ecs_fini(world);
 }
@@ -2189,18 +2200,18 @@ void NonFragmentingChildOf_depth_after_parent_reparent_different_depth_nested(vo
     ecs_add_id(world, gc, EcsOrderedChildren);
     ecs_entity_t ggc = ecs_insert(world, ecs_value(EcsParent, {gc}));
 
-    test_assert(ecs_has_id(world, c, ecs_value_pair(EcsParentDepth, 2)));
-    test_assert(ecs_has_id(world, gc, ecs_value_pair(EcsParentDepth, 3)));
+    assert_parent_depth(world, c, 2);
+    assert_parent_depth(world, gc, 3);
 
     ecs_set(world, p3, EcsParent, {p2});
 
-    test_assert(ecs_has_id(world, c, ecs_value_pair(EcsParentDepth, 3)));
+    assert_parent_depth(world, c, 3);
     test_assert(!ecs_has_id(world, c, ecs_value_pair(EcsParentDepth, 2)));
 
-    test_assert(ecs_has_id(world, gc, ecs_value_pair(EcsParentDepth, 4)));
+    assert_parent_depth(world, gc, 4);
     test_assert(!ecs_has_id(world, gc, ecs_value_pair(EcsParentDepth, 3)));
 
-    test_assert(ecs_has_id(world, ggc, ecs_value_pair(EcsParentDepth, 5)));
+    assert_parent_depth(world, ggc, 5);
     test_assert(!ecs_has_id(world, ggc, ecs_value_pair(EcsParentDepth, 4)));
 
     ecs_fini(world);
@@ -3987,8 +3998,8 @@ void NonFragmentingChildOf_instantiate_tree_at_depth_1_w_parent(void) {
     ecs_add_pair(world, i, EcsIsA, base);
 
     ecs_entities_t entities = ecs_get_ordered_children(world, i);
-    test_assert(ecs_has_id(world, i, ecs_value_pair(EcsParentDepth, 1)));
-    test_assert(ecs_has_id(world, entities.ids[0], ecs_value_pair(EcsParentDepth, 2)));
+    assert_parent_depth(world, i, 1);
+    assert_parent_depth(world, entities.ids[0], 2);
 
     ecs_fini(world);
 }
@@ -4005,8 +4016,8 @@ void NonFragmentingChildOf_instantiate_tree_at_depth_2_w_parent(void) {
     ecs_add_pair(world, i, EcsIsA, base);
 
     ecs_entities_t entities = ecs_get_ordered_children(world, i);
-    test_assert(ecs_has_id(world, i, ecs_value_pair(EcsParentDepth, 2)));
-    test_assert(ecs_has_id(world, entities.ids[0], ecs_value_pair(EcsParentDepth, 3)));
+    assert_parent_depth(world, i, 2);
+    assert_parent_depth(world, entities.ids[0], 3);
 
     ecs_fini(world);
 }
@@ -4026,8 +4037,8 @@ void NonFragmentingChildOf_instantiate_tree_at_depth_n_w_parent(void) {
     ecs_add_pair(world, i, EcsIsA, base);
 
     ecs_entities_t entities = ecs_get_ordered_children(world, i);
-    test_assert(ecs_has_id(world, i, ecs_value_pair(EcsParentDepth, depth + 1)));
-    test_assert(ecs_has_id(world, entities.ids[0], ecs_value_pair(EcsParentDepth, depth + 2)));
+    assert_parent_depth(world, i, depth + 1);
+    assert_parent_depth(world, entities.ids[0], depth + 2);
 
     ecs_fini(world);
 }
@@ -4043,7 +4054,7 @@ void NonFragmentingChildOf_instantiate_tree_at_depth_1_w_childof(void) {
     ecs_add_pair(world, i, EcsIsA, base);
 
     ecs_entities_t entities = ecs_get_ordered_children(world, i);
-    test_assert(ecs_has_id(world, entities.ids[0], ecs_value_pair(EcsParentDepth, 2)));
+    assert_parent_depth(world, entities.ids[0], 2);
 
     ecs_fini(world);
 }
@@ -4060,7 +4071,7 @@ void NonFragmentingChildOf_instantiate_tree_at_depth_2_w_childof(void) {
     ecs_add_pair(world, i, EcsIsA, base);
 
     ecs_entities_t entities = ecs_get_ordered_children(world, i);
-    test_assert(ecs_has_id(world, entities.ids[0], ecs_value_pair(EcsParentDepth, 3)));
+    assert_parent_depth(world, entities.ids[0], 3);
 
     ecs_fini(world);
 }
@@ -4080,7 +4091,7 @@ void NonFragmentingChildOf_instantiate_tree_at_depth_n_w_childof(void) {
     ecs_add_pair(world, i, EcsIsA, base);
 
     ecs_entities_t entities = ecs_get_ordered_children(world, i);
-    test_assert(ecs_has_id(world, entities.ids[0], ecs_value_pair(EcsParentDepth, depth + 2)));
+    assert_parent_depth(world, entities.ids[0], depth + 2);
 
     ecs_fini(world);
 }
@@ -4115,7 +4126,7 @@ void NonFragmentingChildOf_reparent_instantiated_tree_w_parent(void) {
 
     {
         ecs_entities_t entities = ecs_get_ordered_children(world, i);
-        test_assert(ecs_has_id(world, entities.ids[0], ecs_value_pair(EcsParentDepth, 1)));
+        assert_parent_depth(world, entities.ids[0], 1);
     }
 
     ecs_entity_t p = ecs_new(world);
@@ -4123,14 +4134,14 @@ void NonFragmentingChildOf_reparent_instantiated_tree_w_parent(void) {
 
     {
         ecs_entities_t entities = ecs_get_ordered_children(world, i);
-        test_assert(ecs_has_id(world, entities.ids[0], ecs_value_pair(EcsParentDepth, 2)));
+        assert_parent_depth(world, entities.ids[0], 2);
     }
 
     ecs_remove(world, i, EcsParent);
 
     {
         ecs_entities_t entities = ecs_get_ordered_children(world, i);
-        test_assert(ecs_has_id(world, entities.ids[0], ecs_value_pair(EcsParentDepth, 1)));
+        assert_parent_depth(world, entities.ids[0], 1);
     }
 
     ecs_fini(world);
@@ -4146,7 +4157,7 @@ void NonFragmentingChildOf_reparent_instantiated_tree_w_childof(void) {
 
     {
         ecs_entities_t entities = ecs_get_ordered_children(world, i);
-        test_assert(ecs_has_id(world, entities.ids[0], ecs_value_pair(EcsParentDepth, 1)));
+        assert_parent_depth(world, entities.ids[0], 1);
     }
 
     ecs_entity_t p = ecs_new(world);
@@ -4154,14 +4165,14 @@ void NonFragmentingChildOf_reparent_instantiated_tree_w_childof(void) {
 
     {
         ecs_entities_t entities = ecs_get_ordered_children(world, i);
-        test_assert(ecs_has_id(world, entities.ids[0], ecs_value_pair(EcsParentDepth, 2)));
+        assert_parent_depth(world, entities.ids[0], 2);
     }
 
     ecs_remove_pair(world, i, EcsChildOf, EcsWildcard);
 
     {
         ecs_entities_t entities = ecs_get_ordered_children(world, i);
-        test_assert(ecs_has_id(world, entities.ids[0], ecs_value_pair(EcsParentDepth, 1)));
+        assert_parent_depth(world, entities.ids[0], 1);
     }
 
     ecs_fini(world);
@@ -5151,7 +5162,7 @@ void NonFragmentingChildOf_add_parent_to_childof_child(void) {
 
     test_assert(!ecs_has_pair(world, child, EcsChildOf, parent_a));
     test_assert(ecs_has_pair(world, child, EcsChildOf, parent_b));
-    test_assert(ecs_has_pair(world, child, EcsParentDepth, EcsWildcard));
+    test_assert(!ecs_has_pair(world, child, EcsParentDepth, EcsWildcard));
 
     const EcsParent *p = ecs_get(world, child, EcsParent);
     test_assert(p != NULL);
@@ -5194,7 +5205,7 @@ void NonFragmentingChildOf_add_parent_to_childof_child_same_parent(void) {
     ecs_set(world, child, EcsParent, { parent_a });
 
     test_assert(ecs_has_pair(world, child, EcsChildOf, parent_a));
-    test_assert(ecs_has_pair(world, child, EcsParentDepth, EcsWildcard));
+    test_assert(!ecs_has_pair(world, child, EcsParentDepth, EcsWildcard));
 
     const EcsParent *p = ecs_get(world, child, EcsParent);
     test_assert(p != NULL);
@@ -6907,13 +6918,13 @@ void NonFragmentingChildOf_add_prefab_tag_after_hierarchy_creation(void) {
         test_int(children.count, 1);
         ecs_entity_t a_child = children.ids[0];
         test_assert(ecs_has_pair(world, a_child, EcsIsA, daughter));
-        test_int(ecs_get_target(world, a_child, EcsParentDepth, 0), 1);
+        assert_parent_depth(world, a_child, 1);
 
         ecs_entities_t gchildren = ecs_get_ordered_children(world, a_child);
         test_int(gchildren.count, 1);
         ecs_entity_t a_gchild = gchildren.ids[0];
         test_assert(ecs_has_pair(world, a_gchild, EcsIsA, granddaughter));
-        test_int(ecs_get_target(world, a_gchild, EcsParentDepth, 0), 2);
+        assert_parent_depth(world, a_gchild, 2);
     }
 
     ecs_fini(world);
@@ -6944,13 +6955,13 @@ void NonFragmentingChildOf_defer_add_prefab_tag_after_hierarchy_creation(void) {
         test_int(children.count, 1);
         ecs_entity_t a_child = children.ids[0];
         test_assert(ecs_has_pair(world, a_child, EcsIsA, daughter));
-        test_int(ecs_get_target(world, a_child, EcsParentDepth, 0), 1);
+        assert_parent_depth(world, a_child, 1);
 
         ecs_entities_t gchildren = ecs_get_ordered_children(world, a_child);
         test_int(gchildren.count, 1);
         ecs_entity_t a_gchild = gchildren.ids[0];
         test_assert(ecs_has_pair(world, a_gchild, EcsIsA, granddaughter));
-        test_int(ecs_get_target(world, a_gchild, EcsParentDepth, 0), 2);
+        assert_parent_depth(world, a_gchild, 2);
     }
 
     ecs_fini(world);
@@ -6983,14 +6994,14 @@ void NonFragmentingChildOf_add_prefab_tag_after_hierarchy_creation_2(void) {
         ecs_entity_t a_child = children.ids[0];
         test_assert(ecs_has_pair(world, a_child, EcsIsA, daughter));
         test_assert(ecs_has(world, a_child, Foo));
-        test_int(ecs_get_target(world, a_child, EcsParentDepth, 0), 1);
+        assert_parent_depth(world, a_child, 1);
 
         ecs_entities_t gchildren = ecs_get_ordered_children(world, a_child);
         test_int(gchildren.count, 1);
         ecs_entity_t a_gchild = gchildren.ids[0];
         test_assert(ecs_has_pair(world, a_gchild, EcsIsA, granddaughter));
         test_assert(ecs_has(world, a_gchild, Bar));
-        test_int(ecs_get_target(world, a_gchild, EcsParentDepth, 0), 2);
+        assert_parent_depth(world, a_gchild, 2);
     }
 
     ecs_fini(world);
@@ -7025,14 +7036,14 @@ void NonFragmentingChildOf_defer_add_prefab_tag_after_hierarchy_creation_2(void)
         ecs_entity_t a_child = children.ids[0];
         test_assert(ecs_has_pair(world, a_child, EcsIsA, daughter));
         test_assert(ecs_has(world, a_child, Foo));
-        test_int(ecs_get_target(world, a_child, EcsParentDepth, 0), 1);
+        assert_parent_depth(world, a_child, 1);
 
         ecs_entities_t gchildren = ecs_get_ordered_children(world, a_child);
         test_int(gchildren.count, 1);
         ecs_entity_t a_gchild = gchildren.ids[0];
         test_assert(ecs_has_pair(world, a_gchild, EcsIsA, granddaughter));
         test_assert(ecs_has(world, a_gchild, Bar));
-        test_int(ecs_get_target(world, a_gchild, EcsParentDepth, 0), 2);
+        assert_parent_depth(world, a_gchild, 2);
     }
 
     ecs_fini(world);

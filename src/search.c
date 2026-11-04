@@ -319,7 +319,7 @@ static int32_t flecs_table_search_relation(
 
     ecs_flags32_t flags = table->flags;
 
-    if (!(flags & EcsTableHasPairs) || !rel) {
+    if (!(flags & (EcsTableHasPairs|EcsTableHasParent)) || !rel) {
         return -1;
     }
 
@@ -531,22 +531,12 @@ int32_t flecs_relation_depth(
             ecs_assert(cr->pair != NULL, ECS_INTERNAL_ERROR, NULL);
             return cr->pair->depth;
         } else if (table->flags & EcsTableHasParent) {
-            ecs_component_record_t *cr_wc = flecs_components_get(
-                world, ecs_pair(EcsParentDepth, EcsWildcard));
-            if (!cr_wc) {
-                return 0;
-            }
-
-            const ecs_table_record_t *tr_wc = flecs_component_get_table(
-                cr_wc, table);
-            if (!tr_wc) {
-                return 0;
-            }
-
-            ecs_id_t depth_pair = table->type.array[tr_wc->index];
-            ecs_assert(ECS_PAIR_FIRST(depth_pair) == EcsParentDepth, 
-                ECS_INTERNAL_ERROR, NULL);
-            return flecs_uto(int32_t, ECS_PAIR_SECOND(depth_pair));
+            /* A non-fragmenting Parent table can contain several depths.
+             * Entity depth is available through ecs_get_depth instead. */
+            ecs_abort(ECS_INVALID_OPERATION,
+                "table depth and ChildOf cascade require fragmenting ChildOf "
+                "storage, use ecs_get_depth for a Parent entity");
+            return 0;
         } else {
             return 0;
         }

@@ -9883,33 +9883,27 @@ void NonFragmentingChildOf_this_self_up_childof_2_lvl_w_owned(void) {
     });
 
     test_assert(q != NULL);
-
+    /* Match contents independently of table order and batch size. */
+    const ecs_entity_t expected[] = { (parent), (p), (c_1), (c_2) };
+    const ecs_entity_t sources_0[] = { 0, parent, parent, 0 };
+    bool seen[4] = {false};
     ecs_iter_t it = ecs_query_iter(world, q);
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], parent);
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(Bar, ecs_field_id(&it, 0));
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], p);
-    test_uint(parent, ecs_field_src(&it, 0));
-    test_uint(Bar, ecs_field_id(&it, 0));
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], c_1);
-    test_uint(parent, ecs_field_src(&it, 0));
-    test_uint(Bar, ecs_field_id(&it, 0));
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], c_2);
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(Bar, ecs_field_id(&it, 0));
-
-    test_bool(false, ecs_query_next(&it));
+    while (ecs_query_next(&it)) {
+        for (int row = 0; row < it.count; row ++) {
+            int index = 0;
+            while (index < 4 && expected[index] != it.entities[row]) {
+                index ++;
+            }
+            test_assert(index < 4);
+            test_assert(!seen[index]);
+            seen[index] = true;
+            test_uint(sources_0[index], ecs_field_src(&it, 0));
+            test_uint(Bar, ecs_field_id(&it, 0));
+        }
+    }
+    for (int i = 0; i < 4; i ++) {
+        test_assert(seen[i]);
+    }
 
     ecs_query_fini(q);
 
@@ -9936,27 +9930,27 @@ void NonFragmentingChildOf_this_up_childof_2_lvl_children(void) {
     });
 
     test_assert(q != NULL);
-
+    /* Match contents independently of table order and batch size. */
+    const ecs_entity_t expected[] = { (cache_kind == EcsQueryCacheAuto ? c_2 : c_1), (cache_kind == EcsQueryCacheAuto ? c_1 : c_2), (gc_1) };
+    const ecs_entity_t sources_0[] = { p, p, p };
+    bool seen[3] = {false};
     ecs_iter_t it = ecs_query_iter(world, q);
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], cache_kind == EcsQueryCacheAuto ? c_2 : c_1);
-    test_uint(p, ecs_field_src(&it, 0));
-    test_uint(Bar, ecs_field_id(&it, 0));
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], cache_kind == EcsQueryCacheAuto ? c_1 : c_2);
-    test_uint(p, ecs_field_src(&it, 0));
-    test_uint(Bar, ecs_field_id(&it, 0));
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], gc_1);
-    test_uint(p, ecs_field_src(&it, 0));
-    test_uint(Bar, ecs_field_id(&it, 0));
-
-    test_bool(false, ecs_query_next(&it));
+    while (ecs_query_next(&it)) {
+        for (int row = 0; row < it.count; row ++) {
+            int index = 0;
+            while (index < 3 && expected[index] != it.entities[row]) {
+                index ++;
+            }
+            test_assert(index < 3);
+            test_assert(!seen[index]);
+            seen[index] = true;
+            test_uint(sources_0[index], ecs_field_src(&it, 0));
+            test_uint(Bar, ecs_field_id(&it, 0));
+        }
+    }
+    for (int i = 0; i < 3; i ++) {
+        test_assert(seen[i]);
+    }
 
     ecs_query_fini(q);
 
@@ -9983,42 +9977,32 @@ void NonFragmentingChildOf_this_up_childof_2_lvl_children_w_component(void) {
     });
 
     test_assert(q != NULL);
-
+    /* Match contents independently of table order and batch size. */
+    const ecs_entity_t expected[] = { (cache_kind == EcsQueryCacheAuto ? c_2 : c_1), (cache_kind == EcsQueryCacheAuto ? c_1 : c_2), (gc_1) };
+    const ecs_entity_t sources_0[] = { p, p, p };
+    bool seen[3] = {false};
     ecs_iter_t it = ecs_query_iter(world, q);
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], cache_kind == EcsQueryCacheAuto ? c_2 : c_1);
-    test_uint(p, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_int(10, p->x);
-        test_int(20, p->y);
+    while (ecs_query_next(&it)) {
+        for (int row = 0; row < it.count; row ++) {
+            int index = 0;
+            while (index < 3 && expected[index] != it.entities[row]) {
+                index ++;
+            }
+            test_assert(index < 3);
+            test_assert(!seen[index]);
+            seen[index] = true;
+            test_uint(sources_0[index], ecs_field_src(&it, 0));
+            test_uint(ecs_id(Position), ecs_field_id(&it, 0));
+            {
+                    Position *p = ecs_field(&it, Position, 0);
+                    test_int(10, p->x);
+                    test_int(20, p->y);
+                }
+        }
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], cache_kind == EcsQueryCacheAuto ? c_1 : c_2);
-    test_uint(p, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_int(10, p->x);
-        test_int(20, p->y);
+    for (int i = 0; i < 3; i ++) {
+        test_assert(seen[i]);
     }
-    
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], gc_1);
-    test_uint(p, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_int(10, p->x);
-        test_int(20, p->y);
-    }
-
-    test_bool(false, ecs_query_next(&it));
 
     ecs_query_fini(q);
 
@@ -10049,27 +10033,27 @@ void NonFragmentingChildOf_this_up_childof_2_lvl_children_on_instantiate_inherit
     });
 
     test_assert(q != NULL);
-
-    ecs_iter_t it = ecs_query_iter(world, q);    
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], cache_kind == EcsQueryCacheAuto ? c_2 : c_1);
-    test_uint(b, ecs_field_src(&it, 0));
-    test_uint(Bar, ecs_field_id(&it, 0));
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], cache_kind == EcsQueryCacheAuto ? c_1 : c_2);
-    test_uint(b, ecs_field_src(&it, 0));
-    test_uint(Bar, ecs_field_id(&it, 0));
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], gc_1);
-    test_uint(b, ecs_field_src(&it, 0));
-    test_uint(Bar, ecs_field_id(&it, 0));
-
-    test_bool(false, ecs_query_next(&it));
+    /* Match contents independently of table order and batch size. */
+    const ecs_entity_t expected[] = { (cache_kind == EcsQueryCacheAuto ? c_2 : c_1), (cache_kind == EcsQueryCacheAuto ? c_1 : c_2), (gc_1) };
+    const ecs_entity_t sources_0[] = { b, b, b };
+    bool seen[3] = {false};
+    ecs_iter_t it = ecs_query_iter(world, q);
+    while (ecs_query_next(&it)) {
+        for (int row = 0; row < it.count; row ++) {
+            int index = 0;
+            while (index < 3 && expected[index] != it.entities[row]) {
+                index ++;
+            }
+            test_assert(index < 3);
+            test_assert(!seen[index]);
+            seen[index] = true;
+            test_uint(sources_0[index], ecs_field_src(&it, 0));
+            test_uint(Bar, ecs_field_id(&it, 0));
+        }
+    }
+    for (int i = 0; i < 3; i ++) {
+        test_assert(seen[i]);
+    }
 
     ecs_query_fini(q);
 
@@ -10101,42 +10085,32 @@ void NonFragmentingChildOf_this_up_childof_2_lvl_children_w_component_on_instant
     });
 
     test_assert(q != NULL);
-
-    ecs_iter_t it = ecs_query_iter(world, q);    
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], cache_kind == EcsQueryCacheAuto ? c_2 : c_1);
-    test_uint(b, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_int(10, p->x);
-        test_int(20, p->y);
+    /* Match contents independently of table order and batch size. */
+    const ecs_entity_t expected[] = { (cache_kind == EcsQueryCacheAuto ? c_2 : c_1), (cache_kind == EcsQueryCacheAuto ? c_1 : c_2), (gc_1) };
+    const ecs_entity_t sources_0[] = { b, b, b };
+    bool seen[3] = {false};
+    ecs_iter_t it = ecs_query_iter(world, q);
+    while (ecs_query_next(&it)) {
+        for (int row = 0; row < it.count; row ++) {
+            int index = 0;
+            while (index < 3 && expected[index] != it.entities[row]) {
+                index ++;
+            }
+            test_assert(index < 3);
+            test_assert(!seen[index]);
+            seen[index] = true;
+            test_uint(sources_0[index], ecs_field_src(&it, 0));
+            test_uint(ecs_id(Position), ecs_field_id(&it, 0));
+            {
+                    Position *p = ecs_field(&it, Position, 0);
+                    test_int(10, p->x);
+                    test_int(20, p->y);
+                }
+        }
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], cache_kind == EcsQueryCacheAuto ? c_1 : c_2);
-    test_uint(b, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_int(10, p->x);
-        test_int(20, p->y);
+    for (int i = 0; i < 3; i ++) {
+        test_assert(seen[i]);
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], gc_1);
-    test_uint(b, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_int(10, p->x);
-        test_int(20, p->y);
-    }
-
-    test_bool(false, ecs_query_next(&it));
 
     ecs_query_fini(q);
 
@@ -10196,33 +10170,27 @@ void NonFragmentingChildOf_this_self_up_childof_2_lvl_children(void) {
     });
 
     test_assert(q != NULL);
-
+    /* Match contents independently of table order and batch size. */
+    const ecs_entity_t expected[] = { (p), (cache_kind == EcsQueryCacheAuto ? c_2 : c_1), (cache_kind == EcsQueryCacheAuto ? c_1 : c_2), (gc_1) };
+    const ecs_entity_t sources_0[] = { 0, p, p, p };
+    bool seen[4] = {false};
     ecs_iter_t it = ecs_query_iter(world, q);
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], p);
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(Bar, ecs_field_id(&it, 0));
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], cache_kind == EcsQueryCacheAuto ? c_2 : c_1);
-    test_uint(p, ecs_field_src(&it, 0));
-    test_uint(Bar, ecs_field_id(&it, 0));
-    
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], cache_kind == EcsQueryCacheAuto ? c_1 : c_2);
-    test_uint(p, ecs_field_src(&it, 0));
-    test_uint(Bar, ecs_field_id(&it, 0));
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], gc_1);
-    test_uint(p, ecs_field_src(&it, 0));
-    test_uint(Bar, ecs_field_id(&it, 0));
-
-    test_bool(false, ecs_query_next(&it));
+    while (ecs_query_next(&it)) {
+        for (int row = 0; row < it.count; row ++) {
+            int index = 0;
+            while (index < 4 && expected[index] != it.entities[row]) {
+                index ++;
+            }
+            test_assert(index < 4);
+            test_assert(!seen[index]);
+            seen[index] = true;
+            test_uint(sources_0[index], ecs_field_src(&it, 0));
+            test_uint(Bar, ecs_field_id(&it, 0));
+        }
+    }
+    for (int i = 0; i < 4; i ++) {
+        test_assert(seen[i]);
+    }
 
     ecs_query_fini(q);
 
@@ -10249,51 +10217,57 @@ void NonFragmentingChildOf_this_self_up_childof_2_lvl_children_w_component(void)
     });
 
     test_assert(q != NULL);
-
+    /* Table batches and their order change when depths share tables. */
+    bool seen[4] = {false};
     ecs_iter_t it = ecs_query_iter(world, q);
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], p);
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_int(10, p->x);
-        test_int(20, p->y);
+    while (ecs_query_next(&it)) {
+        for (int row = 0; row < it.count; row ++) {
+            if (it.entities[row] == p) {
+                test_assert(!seen[0]);
+                seen[0] = true;
+                test_uint(0, ecs_field_src(&it, 0));
+                test_uint(ecs_id(Position), ecs_field_id(&it, 0));
+                {
+                Position *p = ecs_field(&it, Position, 0);
+                test_int(10, p->x);
+                test_int(20, p->y);
+                }
+            } else if (it.entities[row] == (cache_kind == EcsQueryCacheAuto ? c_2 : c_1)) {
+                test_assert(!seen[1]);
+                seen[1] = true;
+                test_uint(p, ecs_field_src(&it, 0));
+                test_uint(ecs_id(Position), ecs_field_id(&it, 0));
+                {
+                Position *p = ecs_field(&it, Position, 0);
+                test_int(10, p[0].x); test_int(20, p[0].y);
+                }
+            } else if (it.entities[row] == (cache_kind == EcsQueryCacheAuto ? c_1 : c_2)) {
+                test_assert(!seen[2]);
+                seen[2] = true;
+                test_uint(p, ecs_field_src(&it, 0));
+                test_uint(ecs_id(Position), ecs_field_id(&it, 0));
+                {
+                Position *p = ecs_field(&it, Position, 0);
+                test_int(10, p[0].x); test_int(20, p[0].y);
+                }
+            } else if (it.entities[row] == gc_1) {
+                test_assert(!seen[3]);
+                seen[3] = true;
+                test_uint(p, ecs_field_src(&it, 0));
+                test_uint(ecs_id(Position), ecs_field_id(&it, 0));
+                {
+                Position *p = ecs_field(&it, Position, 0);
+                test_int(10, p->x);
+                test_int(20, p->y);
+                }
+            } else {
+                test_assert(false);
+            }
+        }
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], cache_kind == EcsQueryCacheAuto ? c_2 : c_1);
-    test_uint(p, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_int(10, p[0].x); test_int(20, p[0].y);
+    for (int i = 0; i < 4; i ++) {
+        test_assert(seen[i]);
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], cache_kind == EcsQueryCacheAuto ? c_1 : c_2);
-    test_uint(p, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_int(10, p[0].x); test_int(20, p[0].y);
-    }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], gc_1);
-    test_uint(p, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_int(10, p->x);
-        test_int(20, p->y);
-    }
-
-    test_bool(false, ecs_query_next(&it));
 
     ecs_query_fini(q);
 
@@ -10324,33 +10298,27 @@ void NonFragmentingChildOf_this_self_up_childof_2_lvl_children_on_instantiate_in
     });
 
     test_assert(q != NULL);
-
+    /* Match contents independently of table order and batch size. */
+    const ecs_entity_t expected[] = { (b), (cache_kind == EcsQueryCacheAuto ? c_2 : c_1), (cache_kind == EcsQueryCacheAuto ? c_1 : c_2), (gc_1) };
+    const ecs_entity_t sources_0[] = { 0, b, b, b };
+    bool seen[4] = {false};
     ecs_iter_t it = ecs_query_iter(world, q);
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], b);
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(Bar, ecs_field_id(&it, 0));
-    
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], cache_kind == EcsQueryCacheAuto ? c_2 : c_1);
-    test_uint(b, ecs_field_src(&it, 0));
-    test_uint(Bar, ecs_field_id(&it, 0));
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], cache_kind == EcsQueryCacheAuto ? c_1 : c_2);
-    test_uint(b, ecs_field_src(&it, 0));
-    test_uint(Bar, ecs_field_id(&it, 0));
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], gc_1);
-    test_uint(b, ecs_field_src(&it, 0));
-    test_uint(Bar, ecs_field_id(&it, 0));
-
-    test_bool(false, ecs_query_next(&it));
+    while (ecs_query_next(&it)) {
+        for (int row = 0; row < it.count; row ++) {
+            int index = 0;
+            while (index < 4 && expected[index] != it.entities[row]) {
+                index ++;
+            }
+            test_assert(index < 4);
+            test_assert(!seen[index]);
+            seen[index] = true;
+            test_uint(sources_0[index], ecs_field_src(&it, 0));
+            test_uint(Bar, ecs_field_id(&it, 0));
+        }
+    }
+    for (int i = 0; i < 4; i ++) {
+        test_assert(seen[i]);
+    }
 
     ecs_query_fini(q);
 
@@ -10558,21 +10526,27 @@ void NonFragmentingChildOf_this_self_up_childof_2_lvl_children_from_child(void) 
     });
 
     test_assert(q != NULL);
-
+    /* Match contents independently of table order and batch size. */
+    const ecs_entity_t expected[] = { (c_1), (gc_1) };
+    const ecs_entity_t sources_0[] = { 0, c_1 };
+    bool seen[2] = {false};
     ecs_iter_t it = ecs_query_iter(world, q);
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], c_1);
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(Bar, ecs_field_id(&it, 0));
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], gc_1);
-    test_uint(c_1, ecs_field_src(&it, 0));
-    test_uint(Bar, ecs_field_id(&it, 0));
-
-    test_bool(false, ecs_query_next(&it));
+    while (ecs_query_next(&it)) {
+        for (int row = 0; row < it.count; row ++) {
+            int index = 0;
+            while (index < 2 && expected[index] != it.entities[row]) {
+                index ++;
+            }
+            test_assert(index < 2);
+            test_assert(!seen[index]);
+            seen[index] = true;
+            test_uint(sources_0[index], ecs_field_src(&it, 0));
+            test_uint(Bar, ecs_field_id(&it, 0));
+        }
+    }
+    for (int i = 0; i < 2; i ++) {
+        test_assert(seen[i]);
+    }
 
     ecs_query_fini(q);
 
@@ -10598,31 +10572,32 @@ void NonFragmentingChildOf_this_self_up_childof_2_lvl_children_w_component_from_
     });
 
     test_assert(q != NULL);
-
+    /* Match contents independently of table order and batch size. */
+    const ecs_entity_t expected[] = { (c_1), (gc_1) };
+    const ecs_entity_t sources_0[] = { 0, c_1 };
+    bool seen[2] = {false};
     ecs_iter_t it = ecs_query_iter(world, q);
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], c_1);
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_int(10, p->x);
-        test_int(20, p->y);
+    while (ecs_query_next(&it)) {
+        for (int row = 0; row < it.count; row ++) {
+            int index = 0;
+            while (index < 2 && expected[index] != it.entities[row]) {
+                index ++;
+            }
+            test_assert(index < 2);
+            test_assert(!seen[index]);
+            seen[index] = true;
+            test_uint(sources_0[index], ecs_field_src(&it, 0));
+            test_uint(ecs_id(Position), ecs_field_id(&it, 0));
+            {
+                    Position *p = ecs_field(&it, Position, 0);
+                    test_int(10, p->x);
+                    test_int(20, p->y);
+                }
+        }
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], gc_1);
-    test_uint(c_1, ecs_field_src(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 0));
-    {
-        Position *p = ecs_field(&it, Position, 0);
-        test_int(10, p->x);
-        test_int(20, p->y);
+    for (int i = 0; i < 2; i ++) {
+        test_assert(seen[i]);
     }
-
-    test_bool(false, ecs_query_next(&it));
 
     ecs_query_fini(q);
 
@@ -11403,26 +11378,30 @@ void NonFragmentingChildOf_this_written_up_childof_2_lvl(void) {
     });
 
     test_assert(q != NULL);
-
+    /* Match contents independently of table order and batch size. */
+    const ecs_entity_t expected[] = { (p), (c_1), (c_2) };
+    const ecs_entity_t sources_0[] = { 0, 0, 0 };
+    const ecs_entity_t sources_1[] = { parent, parent, parent };
+    bool seen[3] = {false};
     ecs_iter_t it = ecs_query_iter(world, q);
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], p);
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(Foo, ecs_field_id(&it, 0));
-    test_uint(parent, ecs_field_src(&it, 1));
-    test_uint(Bar, ecs_field_id(&it, 1));
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(2, it.count);
-    test_uint(it.entities[0], c_1);
-    test_uint(it.entities[1], c_2);
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(Foo, ecs_field_id(&it, 0));
-    test_uint(parent, ecs_field_src(&it, 1));
-    test_uint(Bar, ecs_field_id(&it, 1));
-
-    test_bool(false, ecs_query_next(&it));
+    while (ecs_query_next(&it)) {
+        for (int row = 0; row < it.count; row ++) {
+            int index = 0;
+            while (index < 3 && expected[index] != it.entities[row]) {
+                index ++;
+            }
+            test_assert(index < 3);
+            test_assert(!seen[index]);
+            seen[index] = true;
+            test_uint(sources_0[index], ecs_field_src(&it, 0));
+            test_uint(Foo, ecs_field_id(&it, 0));
+            test_uint(sources_1[index], ecs_field_src(&it, 1));
+            test_uint(Bar, ecs_field_id(&it, 1));
+        }
+    }
+    for (int i = 0; i < 3; i ++) {
+        test_assert(seen[i]);
+    }
 
     ecs_query_fini(q);
 
@@ -11456,36 +11435,35 @@ void NonFragmentingChildOf_this_written_up_childof_2_lvl_w_component(void) {
     });
 
     test_assert(q != NULL);
-
+    /* Match contents independently of table order and batch size. */
+    const ecs_entity_t expected[] = { (p), (c_1), (c_2) };
+    const ecs_entity_t sources_0[] = { 0, 0, 0 };
+    const ecs_entity_t sources_1[] = { parent, parent, parent };
+    bool seen[3] = {false};
     ecs_iter_t it = ecs_query_iter(world, q);
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], p);
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(Foo, ecs_field_id(&it, 0));
-    test_uint(parent, ecs_field_src(&it, 1));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 1));
-    {
-        Position *p = ecs_field(&it, Position, 1);
-        test_int(10, p->x);
-        test_int(20, p->y);
+    while (ecs_query_next(&it)) {
+        for (int row = 0; row < it.count; row ++) {
+            int index = 0;
+            while (index < 3 && expected[index] != it.entities[row]) {
+                index ++;
+            }
+            test_assert(index < 3);
+            test_assert(!seen[index]);
+            seen[index] = true;
+            test_uint(sources_0[index], ecs_field_src(&it, 0));
+            test_uint(Foo, ecs_field_id(&it, 0));
+            test_uint(sources_1[index], ecs_field_src(&it, 1));
+            test_uint(ecs_id(Position), ecs_field_id(&it, 1));
+            {
+                    Position *p = ecs_field(&it, Position, 1);
+                    test_int(10, p->x);
+                    test_int(20, p->y);
+                }
+        }
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(2, it.count);
-    test_uint(it.entities[0], c_1);
-    test_uint(it.entities[1], c_2);
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(Foo, ecs_field_id(&it, 0));
-    test_uint(parent, ecs_field_src(&it, 1));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 1));
-    {
-        Position *p = ecs_field(&it, Position, 1);
-        test_int(10, p->x);
-        test_int(20, p->y);
+    for (int i = 0; i < 3; i ++) {
+        test_assert(seen[i]);
     }
-
-    test_bool(false, ecs_query_next(&it));
 
     ecs_query_fini(q);
 
@@ -11522,36 +11500,35 @@ void NonFragmentingChildOf_this_written_up_childof_2_lvl_w_component_inherited(v
     });
 
     test_assert(q != NULL);
-
-    ecs_iter_t it = ecs_query_iter(world, q);    
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], p);
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(Foo, ecs_field_id(&it, 0));    
-    test_uint(base, ecs_field_src(&it, 1));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 1));
-    {
-        Position *p = ecs_field(&it, Position, 1);
-        test_int(10, p->x);
-        test_int(20, p->y);
+    /* Match contents independently of table order and batch size. */
+    const ecs_entity_t expected[] = { (p), (c_1), (c_2) };
+    const ecs_entity_t sources_0[] = { 0, 0, 0 };
+    const ecs_entity_t sources_1[] = { base, base, base };
+    bool seen[3] = {false};
+    ecs_iter_t it = ecs_query_iter(world, q);
+    while (ecs_query_next(&it)) {
+        for (int row = 0; row < it.count; row ++) {
+            int index = 0;
+            while (index < 3 && expected[index] != it.entities[row]) {
+                index ++;
+            }
+            test_assert(index < 3);
+            test_assert(!seen[index]);
+            seen[index] = true;
+            test_uint(sources_0[index], ecs_field_src(&it, 0));
+            test_uint(Foo, ecs_field_id(&it, 0));
+            test_uint(sources_1[index], ecs_field_src(&it, 1));
+            test_uint(ecs_id(Position), ecs_field_id(&it, 1));
+            {
+                    Position *p = ecs_field(&it, Position, 1);
+                    test_int(10, p->x);
+                    test_int(20, p->y);
+                }
+        }
     }
-
-    test_bool(true, ecs_query_next(&it));    
-    test_int(2, it.count);
-    test_uint(it.entities[0], c_1);
-    test_uint(it.entities[1], c_2);
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(Foo, ecs_field_id(&it, 0));
-    test_uint(base, ecs_field_src(&it, 1));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 1));
-    {
-        Position *p = ecs_field(&it, Position, 1);
-        test_int(10, p->x);
-        test_int(20, p->y);
+    for (int i = 0; i < 3; i ++) {
+        test_assert(seen[i]);
     }
-
-    test_bool(false, ecs_query_next(&it));
 
     ecs_query_fini(q);
 
@@ -11586,33 +11563,30 @@ void NonFragmentingChildOf_this_written_up_childof_2_lvl_w_owned(void) {
     });
 
     test_assert(q != NULL);
-
+    /* Match contents independently of table order and batch size. */
+    const ecs_entity_t expected[] = { (p), (c_1), (c_2) };
+    const ecs_entity_t sources_0[] = { 0, 0, 0 };
+    const ecs_entity_t sources_1[] = { parent, parent, parent };
+    bool seen[3] = {false};
     ecs_iter_t it = ecs_query_iter(world, q);
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], p);
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(Foo, ecs_field_id(&it, 0));
-    test_uint(parent, ecs_field_src(&it, 1));
-    test_uint(Bar, ecs_field_id(&it, 1));
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], c_1);
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(Foo, ecs_field_id(&it, 0));
-    test_uint(parent, ecs_field_src(&it, 1));
-    test_uint(Bar, ecs_field_id(&it, 1));
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], c_2);
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(Foo, ecs_field_id(&it, 0));
-    test_uint(parent, ecs_field_src(&it, 1));
-    test_uint(Bar, ecs_field_id(&it, 1));
-
-    test_bool(false, ecs_query_next(&it));
+    while (ecs_query_next(&it)) {
+        for (int row = 0; row < it.count; row ++) {
+            int index = 0;
+            while (index < 3 && expected[index] != it.entities[row]) {
+                index ++;
+            }
+            test_assert(index < 3);
+            test_assert(!seen[index]);
+            seen[index] = true;
+            test_uint(sources_0[index], ecs_field_src(&it, 0));
+            test_uint(Foo, ecs_field_id(&it, 0));
+            test_uint(sources_1[index], ecs_field_src(&it, 1));
+            test_uint(Bar, ecs_field_id(&it, 1));
+        }
+    }
+    for (int i = 0; i < 3; i ++) {
+        test_assert(seen[i]);
+    }
 
     ecs_query_fini(q);
 
@@ -11821,34 +11795,30 @@ void NonFragmentingChildOf_this_written_self_up_childof_2_lvl(void) {
     });
 
     test_assert(q != NULL);
-
+    /* Match contents independently of table order and batch size. */
+    const ecs_entity_t expected[] = { (parent), (p), (c_1), (c_2) };
+    const ecs_entity_t sources_0[] = { 0, 0, 0, 0 };
+    const ecs_entity_t sources_1[] = { 0, parent, parent, parent };
+    bool seen[4] = {false};
     ecs_iter_t it = ecs_query_iter(world, q);
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], parent);
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(Foo, ecs_field_id(&it, 0));
-    test_uint(0, ecs_field_src(&it, 1));
-    test_uint(Bar, ecs_field_id(&it, 1));
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], p);
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(Foo, ecs_field_id(&it, 0));
-    test_uint(parent, ecs_field_src(&it, 1));
-    test_uint(Bar, ecs_field_id(&it, 1));
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(2, it.count);
-    test_uint(it.entities[0], c_1);
-    test_uint(it.entities[1], c_2);
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(Foo, ecs_field_id(&it, 0));
-    test_uint(parent, ecs_field_src(&it, 1));
-    test_uint(Bar, ecs_field_id(&it, 1));
-
-    test_bool(false, ecs_query_next(&it));
+    while (ecs_query_next(&it)) {
+        for (int row = 0; row < it.count; row ++) {
+            int index = 0;
+            while (index < 4 && expected[index] != it.entities[row]) {
+                index ++;
+            }
+            test_assert(index < 4);
+            test_assert(!seen[index]);
+            seen[index] = true;
+            test_uint(sources_0[index], ecs_field_src(&it, 0));
+            test_uint(Foo, ecs_field_id(&it, 0));
+            test_uint(sources_1[index], ecs_field_src(&it, 1));
+            test_uint(Bar, ecs_field_id(&it, 1));
+        }
+    }
+    for (int i = 0; i < 4; i ++) {
+        test_assert(seen[i]);
+    }
 
     ecs_query_fini(q);
 
@@ -11883,49 +11853,35 @@ void NonFragmentingChildOf_this_written_self_up_childof_2_lvl_w_component(void) 
     });
 
     test_assert(q != NULL);
-
+    /* Match contents independently of table order and batch size. */
+    const ecs_entity_t expected[] = { (parent), (p), (c_1), (c_2) };
+    const ecs_entity_t sources_0[] = { 0, 0, 0, 0 };
+    const ecs_entity_t sources_1[] = { 0, parent, parent, parent };
+    bool seen[4] = {false};
     ecs_iter_t it = ecs_query_iter(world, q);
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], parent);
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(Foo, ecs_field_id(&it, 0));
-    test_uint(0, ecs_field_src(&it, 1));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 1));
-    {
-        Position *p = ecs_field(&it, Position, 1);
-        test_int(10, p->x);
-        test_int(20, p->y);
+    while (ecs_query_next(&it)) {
+        for (int row = 0; row < it.count; row ++) {
+            int index = 0;
+            while (index < 4 && expected[index] != it.entities[row]) {
+                index ++;
+            }
+            test_assert(index < 4);
+            test_assert(!seen[index]);
+            seen[index] = true;
+            test_uint(sources_0[index], ecs_field_src(&it, 0));
+            test_uint(Foo, ecs_field_id(&it, 0));
+            test_uint(sources_1[index], ecs_field_src(&it, 1));
+            test_uint(ecs_id(Position), ecs_field_id(&it, 1));
+            {
+                    Position *p = ecs_field(&it, Position, 1);
+                    test_int(10, p->x);
+                    test_int(20, p->y);
+                }
+        }
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], p);
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(Foo, ecs_field_id(&it, 0));
-    test_uint(parent, ecs_field_src(&it, 1));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 1));
-    {
-        Position *p = ecs_field(&it, Position, 1);
-        test_int(10, p->x);
-        test_int(20, p->y);
+    for (int i = 0; i < 4; i ++) {
+        test_assert(seen[i]);
     }
-    
-    test_bool(true, ecs_query_next(&it));
-    test_int(2, it.count);
-    test_uint(it.entities[0], c_1);
-    test_uint(it.entities[1], c_2);
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(Foo, ecs_field_id(&it, 0));
-    test_uint(parent, ecs_field_src(&it, 1));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 1));
-    {
-        Position *p = ecs_field(&it, Position, 1);
-        test_int(10, p->x);
-        test_int(20, p->y);
-    }
-
-    test_bool(false, ecs_query_next(&it));
 
     ecs_query_fini(q);
 
@@ -11964,49 +11920,35 @@ void NonFragmentingChildOf_this_written_self_up_childof_2_lvl_w_component_inheri
     });
 
     test_assert(q != NULL);
-
+    /* Match contents independently of table order and batch size. */
+    const ecs_entity_t expected[] = { (base), (p), (c_1), (c_2) };
+    const ecs_entity_t sources_0[] = { 0, 0, 0, 0 };
+    const ecs_entity_t sources_1[] = { 0, base, base, base };
+    bool seen[4] = {false};
     ecs_iter_t it = ecs_query_iter(world, q);
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], base);
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(Foo, ecs_field_id(&it, 0));
-    test_uint(0, ecs_field_src(&it, 1));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 1));
-    {
-        Position *p = ecs_field(&it, Position, 1);
-        test_int(10, p->x);
-        test_int(20, p->y);
+    while (ecs_query_next(&it)) {
+        for (int row = 0; row < it.count; row ++) {
+            int index = 0;
+            while (index < 4 && expected[index] != it.entities[row]) {
+                index ++;
+            }
+            test_assert(index < 4);
+            test_assert(!seen[index]);
+            seen[index] = true;
+            test_uint(sources_0[index], ecs_field_src(&it, 0));
+            test_uint(Foo, ecs_field_id(&it, 0));
+            test_uint(sources_1[index], ecs_field_src(&it, 1));
+            test_uint(ecs_id(Position), ecs_field_id(&it, 1));
+            {
+                    Position *p = ecs_field(&it, Position, 1);
+                    test_int(10, p->x);
+                    test_int(20, p->y);
+                }
+        }
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], p);
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(Foo, ecs_field_id(&it, 0));
-    test_uint(base, ecs_field_src(&it, 1));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 1));
-    {
-        Position *p = ecs_field(&it, Position, 1);
-        test_int(10, p->x);
-        test_int(20, p->y);
+    for (int i = 0; i < 4; i ++) {
+        test_assert(seen[i]);
     }
-
-    test_bool(true, ecs_query_next(&it));    
-    test_int(2, it.count);
-    test_uint(it.entities[0], c_1);
-    test_uint(it.entities[1], c_2);
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(Foo, ecs_field_id(&it, 0));
-    test_uint(base, ecs_field_src(&it, 1));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 1));
-    {
-        Position *p = ecs_field(&it, Position, 1);
-        test_int(10, p->x);
-        test_int(20, p->y);
-    }
-
-    test_bool(false, ecs_query_next(&it));
 
     ecs_query_fini(q);
 
@@ -12042,41 +11984,30 @@ void NonFragmentingChildOf_this_written_self_up_childof_2_lvl_w_owned(void) {
     });
 
     test_assert(q != NULL);
-
+    /* Match contents independently of table order and batch size. */
+    const ecs_entity_t expected[] = { (parent), (p), (c_1), (c_2) };
+    const ecs_entity_t sources_0[] = { 0, 0, 0, 0 };
+    const ecs_entity_t sources_1[] = { 0, parent, parent, 0 };
+    bool seen[4] = {false};
     ecs_iter_t it = ecs_query_iter(world, q);
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], parent);
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(Foo, ecs_field_id(&it, 0));
-    test_uint(0, ecs_field_src(&it, 1));
-    test_uint(Bar, ecs_field_id(&it, 1));
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], p);
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(Foo, ecs_field_id(&it, 0));
-    test_uint(parent, ecs_field_src(&it, 1));
-    test_uint(Bar, ecs_field_id(&it, 1));
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], c_1);
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(Foo, ecs_field_id(&it, 0));
-    test_uint(parent, ecs_field_src(&it, 1));
-    test_uint(Bar, ecs_field_id(&it, 1));
-
-    test_bool(true, ecs_query_next(&it));
-    test_int(1, it.count);
-    test_uint(it.entities[0], c_2);
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(Foo, ecs_field_id(&it, 0));
-    test_uint(0, ecs_field_src(&it, 1));
-    test_uint(Bar, ecs_field_id(&it, 1));
-
-    test_bool(false, ecs_query_next(&it));
+    while (ecs_query_next(&it)) {
+        for (int row = 0; row < it.count; row ++) {
+            int index = 0;
+            while (index < 4 && expected[index] != it.entities[row]) {
+                index ++;
+            }
+            test_assert(index < 4);
+            test_assert(!seen[index]);
+            seen[index] = true;
+            test_uint(sources_0[index], ecs_field_src(&it, 0));
+            test_uint(Foo, ecs_field_id(&it, 0));
+            test_uint(sources_1[index], ecs_field_src(&it, 1));
+            test_uint(Bar, ecs_field_id(&it, 1));
+        }
+    }
+    for (int i = 0; i < 4; i ++) {
+        test_assert(seen[i]);
+    }
 
     ecs_query_fini(q);
 
@@ -14116,45 +14047,35 @@ void NonFragmentingChildOf_this_tag_w_up_w_3_levels_pcp(void) {
     });
 
     test_assert(q != NULL);
-
+    /* Match contents independently of table order and batch size. */
+    const ecs_entity_t expected[] = { (e1), (e2), (e3) };
+    const ecs_entity_t sources_0[] = { 0, 0, 0 };
+    const ecs_entity_t sources_1[] = { e0, e0, e0 };
+    bool seen[3] = {false};
     ecs_iter_t it = ecs_query_iter(world, q);
-    test_bool(true, ecs_query_next(&it));
-    test_uint(e1, it.entities[0]);
-    test_uint(Foo, ecs_field_id(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 1));
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(e0, ecs_field_src(&it, 1));
-    {
-        Position *p = ecs_field(&it, Position, 1);
-        test_assert(p != NULL);
-        test_int(p->x, 10); test_int(p->y, 20);
+    while (ecs_query_next(&it)) {
+        for (int row = 0; row < it.count; row ++) {
+            int index = 0;
+            while (index < 3 && expected[index] != it.entities[row]) {
+                index ++;
+            }
+            test_assert(index < 3);
+            test_assert(!seen[index]);
+            seen[index] = true;
+            test_uint(sources_0[index], ecs_field_src(&it, 0));
+            test_uint(Foo, ecs_field_id(&it, 0));
+            test_uint(sources_1[index], ecs_field_src(&it, 1));
+            test_uint(ecs_id(Position), ecs_field_id(&it, 1));
+            {
+                    Position *p = ecs_field(&it, Position, 1);
+                    test_assert(p != NULL);
+                    test_int(p->x, 10); test_int(p->y, 20);
+                }
+        }
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_uint(e2, it.entities[0]);
-    test_uint(Foo, ecs_field_id(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 1));
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(e0, ecs_field_src(&it, 1));
-    {
-        Position *p = ecs_field(&it, Position, 1);
-        test_assert(p != NULL);
-        test_int(p->x, 10); test_int(p->y, 20);
+    for (int i = 0; i < 3; i ++) {
+        test_assert(seen[i]);
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_uint(e3, it.entities[0]);
-    test_uint(Foo, ecs_field_id(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 1));
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(e0, ecs_field_src(&it, 1));
-    {
-        Position *p = ecs_field(&it, Position, 1);
-        test_assert(p != NULL);
-        test_int(p->x, 10); test_int(p->y, 20);
-    }
-
-    test_bool(false, ecs_query_next(&it));
 
     ecs_query_fini(q);
 
@@ -15768,57 +15689,35 @@ void NonFragmentingChildOf_this_tag_w_self_up_w_3_levels_pcp(void) {
     });
 
     test_assert(q != NULL);
-
+    /* Match contents independently of table order and batch size. */
+    const ecs_entity_t expected[] = { (e0), (e1), (e2), (e3) };
+    const ecs_entity_t sources_0[] = { 0, 0, 0, 0 };
+    const ecs_entity_t sources_1[] = { 0, e0, e0, e0 };
+    bool seen[4] = {false};
     ecs_iter_t it = ecs_query_iter(world, q);
-    test_bool(true, ecs_query_next(&it));
-    test_uint(e0, it.entities[0]);
-    test_uint(Foo, ecs_field_id(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 1));
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(0, ecs_field_src(&it, 1));
-    {
-        Position *p = ecs_field(&it, Position, 1);
-        test_assert(p != NULL);
-        test_int(p->x, 10); test_int(p->y, 20);
+    while (ecs_query_next(&it)) {
+        for (int row = 0; row < it.count; row ++) {
+            int index = 0;
+            while (index < 4 && expected[index] != it.entities[row]) {
+                index ++;
+            }
+            test_assert(index < 4);
+            test_assert(!seen[index]);
+            seen[index] = true;
+            test_uint(sources_0[index], ecs_field_src(&it, 0));
+            test_uint(Foo, ecs_field_id(&it, 0));
+            test_uint(sources_1[index], ecs_field_src(&it, 1));
+            test_uint(ecs_id(Position), ecs_field_id(&it, 1));
+            {
+                    Position *p = ecs_field(&it, Position, 1);
+                    test_assert(p != NULL);
+                    test_int(p->x, 10); test_int(p->y, 20);
+                }
+        }
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_uint(e1, it.entities[0]);
-    test_uint(Foo, ecs_field_id(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 1));
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(e0, ecs_field_src(&it, 1));
-    {
-        Position *p = ecs_field(&it, Position, 1);
-        test_assert(p != NULL);
-        test_int(p->x, 10); test_int(p->y, 20);
+    for (int i = 0; i < 4; i ++) {
+        test_assert(seen[i]);
     }
-
-    test_bool(true, ecs_query_next(&it));
-    test_uint(e2, it.entities[0]);
-    test_uint(Foo, ecs_field_id(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 1));
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(e0, ecs_field_src(&it, 1));
-    {
-        Position *p = ecs_field(&it, Position, 1);
-        test_assert(p != NULL);
-        test_int(p->x, 10); test_int(p->y, 20);
-    }
-
-    test_bool(true, ecs_query_next(&it));
-    test_uint(e3, it.entities[0]);
-    test_uint(Foo, ecs_field_id(&it, 0));
-    test_uint(ecs_id(Position), ecs_field_id(&it, 1));
-    test_uint(0, ecs_field_src(&it, 0));
-    test_uint(e0, ecs_field_src(&it, 1));
-    {
-        Position *p = ecs_field(&it, Position, 1);
-        test_assert(p != NULL);
-        test_int(p->x, 10); test_int(p->y, 20);
-    }
-
-    test_bool(false, ecs_query_next(&it));
 
     ecs_query_fini(q);
 
@@ -22486,57 +22385,30 @@ void NonFragmentingChildOf_this_written_self_up_childof_pair(void) {
         });
 
         test_assert(q != NULL);
-
+        /* Match contents independently of table order and batch size. */
+        const ecs_entity_t expected[] = { (parent_a), (parent_b), (c1), (c3), (c2), (c4) };
+        const ecs_entity_t sources_0[] = { 0, 0, 0, 0, 0, 0 };
+        const ecs_entity_t sources_1[] = { 0, 0, parent_a, parent_b, parent_a, parent_b };
+        bool seen[6] = {false};
         ecs_iter_t it = ecs_query_iter(world, q);
-        test_bool(true, ecs_query_next(&it));
-        test_int(1, it.count);
-        test_uint(parent_a, it.entities[0]);
-        test_uint(0, ecs_field_src(&it, 0));
-        test_uint(0, ecs_field_src(&it, 1));
-        test_uint(Foo, ecs_field_id(&it, 0));
-        test_uint(ecs_childof(root_a), ecs_field_id(&it, 1));
-
-        test_bool(true, ecs_query_next(&it));
-        test_int(1, it.count);
-        test_uint(parent_b, it.entities[0]);
-        test_uint(0, ecs_field_src(&it, 0));
-        test_uint(0, ecs_field_src(&it, 1));
-        test_uint(Foo, ecs_field_id(&it, 0));
-        test_uint(ecs_childof(root_a), ecs_field_id(&it, 1));
-
-        test_bool(true, ecs_query_next(&it));
-        test_int(1, it.count);
-        test_uint(c1, it.entities[0]);
-        test_uint(0, ecs_field_src(&it, 0));
-        test_uint(parent_a, ecs_field_src(&it, 1));
-        test_uint(Foo, ecs_field_id(&it, 0));
-        test_uint(ecs_childof(root_a), ecs_field_id(&it, 1));
-
-        test_bool(true, ecs_query_next(&it));
-        test_int(1, it.count);
-        test_uint(c3, it.entities[0]);
-        test_uint(0, ecs_field_src(&it, 0));
-        test_uint(parent_b, ecs_field_src(&it, 1));
-        test_uint(Foo, ecs_field_id(&it, 0));
-        test_uint(ecs_childof(root_a), ecs_field_id(&it, 1));
-
-        test_bool(true, ecs_query_next(&it));
-        test_int(1, it.count);
-        test_uint(c2, it.entities[0]);
-        test_uint(0, ecs_field_src(&it, 0));
-        test_uint(parent_a, ecs_field_src(&it, 1));
-        test_uint(Foo, ecs_field_id(&it, 0));
-        test_uint(ecs_childof(root_a), ecs_field_id(&it, 1));
-
-        test_bool(true, ecs_query_next(&it));
-        test_int(1, it.count);
-        test_uint(c4, it.entities[0]);
-        test_uint(0, ecs_field_src(&it, 0));
-        test_uint(parent_b, ecs_field_src(&it, 1));
-        test_uint(Foo, ecs_field_id(&it, 0));
-        test_uint(ecs_childof(root_a), ecs_field_id(&it, 1));
-
-        test_bool(false, ecs_query_next(&it));
+        while (ecs_query_next(&it)) {
+            for (int row = 0; row < it.count; row ++) {
+                int index = 0;
+                while (index < 6 && expected[index] != it.entities[row]) {
+                    index ++;
+                }
+                test_assert(index < 6);
+                test_assert(!seen[index]);
+                seen[index] = true;
+                test_uint(sources_0[index], ecs_field_src(&it, 0));
+                test_uint(Foo, ecs_field_id(&it, 0));
+                test_uint(sources_1[index], ecs_field_src(&it, 1));
+                test_uint(ecs_childof(root_a), ecs_field_id(&it, 1));
+            }
+        }
+        for (int i = 0; i < 6; i ++) {
+            test_assert(seen[i]);
+        }
 
         ecs_query_fini(q);
     }
@@ -22548,41 +22420,30 @@ void NonFragmentingChildOf_this_written_self_up_childof_pair(void) {
         });
 
         test_assert(q != NULL);
-
+        /* Match contents independently of table order and batch size. */
+        const ecs_entity_t expected[] = { (c5), (c7), (c6), (c8) };
+        const ecs_entity_t sources_0[] = { 0, 0, 0, 0 };
+        const ecs_entity_t sources_1[] = { parent_c, parent_d, parent_c, parent_d };
+        bool seen[4] = {false};
         ecs_iter_t it = ecs_query_iter(world, q);
-        test_bool(true, ecs_query_next(&it));
-        test_int(1, it.count);
-        test_uint(c5, it.entities[0]);
-        test_uint(0, ecs_field_src(&it, 0));
-        test_uint(parent_c, ecs_field_src(&it, 1));
-        test_uint(Foo, ecs_field_id(&it, 0));
-        test_uint(ecs_childof(root_b), ecs_field_id(&it, 1));
-
-        test_bool(true, ecs_query_next(&it));
-        test_int(1, it.count);
-        test_uint(c7, it.entities[0]);
-        test_uint(0, ecs_field_src(&it, 0));
-        test_uint(parent_d, ecs_field_src(&it, 1));
-        test_uint(Foo, ecs_field_id(&it, 0));
-        test_uint(ecs_childof(root_b), ecs_field_id(&it, 1));
-
-        test_bool(true, ecs_query_next(&it));
-        test_int(1, it.count);
-        test_uint(c6, it.entities[0]);
-        test_uint(0, ecs_field_src(&it, 0));
-        test_uint(parent_c, ecs_field_src(&it, 1));
-        test_uint(Foo, ecs_field_id(&it, 0));
-        test_uint(ecs_childof(root_b), ecs_field_id(&it, 1));
-
-        test_bool(true, ecs_query_next(&it));
-        test_int(1, it.count);
-        test_uint(c8, it.entities[0]);
-        test_uint(0, ecs_field_src(&it, 0));
-        test_uint(parent_d, ecs_field_src(&it, 1));
-        test_uint(Foo, ecs_field_id(&it, 0));
-        test_uint(ecs_childof(root_b), ecs_field_id(&it, 1));
-
-        test_bool(false, ecs_query_next(&it));
+        while (ecs_query_next(&it)) {
+            for (int row = 0; row < it.count; row ++) {
+                int index = 0;
+                while (index < 4 && expected[index] != it.entities[row]) {
+                    index ++;
+                }
+                test_assert(index < 4);
+                test_assert(!seen[index]);
+                seen[index] = true;
+                test_uint(sources_0[index], ecs_field_src(&it, 0));
+                test_uint(Foo, ecs_field_id(&it, 0));
+                test_uint(sources_1[index], ecs_field_src(&it, 1));
+                test_uint(ecs_childof(root_b), ecs_field_id(&it, 1));
+            }
+        }
+        for (int i = 0; i < 4; i ++) {
+            test_assert(seen[i]);
+        }
 
         ecs_query_fini(q);
     }
