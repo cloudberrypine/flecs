@@ -380,6 +380,15 @@ static const char* flecs_json_deser_components(
                 ECS_PAIR_SECOND(id) != EcsAlias;
             const char *next = NULL;
             if (ti) {
+                /* Native component and member layouts are registered by the
+                 * application and must not be replaced by saved metadata. */
+                if (ti->component == ecs_id(EcsMember)) {
+                    const EcsMember *member = ecs_get(world, e, EcsMember);
+                    skip |= member && member->type != 0;
+                } else if (ti->component == ecs_id(EcsComponent)) {
+                    const EcsComponent *component = ecs_get(world, e, EcsComponent);
+                    skip |= component && component->size != 0;
+                }
                 void *ptr = ecs_ensure_id(world, e, id, flecs_ito(size_t, ti->size));
                 if (!skip) {
                     next = ecs_ptr_from_json(world, ti->component, ptr, json, desc);

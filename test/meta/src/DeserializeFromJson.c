@@ -2194,6 +2194,49 @@ void DeserializeFromJson_ser_deser_new_world_1_entity_w_component(void) {
 }
 
 void DeserializeFromJson_ser_deser_new_world_1_entity_w_component_meta(void) {
+    /* A save may contain layout metadata from another build. Registered
+     * native layouts belong to the application, not to the JSON input. */
+    {
+        ecs_world_t *world = ecs_init();
+        ECS_COMPONENT(world, Position);
+        ecs_struct(world, {
+            .entity = ecs_id(Position),
+            .members = {{"x", ecs_id(ecs_i32_t)}, {"y", ecs_id(ecs_i32_t)}},
+            .create_member_entities = true
+        });
+        ecs_entity_t member = ecs_lookup_child(world, ecs_id(Position), "y");
+        EcsMember before = *ecs_get(world, member, EcsMember);
+        EcsComponent component = *ecs_get(world, ecs_id(Position), EcsComponent);
+        char *member_json = ecs_entity_to_json(world, member, NULL);
+        test_assert(member_json != NULL);
+        char *offset = strstr(member_json, "\"offset\":4");
+        test_assert(offset != NULL);
+        offset[strlen("\"offset\":")] = '0';
+        char *member_type = strstr(member_json, "flecs.meta.i32");
+        test_assert(member_type != NULL);
+        member_type[strlen("flecs.meta.")] = 'f';
+        const char *r = ecs_entity_from_json(world, member, member_json, NULL);
+        test_str(r, "");
+        const EcsMember *after = ecs_get(world, member, EcsMember);
+        test_assert(after != NULL);
+        test_int(after->offset, before.offset);
+        test_uint(after->type, before.type);
+        char *component_json = ecs_entity_to_json(world, ecs_id(Position), NULL);
+        test_assert(component_json != NULL);
+        char *size = strstr(component_json, "\"size\":8");
+        test_assert(size != NULL);
+        size[strlen("\"size\":")] = '9';
+        r = ecs_entity_from_json(world, ecs_id(Position), component_json, NULL);
+        test_str(r, "");
+        const EcsComponent *after_component = ecs_get(world, ecs_id(Position), EcsComponent);
+        test_assert(after_component != NULL);
+        test_int(after_component->size, component.size);
+        test_int(after_component->alignment, component.alignment);
+        ecs_os_free(member_json);
+        ecs_os_free(component_json);
+        ecs_fini(world);
+    }
+
     ecs_world_t *world = ecs_init();
 
     ECS_COMPONENT(world, Position);
