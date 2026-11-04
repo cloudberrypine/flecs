@@ -994,6 +994,14 @@ static bool flecs_rest_command_run(
         offset = 0;
     }
 
+    const EcsScriptShell *shell = ecs_singleton_get(world, EcsScriptShell);
+    void *scope = NULL;
+    void (*leave_scope)(ecs_world_t*, void*) = NULL;
+    if (shell && shell->enter_scope && shell->leave_scope) {
+        leave_scope = shell->leave_scope;
+        scope = shell->enter_scope(world);
+    }
+
     ecs_shell_result_t result = ecs_shell_run(
         world, session, req->body ? req->body : "");
 
@@ -1029,6 +1037,9 @@ static bool flecs_rest_command_run(
     }
 
     ecs_shell_result_fini(world, &result);
+    if (leave_scope) {
+        leave_scope(world, scope);
+    }
     return true;
 }
 #endif

@@ -75,6 +75,8 @@ static void flecs_command_resources_fini(
 static ECS_CTOR(EcsScriptShell, ptr, {
     ecs_vec_init_t(NULL, &ptr->command_paths, ecs_entity_t, 0);
     ptr->check_command = NULL;
+    ptr->enter_scope = NULL;
+    ptr->leave_scope = NULL;
 })
 
 static ECS_COPY(EcsScriptShell, dst, src, {
@@ -82,6 +84,8 @@ static ECS_COPY(EcsScriptShell, dst, src, {
     dst->command_paths = ecs_vec_copy_t(
         NULL, &src->command_paths, ecs_entity_t);
     dst->check_command = src->check_command;
+    dst->enter_scope = src->enter_scope;
+    dst->leave_scope = src->leave_scope;
 })
 
 static ECS_MOVE(EcsScriptShell, dst, src, {
@@ -1031,10 +1035,19 @@ ecs_shell_result_t ecs_shell_run(
     ecs_vec_init_t(NULL, &result.results, ecs_value_t, 0);
     ecs_vec_init_t(NULL, &result.errors, char*, 0);
 
+    void *scope = NULL;
+    void (*leave_scope)(ecs_world_t*, void*) = NULL;
+
     ecs_check(world != NULL, ECS_INVALID_PARAMETER, NULL);
     ecs_check(cmd != NULL, ECS_INVALID_PARAMETER, NULL);
     ecs_check(ecs_id(EcsCommandState) != 0, ECS_INVALID_OPERATION,
         "script command module is not imported");
+
+    const EcsScriptShell *shell = ecs_singleton_get(world, EcsScriptShell);
+    if (shell && shell->enter_scope && shell->leave_scope) {
+        leave_scope = shell->leave_scope;
+        scope = shell->enter_scope(world);
+    }
 
     const char *ptr = flecs_command_skip_separators(cmd);
     do {
@@ -1046,6 +1059,9 @@ ecs_shell_result_t ecs_shell_run(
     } while (ptr[0]);
 
 error:
+    if (leave_scope) {
+        leave_scope(world, scope);
+    }
     return result;
 }
 

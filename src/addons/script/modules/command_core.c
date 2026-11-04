@@ -199,6 +199,17 @@ static void flecs_command_cat(
         ecs_entity_t value_type = flecs_command_value_type(world, id);
         const void *ptr = value_type ? ecs_get_id(world, e, id) : NULL;
 
+        /* Some live component types have only partial reflection. Do not
+         * let one unsupported nested field turn the whole entity into null.
+         * List that component among ids without inspectable values instead. */
+        if (ptr) {
+            char *json = ecs_ptr_to_json(world, value_type, ptr);
+            if (!json) {
+                ptr = NULL;
+            }
+            ecs_os_free(json);
+        }
+
         if (ptr) {
             ecs_shell_component_value_t *cv = ecs_vec_append_t(
                 NULL, &info->components, ecs_shell_component_value_t);
@@ -590,6 +601,17 @@ static void flecs_command_query(
         return;
     }
 
+    /* Validate resolved sources, not the command text. DSL comments and
+     * aliases must not bypass admission of typed wildcard-source queries. */
+    for (int8_t t = 0; t < q->term_count; t ++) {
+        ecs_entity_t source = q->terms[t].src.id & ~EcsTermRefFlags;
+        if (ecs_id_is_wildcard(source)) {
+            ecs_query_fini(q);
+            flecs_command_err(ctx, "typed queries with wildcard sources are unsupported. Use $this or a concrete source");
+            return;
+        }
+    }
+
     ecs_vec_t *rows = result->ptr;
     ecs_iter_t it = ecs_query_iter(world, q);
     while (ecs_query_next(&it)) {
@@ -604,7 +626,9 @@ static void flecs_command_query(
             int8_t f;
             for (f = 0; f < it.field_count; f ++) {
                 ecs_id_t id = ecs_field_id(&it, f);
-                if (ecs_id_is_wildcard(id)) {
+                if (!id || ecs_id_is_wildcard(id) ||
+                    (id & ECS_ID_FLAGS_MASK & ~ECS_PAIR) ||
+                    !ecs_id_is_valid(world, id)) {
                     continue;
                 }
                 ecs_entity_t type = flecs_command_value_type(world, id);
@@ -613,29 +637,18 @@ static void flecs_command_query(
                     continue;
                 }
 
-                const void *ptr;
-                if (it.row_fields & (1llu << f)) {
-                    /* Sparse fixed/variable sources need not have a $this
-                     * row or a table. Read through the resolved owner. */
-                    ecs_entity_t owner = ecs_field_src(&it, f);
-                    if (!owner && it.count) {
-                        owner = it.entities[i];
-                    }
-                    ptr = owner && !ecs_id_is_wildcard(owner) &&
-                        ecs_is_alive(world, owner) ?
-                        ecs_get_id(world, owner, id) : NULL;
-                    if (!ptr) {
-                        continue;
-                    }
-                } else {
-                    ptr = ecs_field_w_size(&it, (size_t)size, f);
-                    if (!ptr) {
-                        continue;
-                    }
-
-                    if (ecs_field_is_self(&it, f)) {
-                        ptr = ECS_ELEM(ptr, size, i);
-                    }
+                /* Read all fields through their resolved owner. Dense typed
+                 * field access can assert for table-less/wildcard results,
+                 * and sparse fixed/variable sources need not have $this. */
+                ecs_entity_t owner = ecs_field_src(&it, f);
+                if (!owner && it.count) {
+                    owner = it.entities[i];
+                }
+                const void *ptr = owner && !(owner & ECS_ID_FLAGS_MASK) &&
+                    !ecs_id_is_wildcard(owner) && ecs_is_alive(world, owner) ?
+                    ecs_get_id(world, owner, id) : NULL;
+                if (!ptr) {
+                    continue;
                 }
 
                 ecs_shell_component_value_t *cv = ecs_vec_append_t(

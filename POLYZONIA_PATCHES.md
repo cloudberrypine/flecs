@@ -175,3 +175,14 @@ wildcards, illegal-copy values, sparse and cascade queries, generation-bearing
 ids, admission before expressions, callback errors and policy copying. The
 probe uses the repository's build/test machine slots. No generated test
 registry or distribution source was edited.
+
+Review fixes: application enter/leave scopes now cover command history and REST
+reply serialization as well as callbacks. Polyzonia keeps file-backed values
+passive through the terminal reply too and preflights reflected output under an
+exception guard. `cat` places values with incomplete reflection in its `ids`
+list, preserving the rest of the entity output. Typed queries validate resolved
+source IDs after DSL parsing, so comments cannot hide wildcard sources, and
+read dense and sparse values through validated owners instead of table columns.
+The Debug probe also checks comment-obscured wildcard sources and nested scope
+coverage during REST serialization. Game regressions cover passive backing
+files in both transports and recovery after a serializer throws.

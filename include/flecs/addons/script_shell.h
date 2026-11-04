@@ -141,6 +141,11 @@ typedef struct EcsScriptShell {
      * Applies equally to ecs_shell_run and REST/explorer sessions. Not reflected. */
     bool (*check_command)(ecs_world_t *world, ecs_entity_t function,
         int32_t argc, const char *const *argv);
+    /** Optional application scope around shell execution/history and around
+     * REST shell replies, including their value serialization. Not reflected.
+     * Scopes can nest. enter_scope returns the token passed to leave_scope. */
+    void *(*enter_scope)(ecs_world_t *world);
+    void (*leave_scope)(ecs_world_t *world, void *scope);
 } EcsScriptShell;
 
 /** Used with ecs_shell_session_init(). */
