@@ -686,6 +686,7 @@ extern "C" {
 #define EcsWorldMeasureSystemTime     (1u << 6)
 #define EcsWorldMultiThreaded         (1u << 7)
 #define EcsWorldFrameInProgress       (1u << 8)
+#define EcsWorldWarnedParentDepth     (1u << 9)
 
 ////////////////////////////////////////////////////////////////////////////////
 //// OS API flags
@@ -2305,6 +2306,18 @@ void* flecs_sparse_get_dense(
 #define flecs_sparse_get_dense_t(sparse, T, index)\
     ECS_CAST(T*, flecs_sparse_get_dense(sparse, ECS_SIZEOF(T), index))
 
+/** Swap two alive elements in the dense array, changing iteration order only.
+ *
+ * @param sparse The sparse set.
+ * @param index_a Dense index (as for flecs_sparse_get_dense) of the first element.
+ * @param index_b Dense index of the second element.
+ */
+FLECS_DBG_API
+void flecs_sparse_swap_alive(
+    ecs_sparse_t *sparse,
+    int32_t index_a,
+    int32_t index_b);
+
 /** Get the number of alive elements in the sparse set.
  *
  * @param sparse The sparse set.
@@ -3357,6 +3370,35 @@ FLECS_API
 void ecs_strbuf_appendflt(
     ecs_strbuf_t *buffer,
     double v,
+    char nan_delim);
+
+/** Writes a finite number so that parsing it gives the same value back:
+ * the shortest such text of the float (single_precision) or the double.
+ * Returns the characters written (at most 40), or 0 to fall back. */
+typedef int (*ecs_strbuf_exact_flt_writer_t)(
+    char *out,
+    double v,
+    bool single_precision);
+
+/** Installs the writer ecs_strbuf_appendflt_exact uses (NULL: snprintf). */
+FLECS_API
+void ecs_strbuf_set_exact_flt_writer(
+    ecs_strbuf_exact_flt_writer_t writer);
+
+/** Append a float or double to a buffer so that it parses back to the same
+ * value (ecs_strbuf_appendflt keeps 10 digits): what JSON serialization of
+ * f32 and f64 members writes.
+ *
+ * @param buffer The buffer to append to.
+ * @param v The value to append.
+ * @param single_precision The value is an f32.
+ * @param nan_delim The delimiter to use for NaN values.
+ */
+FLECS_API
+void ecs_strbuf_appendflt_exact(
+    ecs_strbuf_t *buffer,
+    double v,
+    bool single_precision,
     char nan_delim);
 
 /** Append a boolean to a buffer.
@@ -10809,6 +10851,11 @@ ecs_entity_t ecs_table_get_target(
     int32_t index);
 
 /** Return the depth for a table in the tree for the specified relationship.
+ * Non-fragmenting Parent tables can contain multiple depths, so their ChildOf
+ * table depth is zero. ChildOf cascade over these tables has no depth ordering
+ * guarantee. The first such table-depth lookup logs a warning per world.
+ * Use ecs_get_depth() for an individual Parent entity, or fragmenting ChildOf
+ * where depth ordering matters.
  * Depth is determined by counting the number of targets encountered while
  * traversing up the relationship tree. Only acyclic relationships are
  * supported.
@@ -10941,6 +10988,50 @@ void ecs_table_swap_rows(
     ecs_table_t* table,
     int32_t row_1,
     int32_t row_2);
+
+/** Iteration order fuzzing: what ecs_fuzz_iteration_order() perturbs.
+ * Everything it perturbs is an order Flecs does not promise, and that another
+ * history of the same world (another order of creation and deletion, or the
+ * world loaded from a save) can have. Code whose results depend on it is
+ * order-dependent. */
+#define EcsFuzzQueryCacheTables     (1u << 0u) /**< Table order within each group of every cached query (not order_by queries). */
+#define EcsFuzzComponentIndexTables (1u << 1u) /**< Table order of every component record (uncached queries, each). */
+#define EcsFuzzTableRows            (1u << 2u) /**< Row order within every table (not prefab, module or builtin tables). */
+#define EcsFuzzOrderedChildren      (1u << 3u) /**< Order of a parent's ordered children (not prefab children). */
+#define EcsFuzzSparseSets           (1u << 4u) /**< Dense order of sparse and DontFragment storage, and non-fragmenting id lists. */
+#define EcsFuzzAll                  (0x1fu)
+
+/** Perturb iteration order now, deterministically from the seed. Must be
+ * called outside of iteration on the world (not a stage), from the thread
+ * that owns the world. It changes no component values and no structure: only
+ * the order queries, each() and children iteration meet tables and entities
+ * in. Row swaps mark the tables dirty, so refs and change detection see them.
+ *
+ * @param world The world.
+ * @param seed Seed for the permutation.
+ * @param flags What to perturb (EcsFuzz* flags).
+ * @return The number of lists (of tables, rows, children or sparse entries)
+ *     of two or more that were shuffled.
+ */
+FLECS_API
+int32_t ecs_fuzz_iteration_order(
+    ecs_world_t *world,
+    uint64_t seed,
+    ecs_flags32_t flags);
+
+/** Perturb iteration order at the start of every ecs_progress() call, with a
+ * seed mixed from the given seed and the number of progress calls since this
+ * was set. Flags 0 turns it off; off, it costs one branch per frame.
+ *
+ * @param world The world.
+ * @param seed Seed for the permutations.
+ * @param flags What to perturb (EcsFuzz* flags), 0 for nothing.
+ */
+FLECS_API
+void ecs_set_iteration_order_fuzz(
+    ecs_world_t *world,
+    uint64_t seed,
+    ecs_flags32_t flags);
 
 /** Search for a component in a table type.
  * This operation returns the index of the first occurrence of the component in the
@@ -13602,6 +13693,9 @@ extern "C" {
 
 /** Component that instantiates the REST API. */
 FLECS_API extern const ecs_entity_t ecs_id(EcsRest);
+
+/** Dispatched requests outside shell endpoints, for embedders tracking edits. */
+FLECS_API extern int64_t ecs_rest_other_request_count;
 
 /** Private REST data. */
 typedef struct {
@@ -17117,6 +17211,27 @@ typedef struct EcsCommandSession {
 /** Shell singleton. */
 typedef struct EcsScriptShell {
     ecs_vec_t command_paths; /**< Scopes that contain commands, searched in order (vec<ecs_entity_t>). */
+    /** Optional application admission check, before argument expressions are
+     * evaluated. Return false (and optionally ecs_err) to refuse a command.
+     * Applies equally to ecs_shell_run and REST/explorer sessions. Not reflected. */
+    bool (*check_command)(ecs_world_t *world, ecs_entity_t function,
+        int32_t argc, const char *const *argv);
+    /** Optional application scope around shell execution/history and around
+     * REST shell replies, including their value serialization. Not reflected.
+     * Scopes can nest. enter_scope returns the token passed to leave_scope. */
+    void *(*enter_scope)(ecs_world_t *world);
+    void (*leave_scope)(ecs_world_t *world, void *scope);
+    /** Optional application allocator for sessions without desc.entity.
+     * Return an existing entity or 0 when no session is available. A zero
+     * result never falls back to allocating an entity. Not reflected. */
+    ecs_entity_t (*alloc_session)(ecs_world_t *world);
+    /** Optional REST session release, replacing ecs_delete. Applications can
+     * return pooled entities without changing the world ID allocator. Remove
+     * EcsCommandSession to invalidate the released REST session. Not reflected. */
+    void (*free_session)(ecs_world_t *world, ecs_entity_t session);
+    /** Cache policy for the builtin query command. EcsQueryCacheNone refuses
+     * queries that need a cache instead of allocating query entities. */
+    ecs_query_cache_kind_t query_cache_kind;
 } EcsScriptShell;
 
 /** Used with ecs_shell_session_init(). */
@@ -17292,6 +17407,10 @@ void ecs_shell_result_fini(
 FLECS_API
 ecs_entity_t ecs_shell_get_session(
     const ecs_world_t *world);
+
+/** Mark the current shell/function callback as failed after logging its error. */
+FLECS_API
+void ecs_shell_error(ecs_world_t *world);
 
 /** Create a resource in a session.
  * Writes the data to a new file in the resource directory of the session, and
