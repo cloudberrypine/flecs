@@ -32239,10 +32239,13 @@ void* ecs_table_cache_get(
         return NULL;
     }
 
-    ecs_table_cache_elem_t *slot = ecs_vec_get_t(
-        ECS_CONST_CAST(ecs_vec_t*, &cache->records),
-        ecs_table_cache_elem_t, index);
-    return slot ? slot->tr : NULL;
+    /* find() already validated the index. Keep the typed array access local
+     * instead of calling the generic vector accessor on this hot path. */
+    ecs_san_assert(sizeof(ecs_table_cache_elem_t) == cache->records.elem_size,
+        ECS_INVALID_PARAMETER, NULL);
+    ecs_assert(index >= 0 && index < cache->records.count, ECS_OUT_OF_RANGE, NULL);
+    const ecs_table_cache_elem_t *records = cache->records.array;
+    return records[index].tr;
 }
 
 const ecs_table_cache_elem_t* flecs_table_cache_get_elem(
@@ -32257,9 +32260,11 @@ const ecs_table_cache_elem_t* flecs_table_cache_get_elem(
         return NULL;
     }
 
-    return ecs_vec_get_t(
-        ECS_CONST_CAST(ecs_vec_t*, &cache->records),
-        ecs_table_cache_elem_t, index);
+    ecs_san_assert(sizeof(ecs_table_cache_elem_t) == cache->records.elem_size,
+        ECS_INVALID_PARAMETER, NULL);
+    ecs_assert(index >= 0 && index < cache->records.count, ECS_OUT_OF_RANGE, NULL);
+    const ecs_table_cache_elem_t *records = cache->records.array;
+    return &records[index];
 }
 
 void* ecs_table_cache_remove(
