@@ -105,14 +105,17 @@ are unchanged. No distribution sources or generated test registries were edited.
    cache keeps the freed table, and releasing an earlier table of the same
    group moves the freed match into its slot: a NULL `qt_other` in
    `flecs_query_cache_remove_table_from_group` (group.c), SIGSEGV or an
-   access violation with asserts off. Each cache with `up` terms now adds an
-   `OnTableDelete` observer on `(trav, *)` for each traversal relationship.
-   The deleted table's own pair still announces the deletion, and the handler
-   removes the table only if the cache still holds it, so the forwarded event
-   and this one never remove it twice. `distr/flecs.c` carries the same change
-   (`flecs_no_addons.c` has no query cache). The game's
-   `CachedInheritedQueryForgetsTablesOfCascadeDeletedPrefab` crashes on the
-   previous revision and passes here.
+   access violation with asserts off. Each cache with `up` terms now adds one
+   `OnTableDelete` observer on `(trav, *)` per traversal relationship. One
+   observer with several terms would not do: a table-event observer observes
+   only its first `$this|self` And term. The deleted table's own pair still
+   announces the deletion, and the handler removes the table only if the cache
+   still holds it, so the forwarded event and this one never remove it twice.
+   `distr/flecs.c` carries the same change (`flecs_no_addons.c` has no query
+   cache). The game's `CachedInheritedQueryForgetsTablesOfCascadeDeletedPrefab`
+   crashes on the previous revision and passes here.
+   `CachedQueryWithTwoTraversalsForgetsTablesOfCascadeDeletedPrefab` covers a
+   query whose first up term traverses ChildOf.
 
 ## Validation
 

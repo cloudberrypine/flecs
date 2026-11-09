@@ -73,9 +73,12 @@ struct ecs_query_cache_t {
     ecs_observer_t *rematch_observer;
     ecs_observer_t *ancestry_observer;
 
-    /* Drops a table matched through an up traversal when the table is
-     * deleted, from the (trav, *) pair the table owns. */
-    ecs_observer_t *traversal_delete_observer;
+    /* Drop a table matched through an up traversal when the table is
+     * deleted, from the (trav, *) pair the table owns. One per traversal
+     * relationship: a table event observer observes only one $this|self
+     * term. */
+    ecs_observer_t **traversal_delete_observers;
+    int32_t traversal_delete_observer_count;
 
     /* Tables matched with query */
     ecs_map_t tables;

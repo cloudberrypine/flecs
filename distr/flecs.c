@@ -2059,9 +2059,12 @@ struct ecs_query_cache_t {
     ecs_observer_t *rematch_observer;
     ecs_observer_t *ancestry_observer;
 
-    /* Drops a table matched through an up traversal when the table is
-     * deleted, from the (trav, *) pair the table owns. */
-    ecs_observer_t *traversal_delete_observer;
+    /* Drop a table matched through an up traversal when the table is
+     * deleted, from the (trav, *) pair the table owns. One per traversal
+     * relationship: a table event observer observes only one $this|self
+     * term. */
+    ecs_observer_t **traversal_delete_observers;
+    int32_t traversal_delete_observer_count;
 
     /* Tables matched with query */
     ecs_map_t tables;
@@ -77842,8 +77845,8 @@ static int flecs_query_cache_rematch_observers_init(
     ecs_observer_desc_t ancestry_desc = {0};
     int32_t ancestry_term_count = 0;
 
-    ecs_observer_desc_t delete_desc = {0};
-    int32_t delete_term_count = 0;
+    ecs_entity_t traversals[FLECS_TERM_COUNT_MAX];
+    int32_t traversal_count = 0;
 
     for (i = 0; i < count; i ++) {
         ecs_term_t *term = &terms[i];
@@ -77864,19 +77867,15 @@ static int flecs_query_cache_rematch_observers_init(
         ot->inout = EcsInOutNone;
         ot->src.id = EcsThis|EcsIsVariable|EcsUp;
 
-        ecs_id_t traversed_pair = ecs_pair(term->trav, EcsWildcard);
         int32_t d;
-        for (d = 0; d < delete_term_count; d ++) {
-            if (delete_desc.query.terms[d].id == traversed_pair) {
+        for (d = 0; d < traversal_count; d ++) {
+            if (traversals[d] == term->trav) {
                 break;
             }
         }
 
-        if (d == delete_term_count) {
-            ecs_term_t *dt = &delete_desc.query.terms[delete_term_count ++];
-            dt->id = traversed_pair;
-            dt->src.id = EcsThis|EcsIsVariable|EcsSelf;
-            dt->inout = EcsInOutNone;
+        if (d == traversal_count) {
+            traversals[traversal_count ++] = term->trav;
         }
 
         ecs_id_t ancestry_ids[2] = {
@@ -77941,17 +77940,26 @@ static int flecs_query_cache_rematch_observers_init(
         return -1;
     }
 
-    delete_desc.run = flecs_query_cache_on_traversed_table_delete;
-    delete_desc.ctx = impl;
-    delete_desc.events[0] = EcsOnTableDelete;
-    delete_desc.flags_ = EcsObserverBypassQuery;
-    delete_desc.query.flags = EcsQueryNested|EcsQueryMatchPrefab|
-        EcsQueryMatchDisabled;
+    cache->traversal_delete_observers = flecs_calloc_n(
+        &cache->query->world->allocator, ecs_observer_t*, traversal_count);
+    cache->traversal_delete_observer_count = traversal_count;
+    for (i = 0; i < traversal_count; i ++) {
+        ecs_observer_desc_t delete_desc = {0};
+        delete_desc.run = flecs_query_cache_on_traversed_table_delete;
+        delete_desc.ctx = impl;
+        delete_desc.events[0] = EcsOnTableDelete;
+        delete_desc.flags_ = EcsObserverBypassQuery;
+        delete_desc.query.flags = EcsQueryNested|EcsQueryMatchPrefab|
+            EcsQueryMatchDisabled;
+        delete_desc.query.terms[0].id = ecs_pair(traversals[i], EcsWildcard);
+        delete_desc.query.terms[0].src.id = EcsThis|EcsIsVariable|EcsSelf;
+        delete_desc.query.terms[0].inout = EcsInOutNone;
 
-    cache->traversal_delete_observer = flecs_observer_init(
-        world, entity, &delete_desc);
-    if (!cache->traversal_delete_observer) {
-        return -1;
+        cache->traversal_delete_observers[i] = flecs_observer_init(
+            world, entity, &delete_desc);
+        if (!cache->traversal_delete_observers[i]) {
+            return -1;
+        }
     }
 
     return 0;
@@ -78204,8 +78212,17 @@ void flecs_query_cache_fini(
         flecs_observer_fini(cache->ancestry_observer);
     }
 
-    if (cache->traversal_delete_observer) {
-        flecs_observer_fini(cache->traversal_delete_observer);
+    if (cache->traversal_delete_observers) {
+        int32_t d;
+        for (d = 0; d < cache->traversal_delete_observer_count; d ++) {
+            if (cache->traversal_delete_observers[d]) {
+                flecs_observer_fini(cache->traversal_delete_observers[d]);
+            }
+        }
+
+        flecs_free_n(&cache->query->world->allocator, ecs_observer_t*,
+            cache->traversal_delete_observer_count,
+            cache->traversal_delete_observers);
     }
 
     flecs_query_cache_remove_all_tables(cache);
