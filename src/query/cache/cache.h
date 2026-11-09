@@ -73,6 +73,10 @@ struct ecs_query_cache_t {
     ecs_observer_t *rematch_observer;
     ecs_observer_t *ancestry_observer;
 
+    /* Drops a table matched through an up traversal when the table is
+     * deleted, from the (trav, *) pair the table owns. */
+    ecs_observer_t *traversal_delete_observer;
+
     /* Tables matched with query */
     ecs_map_t tables;
 

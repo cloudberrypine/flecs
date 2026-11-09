@@ -331,6 +331,27 @@ void flecs_query_cache_bootstrap(
     });
 }
 
+/* A table matched through an up traversal (an instance matched for a component
+ * of its prefab) hears of its deletion through the traversal target: the event
+ * is forwarded along the target's components. A target deleted together with
+ * its parent loses its row before the tables that point to it are released, so
+ * nothing is forwarded and the cache would keep the freed table. The table's
+ * own (trav, target) pair still announces the deletion. */
+static void flecs_query_cache_on_traversed_table_delete(
+    ecs_iter_t *it)
+{
+    ecs_observer_t *o = it->ctx;
+    ecs_query_impl_t *impl = o->ctx;
+    flecs_poly_assert(impl, ecs_query_t);
+    ecs_query_cache_t *cache = impl->cache;
+    ecs_assert(cache != NULL, ECS_INTERNAL_ERROR, NULL);
+
+    /* Already removed when the event was also forwarded. */
+    if (ecs_map_get(&cache->tables, it->table->id)) {
+        flecs_query_cache_remove_table(cache, it->table);
+    }
+}
+
 static int flecs_query_cache_rematch_observers_init(
     ecs_world_t *world,
     ecs_query_impl_t *impl,
@@ -345,6 +366,9 @@ static int flecs_query_cache_rematch_observers_init(
 
     ecs_observer_desc_t ancestry_desc = {0};
     int32_t ancestry_term_count = 0;
+
+    ecs_observer_desc_t delete_desc = {0};
+    int32_t delete_term_count = 0;
 
     for (i = 0; i < count; i ++) {
         ecs_term_t *term = &terms[i];
@@ -364,6 +388,21 @@ static int flecs_query_cache_rematch_observers_init(
         ot->oper = EcsAnd;
         ot->inout = EcsInOutNone;
         ot->src.id = EcsThis|EcsIsVariable|EcsUp;
+
+        ecs_id_t traversed_pair = ecs_pair(term->trav, EcsWildcard);
+        int32_t d;
+        for (d = 0; d < delete_term_count; d ++) {
+            if (delete_desc.query.terms[d].id == traversed_pair) {
+                break;
+            }
+        }
+
+        if (d == delete_term_count) {
+            ecs_term_t *dt = &delete_desc.query.terms[delete_term_count ++];
+            dt->id = traversed_pair;
+            dt->src.id = EcsThis|EcsIsVariable|EcsSelf;
+            dt->inout = EcsInOutNone;
+        }
 
         ecs_id_t ancestry_ids[2] = {
             ecs_pair(term->trav, EcsWildcard),
@@ -424,6 +463,19 @@ static int flecs_query_cache_rematch_observers_init(
     cache->ancestry_observer = flecs_observer_init(
         world, entity, &ancestry_desc);
     if (!cache->ancestry_observer) {
+        return -1;
+    }
+
+    delete_desc.run = flecs_query_cache_on_traversed_table_delete;
+    delete_desc.ctx = impl;
+    delete_desc.events[0] = EcsOnTableDelete;
+    delete_desc.flags_ = EcsObserverBypassQuery;
+    delete_desc.query.flags = EcsQueryNested|EcsQueryMatchPrefab|
+        EcsQueryMatchDisabled;
+
+    cache->traversal_delete_observer = flecs_observer_init(
+        world, entity, &delete_desc);
+    if (!cache->traversal_delete_observer) {
         return -1;
     }
 
@@ -675,6 +727,10 @@ void flecs_query_cache_fini(
 
     if (cache->ancestry_observer) {
         flecs_observer_fini(cache->ancestry_observer);
+    }
+
+    if (cache->traversal_delete_observer) {
+        flecs_observer_fini(cache->traversal_delete_observer);
     }
 
     flecs_query_cache_remove_all_tables(cache);

@@ -95,6 +95,25 @@ are unchanged. No distribution sources or generated test registries were edited.
    by add now emits real lifecycle events even when the final component set is
    identical. No commands.c source patch is retained.
 
+7. **NEW: cached up-traversal queries forget tables of cascade-deleted
+   targets.** A cached query matches an instance's table for a component of
+   its prefab (`up IsA`), and hears of that table's deletion only as an
+   `OnTableDelete` forwarded through the prefab's components. A prefab deleted
+   together with its parent (a `ChildOf` cascade) loses its row in
+   `flecs_on_delete_clear_entities`, before `flecs_on_delete_clear_ids`
+   releases the emptied `(IsA, prefab)` tables. Nothing is forwarded, the
+   cache keeps the freed table, and releasing an earlier table of the same
+   group moves the freed match into its slot: a NULL `qt_other` in
+   `flecs_query_cache_remove_table_from_group` (group.c), SIGSEGV or an
+   access violation with asserts off. Each cache with `up` terms now adds an
+   `OnTableDelete` observer on `(trav, *)` for each traversal relationship.
+   The deleted table's own pair still announces the deletion, and the handler
+   removes the table only if the cache still holds it, so the forwarded event
+   and this one never remove it twice. `distr/flecs.c` carries the same change
+   (`flecs_no_addons.c` has no query cache). The game's
+   `CachedInheritedQueryForgetsTablesOfCascadeDeletedPrefab` crashes on the
+   previous revision and passes here.
+
 ## Validation
 
 macOS arm64, AppleClang 17, CMake Debug, static Flecs. Bake dependency:
